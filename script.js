@@ -157,7 +157,9 @@ const StaffCharts = {
           {
             label: 'План',
             data: prepared.planned,
-            backgroundColor: (context) => context.dataIndex === prepared.totalIndex ? this.palette.ash : this.palette.mist,
+            backgroundColor: (context) => context.dataIndex === prepared.totalIndex ? this.palette.slate : this.palette.mist,
+            borderColor: (context) => context.dataIndex === prepared.totalIndex ? this.palette.graphite : 'transparent',
+            borderWidth: (context) => context.dataIndex === prepared.totalIndex ? 1.5 : 0,
             borderRadius: 3,
             barThickness: 22,
             categoryPercentage: 0.65,
@@ -167,6 +169,8 @@ const StaffCharts = {
             label: 'Факт',
             data: prepared.actual,
             backgroundColor: (context) => context.dataIndex === prepared.totalIndex ? this.palette.graphite : this.palette.brass,
+            borderColor: (context) => context.dataIndex === prepared.totalIndex ? this.palette.graphite : 'transparent',
+            borderWidth: (context) => context.dataIndex === prepared.totalIndex ? 1.5 : 0,
             borderRadius: 3,
             barThickness: 22,
             categoryPercentage: 0.65,
@@ -184,13 +188,29 @@ const StaffCharts = {
         layout: {
           padding: { top: 4, right: 8, bottom: 0, left: 0 }
         },
+        interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
           tooltip: {
             ...this.getTooltipOptions(),
-            filter: (context) => context.label !== '',
+            filter: (context) => context.label !== '' && context.parsed.y !== null,
             callbacks: {
-              label: (context) => `${context.dataset.label}: ${Math.round(context.parsed.y || 0)} ч`
+              title: (items) => (items && items.length ? (items[0].label || '') : ''),
+              label: (context) => {
+                const value = Math.round(context.parsed.y || 0);
+                const name = context.dataset.label === 'План' ? 'Плановые часы' : 'Фактические часы';
+                return `${name}: ${value} ч`;
+              },
+              afterBody: (items) => {
+                if (!items || !items.length) return '';
+                const index = items[0].dataIndex;
+                const datasets = items[0].chart.data.datasets;
+                const plan = Math.round(Number(datasets[0]?.data?.[index]) || 0);
+                const fact = Math.round(Number(datasets[1]?.data?.[index]) || 0);
+                const diff = fact - plan;
+                const percent = plan > 0 ? Math.round((fact / plan) * 100) : 0;
+                return [`Разница: ${diff > 0 ? '+' : ''}${diff} ч`, `Процент выполнения: ${percent}%`];
+              }
             }
           }
         },
@@ -2990,7 +3010,7 @@ const StaffApp = {
             ${this.renderDataVizMetric(this.formatHours(employee.actualHours), 'факт за период')}
           </div>
           <div class="data-viz-card__body chart-frame chart-frame--bar">
-            <div class="chart-wrap employee-chart-wrap"><canvas id="barChart"></canvas></div>
+            <div class="chart-wrap employee-chart-wrap chart-wide-horizontal"><canvas id="barChart"></canvas></div>
           </div>
           <div class="data-viz-card__footer">
             ${this.renderBarChartFooter()}

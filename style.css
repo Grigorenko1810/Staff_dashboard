@@ -4799,3 +4799,24 @@ body.is-modal-dragging {
     flex: 0 0 1px;
   }
 }
+
+/* ============================================================
+   Plan / fact time chart — wide, elongated bar chart
+   More horizontal room so plan vs fact is easy to compare per
+   period; the plan/fact card takes the wider grid column.
+   ============================================================ */
+.chart-wide-horizontal {
+  width: 100%;
+}
+
+.data-viz-card .employee-chart-wrap.chart-wide-horizontal {
+  min-height: 260px;
+  height: 300px;
+}
+
+@media (min-width: 1025px) {
+  .employee-charts-grid {
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
