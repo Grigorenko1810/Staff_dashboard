@@ -4820,3 +4820,63 @@ body.is-modal-dragging {
     align-items: start;
   }
 }
+
+/* ============================================================
+   Short-value display: dates, numbers, statuses, and thin
+   logical dividers between blocks.
+   ============================================================ */
+
+/* Task 1 — compact date inputs sized for dd.mm.yyyy, not full width */
+.date-fit,
+.date-row input[type="date"].date-fit,
+.custom-period-fields input.date-fit,
+.field input[type="date"].date-fit {
+  width: fit-content;
+  min-width: 132px;   /* fits dd.mm.yyyy + native picker icon */
+  max-width: 158px;
+  padding-left: 12px; /* ~ two date digits */
+  padding-right: 12px;
+}
+
+/* Task 2 — prominent, self-fitting metric numbers */
+.metric-value-large {
+  font-family: var(--font-heading);
+  font-size: 48px;
+  font-weight: 400;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  white-space: nowrap;
+}
+.metric-card--fit {
+  width: fit-content;
+  min-width: 0;
+  max-width: 100%;
+}
+/* .value-fit is defined above (inline-block, width: max-content, nowrap) */
+
+/* Task 3 — status pills / badges always stay on one line */
+.status-pill,
+.badge,
+.staff-badge {
+  white-space: nowrap;
+}
+
+/* Task 4 — thin logical dividers between blocks (hairlines, never bold) */
+/* filters -> results table */
+.employees-card .employees-table-wrapper {
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+  margin-top: 2px;
+}
+/* chart settings (period / detailization) -> chart */
+.data-viz-card .dynamic-controls + .data-viz-card__body {
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+  margin-top: 6px;
+}
+/* keep KPI-group / hours-vs-tasks separators as a crisp hairline */
+.metrics-separator {
+  background: var(--border);
+  min-height: 100%;
+}

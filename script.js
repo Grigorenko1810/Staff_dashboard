@@ -1287,8 +1287,8 @@ const StaffApp = {
     const valueText = value === null || value === undefined || value === '' ? '—' : value;
     const valueClass = this.isPercentText(valueText) ? ' percent-value' : '';
     return `
-      <div class="data-viz-card__metric">
-        <span class="data-viz-card__metric-value${valueClass}" ${id ? `id="${this.escapeHtml(id)}"` : ''}>${this.escapeHtml(valueText)}</span>
+      <div class="data-viz-card__metric metric-card--fit">
+        <span class="data-viz-card__metric-value value-fit metric-value-large${valueClass}" ${id ? `id="${this.escapeHtml(id)}"` : ''}>${this.escapeHtml(valueText)}</span>
         <span class="data-viz-card__metric-label">${this.escapeHtml(label)}</span>
       </div>
     `;
