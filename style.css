@@ -4013,7 +4013,9 @@ body.sidebar-collapsed .app-shell {
 
 .dashboard-periods-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  /* auto-fill (not auto-fit) keeps a trailing lone card at the same width
+     as the rest instead of stretching it across the whole row. */
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 16px;
 }
 
@@ -4641,4 +4643,96 @@ body.is-modal-dragging {
     scroll-behavior: auto !important;
     transition-duration: 1ms !important;
   }
+}
+
+/* ============================================================
+   Design consistency pass
+   Aligns block sizes within a single section, evens out the
+   period grid and calms the oversized KPI type scale so every
+   card in a group reads as one system.
+   ============================================================ */
+
+/* 1 — Uniform KPI / metric cards inside a metrics group.
+   Previously each card sized to its own content (widths 156-230px,
+   heights 161 vs 176px), so cards in the same section looked ragged.
+   Fix: equal-width cells, stretched to equal height per row, with the
+   label reserving two lines so every big number sits on one baseline. */
+.metrics-grid {
+  align-items: stretch;
+}
+
+.metrics-grid .metric-card {
+  flex: 0 0 auto;
+  width: 180px;
+  min-width: 180px;
+  max-width: 180px;
+  min-height: 0;
+}
+
+.metrics-grid .metric-card__label {
+  max-width: none;
+  min-height: 30px; /* two lines at 12px / 1.25 - keeps values aligned */
+  display: flex;
+  align-items: flex-start;
+}
+
+/* Calmer number size: 40px (heading-lg token) instead of up to 56px,
+   which crowded the narrow cards and read as "too big". */
+.metrics-grid .metric-card__value,
+.metrics-grid .metric-card__value.percent-value,
+.metrics-grid .kpi-card__value.metric-card__value.percent-value {
+  font-size: clamp(30px, 2.8vw, 40px);
+  line-height: 1;
+}
+
+/* Keep the delta row a fixed height whether it shows a value or the
+   "-" placeholder, so cards with and without a delta stay the same size. */
+.metrics-grid .metric-card__delta {
+  min-height: 18px;
+}
+
+/* 2 - Even period grid.
+   Five period cards under auto-fit wrapped as 4 + 1 with the lone card
+   stretched full width. The base rule now uses auto-fill so a trailing
+   card keeps the same width as the rest; the dense content stays
+   comfortable rather than being crammed into a single tight row. */
+
+/* 3 - Period fact/plan mini-stats.
+   The 2x2 cells are only ~73px wide, so space-between pushed the label
+   and value together ("Plan1120", "Absence8"). Stack the label over
+   the value inside each cell so text never collides. */
+.data-viz-card--period .card__stats .stat-row {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.data-viz-card--period .card__stats .stat-row span {
+  font-size: 0.72rem;
+  line-height: 1.2;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.data-viz-card--period .card__stats .stat-row strong {
+  font-size: 1rem;
+  line-height: 1.1;
+}
+
+/* 4 - Employee load table fit.
+   Long nowrap headers forced the table wider than its card, clipping
+   the last two columns. Let the header cells wrap so all six columns
+   fit inside the card; data cells stay on one line. */
+.employee-load-table th {
+  white-space: normal;
+  vertical-align: bottom;
+}
+
+/* 5 - Employees overview counters.
+   These are plain counts (people, centres, tasks) with no prior period,
+   so every card rendered a stray "-" delta that read as broken. A delta
+   is meaningless here; hide it uniformly so the four cards stay equal. */
+.employees-compact-kpis .metric-card__delta {
+  display: none;
 }
