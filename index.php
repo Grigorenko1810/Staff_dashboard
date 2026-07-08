@@ -39,8 +39,8 @@
 
     <div id="staffAppRoot" class="staff-app-root"></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.1/dist/xlsx.full.min.js"></script>
+    <script src="vendor/chart.umd.js"></script>
+    <script src="vendor/xlsx.full.min.js"></script>
     <script src="data.js"></script>
     <script src="script.js"></script>
     <script src="staff-ui.js"></script>
