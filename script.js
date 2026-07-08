@@ -1794,7 +1794,6 @@ const StaffApp = {
   renderPeriodPresetSwitcher(level) {
     const settings = this.getDynamicSettings(level);
     const options = [
-      { key: 'week', label: 'Неделя' },
       { key: 'month', label: 'Месяц' },
       { key: 'quarter', label: 'Квартал' },
       { key: 'year', label: 'Год' },
@@ -1832,13 +1831,16 @@ const StaffApp = {
     const settings = this.getDynamicSettings(level);
     return `
       <div class="dynamic-controls" data-dynamic-level="${this.escapeHtml(level)}">
-        <div class="dynamic-controls__group">
-          <span class="dynamic-controls__label">Период</span>
-          ${this.renderPeriodPresetSwitcher(level)}
-        </div>
-        <div class="dynamic-controls__group">
-          <span class="dynamic-controls__label">Детализация</span>
-          ${this.renderGranularitySwitcher(level)}
+        <div class="dynamic-controls__panel">
+          <div class="dynamic-controls__group dynamic-controls__group--period">
+            <span class="dynamic-controls__label">Период</span>
+            ${this.renderPeriodPresetSwitcher(level)}
+          </div>
+          <span class="dynamic-controls__divider" aria-hidden="true"></span>
+          <div class="dynamic-controls__group dynamic-controls__group--granularity">
+            <span class="dynamic-controls__label">Детализация</span>
+            ${this.renderGranularitySwitcher(level)}
+          </div>
         </div>
         <div class="custom-period-fields ${settings.periodPreset === 'custom' ? 'is-visible' : 'is-hidden'}">
           <label>
