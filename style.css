@@ -4880,3 +4880,31 @@ body.is-modal-dragging {
   background: var(--border);
   min-height: 100%;
 }
+
+/* Final QA fix — keep wide tables inside their scroll wrapper so the
+   page never scrolls horizontally (grid/flex min-width:auto gotcha). */
+.main {
+  min-width: 0;
+}
+.employees-card,
+.employees-table-wrapper {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Final QA fix — the filter toolbar's desktop 5-column grid is redefined
+   after the responsive media queries, so it overflowed once the sidebar
+   left too little room. Re-assert responsive columns here (last wins). */
+@media (max-width: 1200px) {
+  .employees-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .employees-reset {
+    width: 100%;
+  }
+}
+@media (max-width: 640px) {
+  .employees-toolbar {
+    grid-template-columns: 1fr;
+  }
+}
