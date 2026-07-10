@@ -538,7 +538,7 @@ const StaffApp = {
   },
   getSidebarItems() {
     return [
-      { key: 'techBlock', label: 'Тех. блок', href: this.buildPageHref('dashboard', ''), page: 'dashboard' },
+      { key: 'techBlock', label: 'Технический блок', href: this.buildPageHref('dashboard', ''), page: 'dashboard' },
       { key: 'centers', label: 'Центры', href: this.buildPageHref('dashboard', ''), page: 'dashboard' },
       { key: 'employees', label: 'Сотрудники', href: this.buildPageHref('employees', ''), page: 'employees' }
     ];
@@ -906,6 +906,34 @@ const StaffApp = {
     item.addEventListener('focusin', open);
     item.addEventListener('focusout', closeLater);
   },
+  getSidebarItemIconSvg(key) {
+    if (key === 'techBlock') {
+      return `
+        <svg class="sidebar__nav-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <rect x="2" y="2" width="5" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <rect x="9" y="2" width="5" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <rect x="2" y="9" width="5" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <rect x="9" y="9" width="5" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/>
+        </svg>
+      `;
+    }
+    if (key === 'centers') {
+      return `
+        <svg class="sidebar__nav-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <circle cx="4" cy="4" r="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <circle cx="12" cy="4" r="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <circle cx="8" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <path d="M5.6 5.4L6.8 10.2M10.4 5.4L9.2 10.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+      `;
+    }
+    return `
+      <svg class="sidebar__nav-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <circle cx="8" cy="5" r="2.6" fill="none" stroke="currentColor" stroke-width="1.4"/>
+        <path d="M3 14c0-2.8 2.2-5 5-5s5 2.2 5 5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+    `;
+  },
   renderSidebar() {
     const nav = document.getElementById('sidebar-nav');
     if (!nav) return;
@@ -928,11 +956,10 @@ const StaffApp = {
           return `
             <div class="${itemClasses}">
               <a class="sidebar__item-link" href="${item.href}" data-nav-item="${item.key}">
-                <span class="sidebar__dot sidebar__icon" aria-hidden="true"></span>
+                <span class="sidebar__dot sidebar__icon" aria-hidden="true">${this.getSidebarItemIconSvg(item.key)}</span>
                 <span class="sidebar__compact-label" aria-hidden="true">${compactLabel}</span>
                 <span class="sidebar__content">
                   <span class="sidebar__label">${this.escapeHtml(item.label)}</span>
-                  <span class="sidebar__subtitle">в составе тех. блока</span>
                 </span>
                 <svg class="sidebar__chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
                   <path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -952,7 +979,7 @@ const StaffApp = {
         return `
           <div class="${itemClasses}">
             <a class="sidebar__item-link" href="${item.href}" data-nav-item="${item.key}">
-              <span class="sidebar__dot sidebar__icon" aria-hidden="true"></span>
+              <span class="sidebar__dot sidebar__icon" aria-hidden="true">${this.getSidebarItemIconSvg(item.key)}</span>
               <span class="sidebar__compact-label" aria-hidden="true">${compactLabel}</span>
               <span class="sidebar__content">
                 <span class="sidebar__label">${this.escapeHtml(item.label)}</span>
@@ -1607,10 +1634,10 @@ const StaffApp = {
           </div>
         </div>
         <div class="center-summary-kpis">
-          <div class="center-summary-kpi"><span>Проектов всего</span><strong>${summary?.totalProjects || 0}</strong></div>
-          <div class="center-summary-kpi"><span>Сотрудников всего</span><strong>${summary?.totalEmployees || 0}</strong></div>
-          <div class="center-summary-kpi"><span>Проектов в срок</span><strong>${summary?.projectsOnTime || 0}</strong></div>
-          <div class="center-summary-kpi center-summary-kpi--late"><span>Проектов не в срок</span><strong>${summary?.projectsLate || 0}</strong></div>
+          <div class="center-summary-kpi"><span>Задач всего</span><strong>${this.renderMetricValueMarkup(summary?.totalProjects || 0, 'всего')}</strong></div>
+          <div class="center-summary-kpi"><span>Сотрудников всего</span><strong>${this.renderMetricValueMarkup(summary?.totalEmployees || 0, 'сотрудников')}</strong></div>
+          <div class="center-summary-kpi"><span>Задачи в срок</span><strong>${this.renderMetricValueMarkup(summary?.projectsOnTime || 0, 'в срок')}</strong></div>
+          <div class="center-summary-kpi center-summary-kpi--late"><span>Проектов не в срок</span><strong>${this.renderMetricValueMarkup(summary?.projectsLate || 0, 'не в срок')}</strong></div>
         </div>
         <div class="center-summary-table-wrap">
           ${projects.length ? `
@@ -1766,7 +1793,8 @@ const StaffApp = {
     `;
   },
   renderMetricsPanel(metrics = [], options = {}) {
-    const visibleMetrics = (metrics || []).filter((metric) => metric && metric.key !== 'efficiency');
+    const hiddenMetricKeys = new Set(['efficiency', 'projectCount', 'projectsOnTime', 'projectsLate', 'projectHours']);
+    const visibleMetrics = (metrics || []).filter((metric) => metric && !hiddenMetricKeys.has(metric.key));
     const groups = [
       {
         title: 'Общие показатели',
@@ -1775,10 +1803,6 @@ const StaffApp = {
       {
         title: 'Задачи',
         keys: ['tasksTotal', 'completedTasks', 'tasksInProgress', 'tasksLate']
-      },
-      {
-        title: 'Проекты',
-        keys: ['projectCount', 'projectsOnTime', 'projectsLate', 'projectHours']
       }
     ];
     const renderedGroups = groups.map((group) => {
