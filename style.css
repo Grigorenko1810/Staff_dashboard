@@ -2497,6 +2497,7 @@ body.sidebar-collapsed .sidebar__chevron {
   font-size: 20px;
   line-height: 1.2;
   color: var(--text);
+  font-weight: 600;
 }
 
 .data-viz-card--period .data-viz-card__metric-value {
@@ -5018,7 +5019,7 @@ body.is-modal-dragging {
    matter how the title/subtitle wrap.
    ============================================================ */
 .data-viz-card--period .data-viz-card__header-text {
-  min-height: 84px;
+  min-height: 70px;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -5775,7 +5776,7 @@ body.is-modal-dragging {
    ============================================================ */
 .metric-card__value-suffix {
   display: inline-block;
-  margin-left: 4px;
+  margin-left: 8px;
   font-family: var(--font-body);
   font-size: 0.36em;
   font-weight: 500;
