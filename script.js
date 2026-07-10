@@ -1649,14 +1649,14 @@ const StaffApp = {
         label: 'Плановые часы',
         value: this.sumMetric(employeeList, 'plannedHours'),
         previousValue: this.sumMetric(employeeList, 'previousPlannedHours'),
-        suffix: ' ч'
+        suffix: 'ч'
       },
       {
         key: 'actualHours',
         label: 'Фактические часы',
         value: this.sumMetric(employeeList, 'actualHours'),
         previousValue: this.sumMetric(employeeList, 'previousActualHours'),
-        suffix: ' ч'
+        suffix: 'ч'
       },
       {
         key: 'loadPercent',
@@ -1669,52 +1669,59 @@ const StaffApp = {
         key: 'tasksTotal',
         label: 'Задач всего',
         value: this.sumMetric(employeeList, 'tasksTotal'),
-        previousValue: this.sumMetric(employeeList, 'previousTasksTotal')
+        previousValue: this.sumMetric(employeeList, 'previousTasksTotal'),
+        suffix: 'всего'
       },
       {
         key: 'completedTasks',
         label: 'Выполнено задач',
         value: this.sumMetric(employeeList, 'completedTasks'),
-        previousValue: this.sumMetric(employeeList, 'previousCompletedTasks')
+        previousValue: this.sumMetric(employeeList, 'previousCompletedTasks'),
+        suffix: 'выполнено'
       },
       {
         key: 'tasksInProgress',
         label: 'Задач в процессе',
         value: tasksInProgress,
-        previousValue: null
+        previousValue: null,
+        suffix: 'в процессе'
       },
       {
         key: 'tasksLate',
         label: 'Просрочено / не в срок',
         value: tasksLate,
         previousValue: null,
-        isNegativeMetric: true
+        isNegativeMetric: true,
+        suffix: 'просрочено'
       },
       {
         key: 'projectCount',
         label: 'Проектов всего',
         value: projectMetrics.projectCount,
-        previousValue: projectMetrics.previousProjectCount
+        previousValue: projectMetrics.previousProjectCount,
+        suffix: 'всего'
       },
       {
         key: 'projectsOnTime',
         label: 'Проекты в срок',
         value: projectMetrics.projectsOnTime,
-        previousValue: projectMetrics.previousProjectsOnTime
+        previousValue: projectMetrics.previousProjectsOnTime,
+        suffix: 'в срок'
       },
       {
         key: 'projectsLate',
         label: 'Проекты не в срок',
         value: projectMetrics.projectsLate,
         previousValue: projectMetrics.previousProjectsLate,
-        isNegativeMetric: true
+        isNegativeMetric: true,
+        suffix: 'не в срок'
       },
       {
         key: 'projectHours',
         label: 'Суммарные часы по проектам',
         value: projectMetrics.projectHours,
         previousValue: null,
-        suffix: ' ч'
+        suffix: 'ч'
       }
     ];
   },
@@ -1729,6 +1736,17 @@ const StaffApp = {
     }
     return `${Math.round(numericValue)}${suffix}`;
   },
+  renderMetricValueMarkup(value, suffix = '') {
+    const numericValue = this.getNumericValue(value);
+    if (numericValue === null) {
+      return '—';
+    }
+    const numberText = this.escapeHtml(`${Math.round(numericValue)}`);
+    if (!suffix) {
+      return numberText;
+    }
+    return `${numberText}<span class="metric-card__value-suffix">${this.escapeHtml(suffix)}</span>`;
+  },
   renderKpiCard(metric, meta = '') {
     const valueClass = metric.valueClass ? ` ${metric.valueClass}` : '';
     const metricKey = metric.key ? String(metric.key) : '';
@@ -1740,7 +1758,7 @@ const StaffApp = {
       <article class="kpi-card metric-card${metricKeyClass}">
         <div class="kpi-card__label metric-card__label">${this.escapeHtml(metric.label)}</div>
         <div class="kpi-card__metric">
-          <div class="kpi-card__value metric-card__value value-fit${valueClass}${valueRoleClass}${percentValueClass}">${this.escapeHtml(formattedValue)}</div>
+          <div class="kpi-card__value metric-card__value value-fit${valueClass}${valueRoleClass}${percentValueClass}">${this.renderMetricValueMarkup(metric.value, metric.suffix || '')}</div>
           <div class="metric-card__delta">${this.renderMetricDelta(metric.value, metric.previousValue, Boolean(metric.isNegativeMetric))}</div>
         </div>
         ${meta ? `<div class="kpi-card__meta">${this.escapeHtml(meta)}</div>` : ''}
@@ -1838,10 +1856,10 @@ const StaffApp = {
     const managementCount = new Set(employeeList.map((employee) => employee.managementId || employee.managementName || employee.management).filter(Boolean)).size;
     const activeTasks = this.getTasksForEmployees(employeeList).filter((task) => !/заверш|выполн/i.test(`${task.status || ''}`)).length;
     return [
-      { key: 'employeesCount', label: 'Всего сотрудников', value: employeeList.length, previousValue: null },
-      { key: 'centersCount', label: 'Центров', value: centerCount, previousValue: null },
-      { key: 'managementsCount', label: 'Управлений', value: managementCount, previousValue: null },
-      { key: 'activeTasks', label: 'Активных задач', value: activeTasks, previousValue: null }
+      { key: 'employeesCount', label: 'Всего сотрудников', value: employeeList.length, previousValue: null, suffix: 'сотрудников' },
+      { key: 'centersCount', label: 'Центров', value: centerCount, previousValue: null, suffix: 'центров' },
+      { key: 'managementsCount', label: 'Управлений', value: managementCount, previousValue: null, suffix: 'управлений' },
+      { key: 'activeTasks', label: 'Активных задач', value: activeTasks, previousValue: null, suffix: 'задач' }
     ];
   },
   renderPreviewMetricCard(metric) {
@@ -1850,7 +1868,7 @@ const StaffApp = {
     return `
       <div class="preview-metric-card">
         <div class="preview-metric-card__label">${this.escapeHtml(metric.label)}</div>
-        <div class="preview-metric-card__value value-fit${percentValueClass}">${this.escapeHtml(formattedValue)}</div>
+        <div class="preview-metric-card__value value-fit${percentValueClass}">${this.renderMetricValueMarkup(metric.value, metric.suffix || '')}</div>
         ${this.renderMetricDelta(metric.value, metric.previousValue, Boolean(metric.isNegativeMetric))}
       </div>
     `;
@@ -1861,7 +1879,8 @@ const StaffApp = {
         key: 'totalEmployees',
         label: 'Всего сотрудников',
         value: this.mockData.employees?.length ?? summary.totalEmployees,
-        previousValue: null
+        previousValue: null,
+        suffix: 'сотрудников'
       },
       {
         key: 'averageLoad',

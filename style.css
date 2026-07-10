@@ -2490,7 +2490,13 @@ body.sidebar-collapsed .sidebar__chevron {
 }
 
 .data-viz-card--period .data-viz-card__title {
+  font-size: 13px;
+}
+
+.data-viz-card--period .data-viz-card__subtitle {
   font-size: 20px;
+  line-height: 1.2;
+  color: var(--text);
 }
 
 .data-viz-card--period .data-viz-card__metric-value {
@@ -5581,7 +5587,11 @@ body.is-modal-dragging {
   min-width: 0;
 }
 
-.employee-chart-card .donut-layout__legend .chart-legend__label {
+/* Unscoped: the same override removed ellipsis clipping on every
+   donut legend label (period cards too), so long labels overlapped
+   their percent value with no safety net. Wrap instead of clipping
+   or spilling over. */
+.donut-layout__legend .chart-legend__label {
   white-space: normal;
 }
 
@@ -5754,4 +5764,22 @@ body.is-modal-dragging {
   border-color: var(--text, #202020);
   color: var(--bg, #ffffff);
   transform: none;
+}
+
+/* ============================================================
+   Metric value suffix labels
+   Numbers with no natural unit (task/project counts) now carry a
+   short label beside the value, in a smaller Inter run, so the
+   number reads on its own without looking back at the card header.
+   ============================================================ */
+.metric-card__value-suffix {
+  display: inline-block;
+  margin-left: 4px;
+  font-family: var(--font-body);
+  font-size: 0.36em;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--muted);
+  white-space: nowrap;
+  vertical-align: baseline;
 }
