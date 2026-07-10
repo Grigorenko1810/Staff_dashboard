@@ -1132,6 +1132,9 @@ const StaffApp = {
   },
   getDynamicGranularityKeys(granularity) {
     const value = String(granularity || 'week').toLowerCase();
+    if (value === 'day' || value === 'days') {
+      return { singular: 'day', plural: 'days' };
+    }
     if (value === 'month' || value === 'months') {
       return { singular: 'month', plural: 'months' };
     }
@@ -1139,6 +1142,19 @@ const StaffApp = {
       return { singular: 'quarter', plural: 'quarters' };
     }
     return { singular: 'week', plural: 'weeks' };
+  },
+  getAllowedGranularities(periodPreset) {
+    const preset = String(periodPreset || 'month');
+    if (preset === 'month') {
+      return ['days', 'weeks'];
+    }
+    if (preset === 'quarter') {
+      return ['weeks', 'months'];
+    }
+    if (preset === 'year') {
+      return ['weeks', 'months', 'quarters'];
+    }
+    return ['weeks', 'months', 'quarters'];
   },
   getDynamicSeries(sourceData, granularity) {
     if (!sourceData) {
@@ -1160,6 +1176,9 @@ const StaffApp = {
   },
   getDefaultDynamicLabels(granularity, length) {
     const keys = this.getDynamicGranularityKeys(granularity);
+    if (keys.plural === 'days') {
+      return Array.from({ length }, (_, index) => `${index + 1}`);
+    }
     if (keys.plural === 'quarters') {
       const quarters = ['I квартал', 'II квартал', 'III квартал', 'IV квартал'];
       return Array.from({ length }, (_, index) => quarters[index] || `${index + 1} квартал`);
@@ -1206,9 +1225,10 @@ const StaffApp = {
     const date = new Date(year, month - 1, day);
     return Number.isNaN(date.getTime()) ? null : date;
   },
-  getPeriodRange(periodPreset = 'month') {
+  getPeriodRange(periodPreset = 'month', unitIndex = null) {
     const today = new Date();
     const preset = String(periodPreset || 'month');
+    const year = today.getFullYear();
     let startDate;
     let endDate;
 
@@ -1217,21 +1237,39 @@ const StaffApp = {
       startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - day + 1);
       endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + (7 - day));
     } else if (preset === 'quarter') {
-      const quarterStartMonth = Math.floor(today.getMonth() / 3) * 3;
-      startDate = new Date(today.getFullYear(), quarterStartMonth, 1);
-      endDate = new Date(today.getFullYear(), quarterStartMonth + 3, 0);
+      const quarterIndex = Number.isInteger(unitIndex) ? unitIndex : Math.floor(today.getMonth() / 3);
+      const quarterStartMonth = quarterIndex * 3;
+      startDate = new Date(year, quarterStartMonth, 1);
+      endDate = new Date(year, quarterStartMonth + 3, 0);
     } else if (preset === 'year') {
-      startDate = new Date(today.getFullYear(), 0, 1);
-      endDate = new Date(today.getFullYear(), 11, 31);
+      startDate = new Date(year, 0, 1);
+      endDate = new Date(year, 11, 31);
     } else {
-      startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-      endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      const monthIndex = Number.isInteger(unitIndex) ? unitIndex : today.getMonth();
+      startDate = new Date(year, monthIndex, 1);
+      endDate = new Date(year, monthIndex + 1, 0);
     }
 
     return {
       startDate: this.getDateInputValue(startDate),
       endDate: this.getDateInputValue(endDate)
     };
+  },
+  getDefaultPeriodUnit(periodPreset) {
+    const today = new Date();
+    return String(periodPreset) === 'quarter' ? Math.floor(today.getMonth() / 3) : today.getMonth();
+  },
+  getPeriodUnitOptionsMarkup(periodPreset, selectedUnit) {
+    const year = new Date().getFullYear();
+    if (periodPreset === 'month') {
+      const months = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+      return months.map((name, index) => `<option value="${index}" ${selectedUnit === index ? 'selected' : ''}>${this.escapeHtml(name)} ${year}</option>`).join('');
+    }
+    if (periodPreset === 'quarter') {
+      const quarters = ['I квартал', 'II квартал', 'III квартал', 'IV квартал'];
+      return quarters.map((name, index) => `<option value="${index}" ${selectedUnit === index ? 'selected' : ''}>${this.escapeHtml(name)} ${year}</option>`).join('');
+    }
+    return '';
   },
   getDynamicSettings(level = 'techBlock') {
     const defaultSettings = {
@@ -1243,14 +1281,21 @@ const StaffApp = {
     this.state.dynamics = this.state.dynamics || {};
     const currentSettings = this.state.dynamics[normalizedLevel] || {};
     const preset = currentSettings.periodPreset || defaultSettings[normalizedLevel].periodPreset;
+    const periodUnit = Number.isInteger(currentSettings.periodUnit) ? currentSettings.periodUnit : this.getDefaultPeriodUnit(preset);
     const range = preset === 'custom'
       ? this.getPeriodRange(defaultSettings[normalizedLevel].periodPreset)
-      : this.getPeriodRange(preset);
+      : this.getPeriodRange(preset, periodUnit);
+    const allowedGranularities = this.getAllowedGranularities(preset);
+    let granularity = this.normalizeGranularity(currentSettings.granularity || defaultSettings[normalizedLevel].granularity);
+    if (!allowedGranularities.includes(granularity)) {
+      granularity = allowedGranularities[0];
+    }
     const settings = {
       periodPreset: preset,
+      periodUnit,
       startDate: currentSettings.startDate || range.startDate,
       endDate: currentSettings.endDate || range.endDate,
-      granularity: this.normalizeGranularity(currentSettings.granularity || defaultSettings[normalizedLevel].granularity)
+      granularity
     };
     this.state.dynamics[normalizedLevel] = settings;
     return settings;
@@ -1260,10 +1305,29 @@ const StaffApp = {
     const preset = String(periodPreset || settings.periodPreset);
     settings.periodPreset = preset;
     if (preset !== 'custom') {
-      const range = this.getPeriodRange(preset);
+      const unit = this.getDefaultPeriodUnit(preset);
+      settings.periodUnit = unit;
+      const range = this.getPeriodRange(preset, unit);
       settings.startDate = range.startDate;
       settings.endDate = range.endDate;
     }
+    const allowedGranularities = this.getAllowedGranularities(preset);
+    if (!allowedGranularities.includes(settings.granularity)) {
+      settings.granularity = allowedGranularities[0];
+    }
+    this.state.dynamics[level] = settings;
+    return settings;
+  },
+  setDynamicPeriodUnit(level, unitIndex) {
+    const settings = this.getDynamicSettings(level);
+    const index = Number(unitIndex);
+    if (!Number.isFinite(index)) {
+      return settings;
+    }
+    settings.periodUnit = index;
+    const range = this.getPeriodRange(settings.periodPreset, index);
+    settings.startDate = range.startDate;
+    settings.endDate = range.endDate;
     this.state.dynamics[level] = settings;
     return settings;
   },
@@ -1277,7 +1341,9 @@ const StaffApp = {
   },
   setDynamicGranularity(level, granularity) {
     const settings = this.getDynamicSettings(level);
-    settings.granularity = this.normalizeGranularity(granularity);
+    const normalized = this.normalizeGranularity(granularity);
+    const allowedGranularities = this.getAllowedGranularities(settings.periodPreset);
+    settings.granularity = allowedGranularities.includes(normalized) ? normalized : allowedGranularities[0];
     this.state.dynamics[level] = settings;
     if (level === 'techBlock' || level === 'center') {
       this.state.dynamicGranularity = settings.granularity;
@@ -1286,6 +1352,172 @@ const StaffApp = {
       this.state.employeeLoadGranularity = settings.granularity;
     }
     return settings;
+  },
+  getOverviewPeriodSettings(level) {
+    const normalizedLevel = ['techBlock', 'center', 'employees'].includes(level) ? level : 'techBlock';
+    this.state.overviewPeriod = this.state.overviewPeriod || {};
+    const current = this.state.overviewPeriod[normalizedLevel] || {};
+    const preset = current.periodPreset || 'month';
+    const periodUnit = Number.isInteger(current.periodUnit) ? current.periodUnit : this.getDefaultPeriodUnit(preset);
+    const range = preset === 'custom' ? this.getPeriodRange('month') : this.getPeriodRange(preset, periodUnit);
+    const settings = {
+      periodPreset: preset,
+      periodUnit,
+      startDate: current.startDate || range.startDate,
+      endDate: current.endDate || range.endDate
+    };
+    this.state.overviewPeriod[normalizedLevel] = settings;
+    return settings;
+  },
+  setOverviewPeriod(level, periodPreset) {
+    const settings = this.getOverviewPeriodSettings(level);
+    const preset = String(periodPreset || settings.periodPreset);
+    settings.periodPreset = preset;
+    if (preset !== 'custom') {
+      const unit = this.getDefaultPeriodUnit(preset);
+      settings.periodUnit = unit;
+      const range = this.getPeriodRange(preset, unit);
+      settings.startDate = range.startDate;
+      settings.endDate = range.endDate;
+    }
+    this.state.overviewPeriod[level] = settings;
+    return settings;
+  },
+  setOverviewPeriodUnit(level, unitIndex) {
+    const settings = this.getOverviewPeriodSettings(level);
+    const index = Number(unitIndex);
+    if (!Number.isFinite(index)) {
+      return settings;
+    }
+    settings.periodUnit = index;
+    const range = this.getPeriodRange(settings.periodPreset, index);
+    settings.startDate = range.startDate;
+    settings.endDate = range.endDate;
+    this.state.overviewPeriod[level] = settings;
+    return settings;
+  },
+  setCustomOverviewPeriod(level, startDate, endDate) {
+    const settings = this.getOverviewPeriodSettings(level);
+    settings.periodPreset = 'custom';
+    settings.startDate = startDate || settings.startDate;
+    settings.endDate = endDate || settings.endDate;
+    this.state.overviewPeriod[level] = settings;
+    return settings;
+  },
+  renderOverviewPeriodBar(level) {
+    const settings = this.getOverviewPeriodSettings(level);
+    const presetOptions = [
+      { key: 'month', label: 'Месяц' },
+      { key: 'quarter', label: 'Квартал' },
+      { key: 'year', label: 'Год' },
+      { key: 'custom', label: 'Свой период' }
+    ];
+    const unitOptionsMarkup = this.getPeriodUnitOptionsMarkup(settings.periodPreset, settings.periodUnit);
+    const unitSelector = unitOptionsMarkup ? `
+      <select class="period-unit-select" data-overview-level="${this.escapeHtml(level)}" data-overview-period-unit-select>
+        ${unitOptionsMarkup}
+      </select>
+    ` : '';
+    return `
+      <div class="overview-period-bar" data-overview-level="${this.escapeHtml(level)}">
+        <div class="dynamic-controls__panel">
+          <div class="dynamic-controls__group dynamic-controls__group--period">
+            <span class="dynamic-controls__label">Период страницы</span>
+            <div class="period-preset-switcher" data-overview-level="${this.escapeHtml(level)}">
+              ${presetOptions.map((option) => `
+                <button type="button" class="period-preset-btn ${settings.periodPreset === option.key ? 'is-active' : ''}" data-overview-level="${this.escapeHtml(level)}" data-overview-period-preset="${option.key}">
+                  ${this.escapeHtml(option.label)}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+          ${unitSelector ? `
+          <span class="dynamic-controls__divider" aria-hidden="true"></span>
+          <div class="dynamic-controls__group dynamic-controls__group--unit">
+            <span class="dynamic-controls__label">${settings.periodPreset === 'month' ? 'Месяц' : 'Квартал'}</span>
+            ${unitSelector}
+          </div>
+          ` : ''}
+        </div>
+        <div class="custom-period-fields ${settings.periodPreset === 'custom' ? 'is-visible' : 'is-hidden'}">
+          <label>
+            <span>Дата начала</span>
+            <input class="date-fit" type="date" value="${this.escapeHtml(settings.startDate)}" data-overview-level="${this.escapeHtml(level)}" data-overview-period-start>
+          </label>
+          <label>
+            <span>Дата окончания</span>
+            <input class="date-fit" type="date" value="${this.escapeHtml(settings.endDate)}" data-overview-level="${this.escapeHtml(level)}" data-overview-period-end>
+          </label>
+        </div>
+      </div>
+    `;
+  },
+  attachOverviewPeriodListeners(level, container, onChange) {
+    container.querySelectorAll(`[data-overview-period-preset][data-overview-level="${level}"]`).forEach((button) => {
+      button.addEventListener('click', () => {
+        this.setOverviewPeriod(level, button.dataset.overviewPeriodPreset);
+        onChange();
+      });
+    });
+    container.querySelectorAll(`[data-overview-period-unit-select][data-overview-level="${level}"]`).forEach((select) => {
+      select.addEventListener('change', () => {
+        this.setOverviewPeriodUnit(level, select.value);
+        onChange();
+      });
+    });
+    container.querySelectorAll(`.overview-period-bar[data-overview-level="${level}"] input[type="date"]`).forEach((input) => {
+      input.addEventListener('change', () => {
+        const fields = input.closest('.custom-period-fields');
+        const startInput = fields?.querySelector('[data-overview-period-start]');
+        const endInput = fields?.querySelector('[data-overview-period-end]');
+        this.setCustomOverviewPeriod(level, startInput?.value || '', endInput?.value || '');
+        onChange();
+      });
+    });
+  },
+  isDateWithinRange(dateValue, startDate, endDate) {
+    if (!dateValue) {
+      return false;
+    }
+    const value = String(dateValue);
+    if (startDate && value < startDate) {
+      return false;
+    }
+    if (endDate && value > endDate) {
+      return false;
+    }
+    return true;
+  },
+  getPeriodDaysCount(periodRange) {
+    const start = this.parseInputDate(periodRange?.startDate);
+    const end = this.parseInputDate(periodRange?.endDate);
+    if (!start || !end) {
+      return 30;
+    }
+    return Math.max(1, Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)) + 1);
+  },
+  getProratedHours(baseHours, periodRange) {
+    if (baseHours === null || baseHours === undefined || !periodRange) {
+      return baseHours;
+    }
+    const BASELINE_DAYS = 30;
+    const days = this.getPeriodDaysCount(periodRange);
+    return Math.round(baseHours * (days / BASELINE_DAYS));
+  },
+  getAverageLoadForRange(sourceData, startDate, endDate) {
+    const rawSeries = this.getDynamicRawSeries(sourceData);
+    const rangeStart = this.parseInputDate(startDate);
+    const rangeEnd = this.parseInputDate(endDate);
+    if (!rawSeries.length || !rangeStart || !rangeEnd) {
+      return null;
+    }
+    const startTime = rangeStart.getTime();
+    const endTime = new Date(rangeEnd.getFullYear(), rangeEnd.getMonth(), rangeEnd.getDate(), 23, 59, 59).getTime();
+    const values = rawSeries
+      .map((entry) => ({ time: this.parseInputDate(entry.date)?.getTime(), value: Number(entry.value) }))
+      .filter((entry) => Number.isFinite(entry.time) && Number.isFinite(entry.value) && entry.time >= startTime && entry.time <= endTime)
+      .map((entry) => entry.value);
+    return values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : null;
   },
   formatDateForDisplay(value) {
     const date = this.parseInputDate(value);
@@ -1297,6 +1529,7 @@ const StaffApp = {
   },
   formatDynamicSubtitle(settings) {
     const granularityLabels = {
+      days: 'по дням',
       weeks: 'по неделям',
       months: 'по месяцам',
       quarters: 'по кварталам'
@@ -1458,7 +1691,11 @@ const StaffApp = {
       let label;
       let order;
 
-      if (currentGranularity === 'months') {
+      if (currentGranularity === 'days') {
+        key = entry.date;
+        label = String(entryDate.getDate());
+        order = entryTime;
+      } else if (currentGranularity === 'months') {
         key = `${entryDate.getFullYear()}-${entryDate.getMonth()}`;
         label = this.getMonthLabel(entryDate.getMonth());
         order = entryDate.getFullYear() * 12 + entryDate.getMonth();
@@ -1511,9 +1748,13 @@ const StaffApp = {
     }
     return null;
   },
-  getTasksForEmployees(employees) {
+  getTasksForEmployees(employees, periodRange = null) {
     const employeeIds = new Set((employees || []).map((employee) => Number(employee.id)));
-    return (this.mockData.tasks || []).filter((task) => employeeIds.has(Number(task.employeeId)));
+    const tasks = (this.mockData.tasks || []).filter((task) => employeeIds.has(Number(task.employeeId)));
+    if (!periodRange) {
+      return tasks;
+    }
+    return tasks.filter((task) => this.isDateWithinRange(task.dueDate, periodRange.startDate, periodRange.endDate));
   },
   isLateProjectTask(task) {
     return /просроч|не\s*в\s*срок|задерж/i.test(`${task?.status || ''} ${task?.indicator || ''}`);
@@ -1605,13 +1846,13 @@ const StaffApp = {
       isOnTime: project.tasks.some((task) => this.isOnTimeProjectTask(task)) && !project.tasks.some((task) => this.isLateProjectTask(task))
     }));
   },
-  getCenterProjectsSummary(centerId = '') {
+  getCenterProjectsSummary(centerId = '', periodRange = null) {
     const employees = this.getNormalizedEmployees();
     const center = centerId ? this.getCenterById(centerId) : null;
     const scopedEmployees = centerId
       ? employees.filter((employee) => employee.centerId === centerId || employee.centerName === center?.name)
       : employees;
-    const tasks = this.getTasksForEmployees(scopedEmployees);
+    const tasks = this.getTasksForEmployees(scopedEmployees, periodRange);
     const projects = this.getProjectHoursSummary(tasks);
     return {
       centerId: centerId || '',
@@ -1664,45 +1905,48 @@ const StaffApp = {
       </section>
     `;
   },
-  buildDynamicKpis(employees, tasks = this.getTasksForEmployees(employees)) {
+  buildDynamicKpis(employees, tasks = this.getTasksForEmployees(employees), periodRange = null, averageLoadOverride = null) {
     const employeeList = employees || [];
     const taskList = tasks || [];
     const projectMetrics = this.getProjectMetrics(employeeList, tasks);
     const tasksInProgress = taskList.filter((task) => /назнач|в\s*процессе|на\s*проверке/i.test(`${task.status || ''}`)).length;
     const tasksLate = taskList.filter((task) => this.isLateProjectTask(task)).length;
+    const completedTaskCount = taskList.filter((task) => /заверш|выполн/i.test(`${task.status || ''}`)).length;
+    const plannedHoursBase = this.sumMetric(employeeList, 'plannedHours');
+    const actualHoursBase = this.sumMetric(employeeList, 'actualHours');
     return [
       {
         key: 'plannedHours',
         label: 'Плановые часы',
-        value: this.sumMetric(employeeList, 'plannedHours'),
+        value: periodRange ? this.getProratedHours(plannedHoursBase, periodRange) : plannedHoursBase,
         previousValue: this.sumMetric(employeeList, 'previousPlannedHours'),
         suffix: 'ч'
       },
       {
         key: 'actualHours',
         label: 'Фактические часы',
-        value: this.sumMetric(employeeList, 'actualHours'),
+        value: periodRange ? this.getProratedHours(actualHoursBase, periodRange) : actualHoursBase,
         previousValue: this.sumMetric(employeeList, 'previousActualHours'),
         suffix: 'ч'
       },
       {
         key: 'loadPercent',
         label: 'Загрузка',
-        value: this.averageMetric(employeeList, 'loadPercent'),
+        value: Number.isFinite(averageLoadOverride) ? averageLoadOverride : this.averageMetric(employeeList, 'loadPercent'),
         previousValue: this.averageMetric(employeeList, 'previousLoadPercent'),
         suffix: '%'
       },
       {
         key: 'tasksTotal',
         label: 'Задач всего',
-        value: this.sumMetric(employeeList, 'tasksTotal'),
+        value: periodRange ? taskList.length : this.sumMetric(employeeList, 'tasksTotal'),
         previousValue: this.sumMetric(employeeList, 'previousTasksTotal'),
         suffix: 'всего'
       },
       {
         key: 'completedTasks',
         label: 'Выполнено задач',
-        value: this.sumMetric(employeeList, 'completedTasks'),
+        value: periodRange ? completedTaskCount : this.sumMetric(employeeList, 'completedTasks'),
         previousValue: this.sumMetric(employeeList, 'previousCompletedTasks'),
         suffix: 'выполнено'
       },
@@ -1874,11 +2118,11 @@ const StaffApp = {
       </section>
     `;
   },
-  buildEmployeesCompactKpis(employees = []) {
+  buildEmployeesCompactKpis(employees = [], periodRange = null) {
     const employeeList = employees || [];
     const centerCount = new Set(employeeList.map((employee) => employee.centerId || employee.centerName || employee.center).filter(Boolean)).size;
     const managementCount = new Set(employeeList.map((employee) => employee.managementId || employee.managementName || employee.management).filter(Boolean)).size;
-    const activeTasks = this.getTasksForEmployees(employeeList).filter((task) => !/заверш|выполн/i.test(`${task.status || ''}`)).length;
+    const activeTasks = this.getTasksForEmployees(employeeList, periodRange).filter((task) => !/заверш|выполн/i.test(`${task.status || ''}`)).length;
     return [
       { key: 'employeesCount', label: 'Всего сотрудников', value: employeeList.length, previousValue: null, suffix: 'сотрудников' },
       { key: 'centersCount', label: 'Центров', value: centerCount, previousValue: null, suffix: 'центров' },
@@ -1909,10 +2153,10 @@ const StaffApp = {
       {
         key: 'averageLoad',
         label: 'Средняя загрузка',
-        value: summary.averageLoad,
+        value: summary.periodAverageLoad ?? summary.averageLoad,
         previousValue: summary.previousAverageLoad,
         suffix: '%',
-        valueClass: this.getLoadLevelClass(summary.averageLoad)
+        valueClass: this.getLoadLevelClass(summary.periodAverageLoad ?? summary.averageLoad)
       }
     ];
   },
@@ -1944,11 +2188,14 @@ const StaffApp = {
   renderGranularitySwitcher(level) {
     const settings = this.getDynamicSettings(level);
     const current = this.normalizeGranularity(settings.granularity);
-    const options = [
+    const allOptions = [
+      { key: 'days', label: 'По дням' },
       { key: 'weeks', label: 'По неделям' },
       { key: 'months', label: 'По месяцам' },
       { key: 'quarters', label: 'По кварталам' }
     ];
+    const allowedGranularities = this.getAllowedGranularities(settings.periodPreset);
+    const options = allOptions.filter((option) => allowedGranularities.includes(option.key));
     return `
       <div class="granularity-switcher" data-dynamic-level="${this.escapeHtml(level)}">
         ${options.map((option) => `
@@ -1959,8 +2206,21 @@ const StaffApp = {
       </div>
     `;
   },
+  renderPeriodUnitSelector(level) {
+    const settings = this.getDynamicSettings(level);
+    const optionsMarkup = this.getPeriodUnitOptionsMarkup(settings.periodPreset, settings.periodUnit);
+    if (!optionsMarkup) {
+      return '';
+    }
+    return `
+      <select class="period-unit-select" data-dynamic-level="${this.escapeHtml(level)}" data-period-unit-select>
+        ${optionsMarkup}
+      </select>
+    `;
+  },
   renderDynamicControls(level) {
     const settings = this.getDynamicSettings(level);
+    const unitSelector = this.renderPeriodUnitSelector(level);
     return `
       <div class="dynamic-controls" data-dynamic-level="${this.escapeHtml(level)}">
         <div class="dynamic-controls__panel">
@@ -1968,6 +2228,13 @@ const StaffApp = {
             <span class="dynamic-controls__label">Период</span>
             ${this.renderPeriodPresetSwitcher(level)}
           </div>
+          ${unitSelector ? `
+          <span class="dynamic-controls__divider" aria-hidden="true"></span>
+          <div class="dynamic-controls__group dynamic-controls__group--unit">
+            <span class="dynamic-controls__label">${settings.periodPreset === 'month' ? 'Месяц' : 'Квартал'}</span>
+            ${unitSelector}
+          </div>
+          ` : ''}
           <span class="dynamic-controls__divider" aria-hidden="true"></span>
           <div class="dynamic-controls__group dynamic-controls__group--granularity">
             <span class="dynamic-controls__label">Детализация</span>
@@ -1998,6 +2265,11 @@ const StaffApp = {
     root.querySelectorAll(`[data-dynamic-granularity][data-dynamic-level="${level}"]`).forEach((button) => {
       button.classList.toggle('is-active', button.dataset.dynamicGranularity === settings.granularity);
     });
+    root.querySelectorAll(`[data-period-unit-select][data-dynamic-level="${level}"]`).forEach((select) => {
+      if (Number.isInteger(settings.periodUnit)) {
+        select.value = String(settings.periodUnit);
+      }
+    });
     root.querySelectorAll(`.dynamic-controls[data-dynamic-level="${level}"] .custom-period-fields`).forEach((fields) => {
       const isCustomPeriod = settings.periodPreset === 'custom';
       fields.classList.toggle('is-hidden', !isCustomPeriod);
@@ -2012,6 +2284,43 @@ const StaffApp = {
       }
     });
     this.initSwitchIndicators(root);
+  },
+  attachDynamicControlsListeners(level, container, sourceData, chartId) {
+    container.querySelectorAll(`[data-period-preset][data-dynamic-level="${level}"]`).forEach((button) => {
+      button.addEventListener('click', () => {
+        this.setDynamicPeriod(level, button.dataset.periodPreset);
+        this.refreshDynamicControls(level, container, sourceData, chartId);
+      });
+    });
+    container.querySelectorAll(`[data-dynamic-granularity][data-dynamic-level="${level}"]`).forEach((button) => {
+      button.addEventListener('click', () => {
+        this.setDynamicGranularity(level, button.dataset.dynamicGranularity);
+        this.updateDynamicChart(level, chartId, sourceData, container);
+      });
+    });
+    container.querySelectorAll(`[data-period-unit-select][data-dynamic-level="${level}"]`).forEach((select) => {
+      select.addEventListener('change', () => {
+        this.setDynamicPeriodUnit(level, select.value);
+        this.updateDynamicChart(level, chartId, sourceData, container);
+      });
+    });
+    container.querySelectorAll(`.dynamic-controls[data-dynamic-level="${level}"] input[type="date"]`).forEach((input) => {
+      input.addEventListener('change', () => {
+        const fields = input.closest('.custom-period-fields');
+        const startInput = fields?.querySelector('[data-custom-period-start]');
+        const endInput = fields?.querySelector('[data-custom-period-end]');
+        this.setCustomDynamicPeriod(level, startInput?.value || '', endInput?.value || '');
+        this.updateDynamicChart(level, chartId, sourceData, container);
+      });
+    });
+  },
+  refreshDynamicControls(level, container, sourceData, chartId) {
+    const panel = container.querySelector(`.dynamic-controls[data-dynamic-level="${level}"]`);
+    if (panel) {
+      panel.outerHTML = this.renderDynamicControls(level);
+    }
+    this.attachDynamicControlsListeners(level, container, sourceData, chartId);
+    this.updateDynamicChart(level, chartId, sourceData, container);
   },
   updateDynamicChart(level = 'techBlock', chartId = 'dynamicLoadChart', sourceData = null, root = document) {
     if (!['techBlock', 'center', 'employee'].includes(level)) {
@@ -2081,7 +2390,7 @@ const StaffApp = {
       percent: totalWeight ? Math.round((value / totalWeight) * 100) : 0
     }));
   },
-  getCenterSummary(centerId) {
+  getCenterSummary(centerId, periodRange = null) {
     const center = this.getCenterById(centerId);
     const centerIndex = Math.max(0, this.getCentersList().findIndex((item) => item.id === centerId));
     const employees = this.getNormalizedEmployees().filter((employee) => employee.centerId === centerId || employee.centerName === center?.name);
@@ -2110,6 +2419,10 @@ const StaffApp = {
         centers: [{ name: center?.name || 'Текущий центр', percent }]
       };
     });
+    const periodTasks = this.getTasksForEmployees(employees, periodRange);
+    const periodAverageLoad = periodRange
+      ? (this.getAverageLoadForRange(center?.dynamicLoad, periodRange.startDate, periodRange.endDate) ?? averageLoad)
+      : averageLoad;
     return {
       id: centerId,
       title: center?.name || 'Центр',
@@ -2118,10 +2431,11 @@ const StaffApp = {
       adminEmployees: employees.length - nonAdminEmployees.length,
       averageLoad,
       previousAverageLoad,
+      periodAverageLoad,
       dynamicLoad: center?.dynamicLoad || null,
-      dynamicKpis: this.buildDynamicKpis(employees),
+      dynamicKpis: this.buildDynamicKpis(employees, periodTasks, periodRange, periodAverageLoad),
       managementLoads: this.getManagementLoadByCenter(centerId),
-      projectSummary: this.getCenterProjectsSummary(centerId),
+      projectSummary: this.getCenterProjectsSummary(centerId, periodRange),
       periods,
       quarterlyLoad: this.getQuarterlyLoad().map((item, index) => ({
         label: item.label,
@@ -2129,7 +2443,7 @@ const StaffApp = {
       }))
     };
   },
-  getTechBlockSummary() {
+  getTechBlockSummary(periodRange = null) {
     const centerSummaries = this.getCentersList().map((center) => this.getCenterSummary(center.id));
     const baseSummary = this.mockData.techBlockSummary || {};
     const employees = this.getNormalizedEmployees();
@@ -2158,6 +2472,11 @@ const StaffApp = {
         }))
       };
     });
+    const techBlockDynamicLoad = baseSummary.dynamicLoad || this.mockData.dynamicLoad || null;
+    const periodTasks = this.getTasksForEmployees(employees, periodRange);
+    const periodAverageLoad = periodRange
+      ? (this.getAverageLoadForRange(techBlockDynamicLoad, periodRange.startDate, periodRange.endDate) ?? averageLoad)
+      : averageLoad;
     return {
       id: 'techBlock',
       title: baseSummary.title || 'Технический блок',
@@ -2166,10 +2485,11 @@ const StaffApp = {
       adminEmployees: employees.length - nonAdminEmployees.length,
       averageLoad,
       previousAverageLoad,
-      dynamicLoad: baseSummary.dynamicLoad || this.mockData.dynamicLoad || null,
-      dynamicKpis: this.buildDynamicKpis(employees),
+      periodAverageLoad,
+      dynamicLoad: techBlockDynamicLoad,
+      dynamicKpis: this.buildDynamicKpis(employees, periodTasks, periodRange, periodAverageLoad),
       managementLoads: [],
-      projectSummary: this.getCenterProjectsSummary(''),
+      projectSummary: this.getCenterProjectsSummary('', periodRange),
       periods,
       quarterlyLoad: this.getQuarterlyLoad().map((quarter, index) => {
         const values = centerSummaries.map((summary) => Number(summary.quarterlyLoad[index]?.percent || 0));
@@ -2187,6 +2507,12 @@ const StaffApp = {
     if (!options.preserveExistingCharts) {
       StaffCharts.destroyAll();
     }
+    const overviewLevel = summary.id === 'techBlock' ? 'techBlock' : 'center';
+    const overviewSettings = this.getOverviewPeriodSettings(overviewLevel);
+    const overviewRange = { startDate: overviewSettings.startDate, endDate: overviewSettings.endDate };
+    summary = overviewLevel === 'techBlock'
+      ? this.getTechBlockSummary(overviewRange)
+      : this.getCenterSummary(summary.id, overviewRange);
     const isTechBlock = summary.id === 'techBlock';
     const analyticsKpis = this.getAnalyticsKpis(summary);
     const dynamicLevel = isTechBlock ? 'techBlock' : 'center';
@@ -2243,6 +2569,7 @@ const StaffApp = {
             <h2 class="section-title">${this.escapeHtml(isTechBlock ? 'Загрузка тех. блока' : `Загрузка: ${summary.title}`)}</h2>
           </div>
         </div>
+        ${this.renderOverviewPeriodBar(overviewLevel)}
         ${this.renderMetricsPanel(analyticsKpis)}
         <section class="hero-grid dashboard-periods-grid">
           ${cardsMarkup}
@@ -2267,27 +2594,8 @@ const StaffApp = {
     container.querySelectorAll('.center-tab').forEach((button) => {
       button.addEventListener('click', () => this.setCurrentCenter(button.dataset.centerId));
     });
-    container.querySelectorAll(`[data-period-preset][data-dynamic-level="${dynamicLevel}"]`).forEach((button) => {
-      button.addEventListener('click', () => {
-        this.setDynamicPeriod(dynamicLevel, button.dataset.periodPreset);
-        this.updateDynamicChart(dynamicLevel, 'dynamicLoadChart', summary, container);
-      });
-    });
-    container.querySelectorAll(`[data-dynamic-granularity][data-dynamic-level="${dynamicLevel}"]`).forEach((button) => {
-      button.addEventListener('click', () => {
-        this.setDynamicGranularity(dynamicLevel, button.dataset.dynamicGranularity);
-        this.updateDynamicChart(dynamicLevel, 'dynamicLoadChart', summary, container);
-      });
-    });
-    container.querySelectorAll(`.dynamic-controls[data-dynamic-level="${dynamicLevel}"] input[type="date"]`).forEach((input) => {
-      input.addEventListener('change', () => {
-        const fields = input.closest('.custom-period-fields');
-        const startInput = fields?.querySelector('[data-custom-period-start]');
-        const endInput = fields?.querySelector('[data-custom-period-end]');
-        this.setCustomDynamicPeriod(dynamicLevel, startInput?.value || '', endInput?.value || '');
-        this.updateDynamicChart(dynamicLevel, 'dynamicLoadChart', summary, container);
-      });
-    });
+    this.attachOverviewPeriodListeners(overviewLevel, container, () => this.renderAnalyticsPage(summary, container, options));
+    this.attachDynamicControlsListeners(dynamicLevel, container, summary, 'dynamicLoadChart');
     const cards = container.querySelectorAll('[data-chart="doughnut"]');
     cards.forEach((canvas, index) => {
       const card = summary.periods[index];
@@ -2344,10 +2652,13 @@ const StaffApp = {
     const filterBlock = this.getFilteredEmployees();
     const managements = this.getManagementsList();
     const statuses = [...new Set(employees.map((employee) => employee.status))];
-    const employeePageKpis = this.buildEmployeesCompactKpis(filterBlock);
+    const overviewSettings = this.getOverviewPeriodSettings('employees');
+    const overviewRange = { startDate: overviewSettings.startDate, endDate: overviewSettings.endDate };
+    const employeePageKpis = this.buildEmployeesCompactKpis(filterBlock, overviewRange);
 
     container.innerHTML = `
       <a class="page-back" href="dashboard.html">← Назад</a>
+      ${this.renderOverviewPeriodBar('employees')}
       <div class="kpi-grid employees-compact-kpis">
         ${employeePageKpis.map((metric) => this.renderKpiCard(metric)).join('')}
       </div>
@@ -2387,6 +2698,7 @@ const StaffApp = {
       <div id="employeePreviewRoot"></div>
     `;
 
+    this.attachOverviewPeriodListeners('employees', container, () => this.renderEmployeesPageWithTransition());
     this.bindEmployeesEvents(container);
   },
   bindEmployeesEvents(root = document) {
@@ -3211,6 +3523,11 @@ const StaffApp = {
           <div class="period-switcher">
             ${periodButtons.map((button) => `<button class="period-btn ${this.state.employeePeriod === button.key ? 'is-active' : ''}" data-period="${button.key}">${this.escapeHtml(button.label)}</button>`).join('')}
           </div>
+          ${this.state.employeePeriod === 'month' ? `
+            <select class="period-unit-select" id="employeePeriodMonthSelect">
+              ${this.getPeriodUnitOptionsMarkup('month', Number.isInteger(this.state.employeePeriodMonth) ? this.state.employeePeriodMonth : new Date().getMonth())}
+            </select>
+          ` : ''}
         </div>
         <div class="date-row">
           <div class="field field--date">
@@ -3336,33 +3653,20 @@ const StaffApp = {
           this.renderEmployeePageWithTransition();
         });
       });
+      container.querySelector('#employeePeriodMonthSelect')?.addEventListener('change', (event) => {
+        this.state.employeePeriodMonth = Number(event.target.value);
+        const nextMeta = this.getEmployeePeriodMeta('month');
+        this.state.employeeStartDate = nextMeta.startDate;
+        this.state.employeeEndDate = nextMeta.endDate;
+        this.renderEmployeePageWithTransition();
+      });
       container.querySelectorAll('.employee-load-table__task-link').forEach((button) => {
         button.addEventListener('click', (event) => {
           event.stopPropagation();
           this.openTaskModal(Number(button.dataset.taskId), button.closest('tr') || button);
         });
       });
-      container.querySelectorAll('[data-period-preset][data-dynamic-level="employee"]').forEach((button) => {
-        button.addEventListener('click', () => {
-          this.setDynamicPeriod('employee', button.dataset.periodPreset);
-          this.updateDynamicChart('employee', 'historyChart', employee, container);
-        });
-      });
-      container.querySelectorAll('[data-dynamic-granularity][data-dynamic-level="employee"]').forEach((button) => {
-        button.addEventListener('click', () => {
-          this.setDynamicGranularity('employee', button.dataset.dynamicGranularity);
-          this.updateDynamicChart('employee', 'historyChart', employee, container);
-        });
-      });
-      container.querySelectorAll('.dynamic-controls[data-dynamic-level="employee"] input[type="date"]').forEach((input) => {
-        input.addEventListener('change', () => {
-          const fields = input.closest('.custom-period-fields');
-          const startInput = fields?.querySelector('[data-custom-period-start]');
-          const endInput = fields?.querySelector('[data-custom-period-end]');
-          this.setCustomDynamicPeriod('employee', startInput?.value || '', endInput?.value || '');
-          this.updateDynamicChart('employee', 'historyChart', employee, container);
-        });
-      });
+      this.attachDynamicControlsListeners('employee', container, employee, 'historyChart');
       container.querySelector('#showProjectsToggle')?.addEventListener('change', (event) => {
         this.state.showProjects = event.target.checked;
         this.renderEmployeePageWithTransition();
@@ -3395,8 +3699,9 @@ const StaffApp = {
     const pad = (value) => String(value).padStart(2, '0');
     const format = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
     if (periodKey === 'month') {
-      const startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-      const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      const monthIndex = Number.isInteger(this.state.employeePeriodMonth) ? this.state.employeePeriodMonth : today.getMonth();
+      const startDate = new Date(today.getFullYear(), monthIndex, 1);
+      const endDate = new Date(today.getFullYear(), monthIndex + 1, 0);
       return {
         startDate: format(startDate),
         endDate: format(endDate),

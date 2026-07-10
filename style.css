@@ -5832,3 +5832,82 @@ body.is-modal-dragging {
 .sidebar--collapsed .sidebar__item:not(.is-active) .sidebar__dot {
   color: var(--text, #202020);
 }
+
+/* ============================================================
+   Period unit dropdown (concrete month/quarter picker) inside
+   the dynamics controls panel and the page-level period filter.
+   ============================================================ */
+.dynamic-controls__group--unit {
+  justify-content: flex-end;
+}
+
+.period-unit-select {
+  border: 1px solid var(--border);
+  background: var(--surface-card);
+  color: var(--text);
+  border-radius: 200px;
+  padding: 7px 30px 7px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  height: 34px;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%234d4d4d' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
+.period-unit-select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255,104,44,0.16);
+  border-color: var(--accent);
+}
+
+/* ============================================================
+   Page-level period filter bar (tech block / centers / employees)
+   Same visual language as .dynamic-controls so it reads as one
+   family of period controls across the app.
+   ============================================================ */
+.overview-period-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 20px;
+}
+
+.overview-period-bar .dynamic-controls__panel {
+  display: flex;
+  align-items: stretch;
+  width: max-content;
+  max-width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.overview-period-bar .dynamic-controls__group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px 18px;
+}
+
+.overview-period-bar .period-preset-switcher {
+  background: var(--surface-card);
+}
+
+.overview-period-bar .custom-period-fields {
+  width: 100%;
+}
+
+@media (max-width: 760px) {
+  .overview-period-bar .dynamic-controls__panel {
+    flex-direction: column;
+    width: 100%;
+  }
+}
