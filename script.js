@@ -447,6 +447,12 @@ const StaffApp = {
         }
       }
     });
+    document.addEventListener('pointerdown', (event) => {
+      const preview = this.getFloatingPanelElement('employee-preview');
+      if (!preview || document.body.classList.contains('is-dragging-modal')) return;
+      if (preview.contains(event.target)) return;
+      this.closeEmployeePreview();
+    });
     document.getElementById('importBtn')?.addEventListener('click', () => {
       document.getElementById('excelInput')?.click();
     });
@@ -610,15 +616,25 @@ const StaffApp = {
       return;
     }
     if (sectionKey === 'centers') {
+      const firstCenter = this.getCentersList()[0];
+      if (firstCenter) {
+        if (document.getElementById('pageContent')) {
+          this.setCurrentCenter(firstCenter.id);
+          return;
+        }
+        window.location.assign(this.buildPageHref('dashboard', firstCenter.id));
+      }
       return;
     }
   },
   setCurrentCenter(centerId) {
     this.closeTaskModal({ immediate: true });
+    this.closeEmployeePreview({ immediate: true });
     const nextCenterId = !centerId || centerId === 'techBlock' ? '' : centerId;
     const currentCenterId = this.getCurrentCenterId();
     if (nextCenterId === currentCenterId && this.state.currentPage === 'dashboard') {
       this.setActiveCenterTab(nextCenterId || 'techBlock');
+      this.updateSidebarActiveState();
       return;
     }
     this.setActiveCenterTab(nextCenterId || 'techBlock');
@@ -854,13 +870,50 @@ const StaffApp = {
       </section>
     `;
   },
+  openCentersDropdown(item = document.querySelector('.sidebar__item--has-dropdown')) {
+    window.clearTimeout(this.centersDropdownCloseTimer);
+    item?.classList.add('is-open');
+  },
+  closeCentersDropdown(options = {}) {
+    window.clearTimeout(this.centersDropdownCloseTimer);
+    const close = () => {
+      document.querySelectorAll('.sidebar__item--has-dropdown.is-open').forEach((item) => {
+        item.classList.remove('is-open');
+      });
+    };
+    const delay = Number(options.delay || 0);
+    if (delay > 0) {
+      this.centersDropdownCloseTimer = window.setTimeout(close, delay);
+      return;
+    }
+    close();
+  },
+  bindCentersDropdown(nav) {
+    const item = nav?.querySelector('.sidebar__item--has-dropdown');
+    if (!item) return;
+    const open = () => this.openCentersDropdown(item);
+    const closeLater = () => {
+      window.clearTimeout(this.centersDropdownCloseTimer);
+      this.centersDropdownCloseTimer = window.setTimeout(() => {
+        if (!item.matches(':hover') && !item.contains(document.activeElement)) {
+          this.closeCentersDropdown();
+        }
+      }, 150);
+    };
+
+    item.addEventListener('mouseenter', open);
+    item.addEventListener('mouseleave', closeLater);
+    item.addEventListener('focusin', open);
+    item.addEventListener('focusout', closeLater);
+  },
   renderSidebar() {
     const nav = document.getElementById('sidebar-nav');
     if (!nav) return;
     const items = this.getSidebarItems();
     const currentPage = this.state.currentPage === 'employee' ? 'employees' : this.state.currentPage;
     const centers = this.getCentersList();
-    const activeKey = currentPage === 'employees' ? 'employees' : (this.getCurrentCenterId() ? 'centers' : 'techBlock');
+    const currentCenterId = this.getCurrentCenterId();
+    const activeKey = currentPage === 'employees' ? 'employees' : (currentCenterId ? 'centers' : 'techBlock');
     nav.innerHTML = `
       ${items.map((item) => {
         const isActive = item.key === activeKey;
@@ -881,11 +934,13 @@ const StaffApp = {
                   <span class="sidebar__label">${this.escapeHtml(item.label)}</span>
                   <span class="sidebar__subtitle">в составе тех. блока</span>
                 </span>
-                <span class="sidebar__chevron" aria-hidden="true">⌄</span>
+                <svg class="sidebar__chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                  <path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
               </a>
               <div class="sidebar__dropdown">
                 ${centers.map((center) => `
-                  <a class="sidebar__dropdown-item" href="${this.buildPageHref('dashboard', center.id)}" data-sidebar-center-id="${this.escapeHtml(center.id)}">
+                  <a class="sidebar__dropdown-item ${currentCenterId === center.id ? 'is-active' : ''}" href="${this.buildPageHref('dashboard', center.id)}" data-sidebar-center-id="${this.escapeHtml(center.id)}">
                     <span>${this.escapeHtml(center.name)}</span>
                     <span class="sidebar__dropdown-item__hint">${this.escapeHtml(center.shortName || center.name)}</span>
                   </a>
@@ -914,22 +969,26 @@ const StaffApp = {
         const key = link.getAttribute('data-nav-item');
         if (key === 'centers') {
           event.preventDefault();
-          link.closest('.sidebar__item--has-dropdown')?.classList.toggle('is-open');
+          this.closeCentersDropdown();
+          this.navigateToSection(key);
           return;
         }
         if (key === 'techBlock' || key === 'employees') {
           event.preventDefault();
+          this.closeCentersDropdown();
           this.navigateToSection(key);
         }
       });
     });
     nav.querySelectorAll('[data-sidebar-center-id]').forEach((link) => {
       link.addEventListener('click', (event) => {
+        this.closeCentersDropdown();
         if (!document.getElementById('pageContent')) return;
         event.preventDefault();
         this.setCurrentCenter(link.getAttribute('data-sidebar-center-id'));
       });
     });
+    this.bindCentersDropdown(nav);
   },
   updateSidebarActiveState() {
     const nav = document.getElementById('sidebar-nav');
@@ -953,6 +1012,7 @@ const StaffApp = {
     const title = document.getElementById('pageTitle');
     if (!container || !title) return;
     this.closeTaskModal({ immediate: true });
+    this.closeEmployeePreview({ immediate: true });
     const page = document.body.dataset.page || 'dashboard';
     this.state.currentPage = page;
     this.state.currentCenter = this.getCurrentCenterId();
@@ -1270,7 +1330,7 @@ const StaffApp = {
     const valueClass = this.isPercentText(value) ? ' percent-value' : '';
     return `
       <div class="donut-center-label ${this.escapeHtml(className)}">
-        <span class="donut-center-label__value${valueClass}">${this.escapeHtml(value)}</span>
+        <span class="donut-center-label__value viz-metric-value${valueClass}">${this.escapeHtml(value)}</span>
         <span class="donut-center-label__caption">${this.escapeHtml(caption)}</span>
       </div>
     `;
@@ -1288,7 +1348,7 @@ const StaffApp = {
     const valueClass = this.isPercentText(valueText) ? ' percent-value' : '';
     return `
       <div class="data-viz-card__metric metric-card--fit">
-        <span class="data-viz-card__metric-value value-fit metric-value-large${valueClass}" ${id ? `id="${this.escapeHtml(id)}"` : ''}>${this.escapeHtml(valueText)}</span>
+        <span class="data-viz-card__metric-value viz-metric-value value-fit metric-value-large${valueClass}" ${id ? `id="${this.escapeHtml(id)}"` : ''}>${this.escapeHtml(valueText)}</span>
         <span class="data-viz-card__metric-label">${this.escapeHtml(label)}</span>
       </div>
     `;
@@ -1671,13 +1731,16 @@ const StaffApp = {
   },
   renderKpiCard(metric, meta = '') {
     const valueClass = metric.valueClass ? ` ${metric.valueClass}` : '';
+    const metricKey = metric.key ? String(metric.key) : '';
+    const metricKeyClass = metricKey ? ` metric-card--${this.escapeHtml(metricKey)}` : '';
+    const valueRoleClass = metricKey === 'employeesCount' || metricKey === 'totalEmployees' ? ' employee-count-value' : '';
     const formattedValue = this.formatMetricValue(metric.value, metric.suffix || '');
     const percentValueClass = this.isPercentText(formattedValue) ? ' percent-value kpi-card__value--percent' : '';
     return `
-      <article class="kpi-card metric-card">
+      <article class="kpi-card metric-card${metricKeyClass}">
         <div class="kpi-card__label metric-card__label">${this.escapeHtml(metric.label)}</div>
         <div class="kpi-card__metric">
-          <div class="kpi-card__value metric-card__value value-fit${valueClass}${percentValueClass}">${this.escapeHtml(formattedValue)}</div>
+          <div class="kpi-card__value metric-card__value value-fit${valueClass}${valueRoleClass}${percentValueClass}">${this.escapeHtml(formattedValue)}</div>
           <div class="metric-card__delta">${this.renderMetricDelta(metric.value, metric.previousValue, Boolean(metric.isNegativeMetric))}</div>
         </div>
         ${meta ? `<div class="kpi-card__meta">${this.escapeHtml(meta)}</div>` : ''}
@@ -1737,11 +1800,15 @@ const StaffApp = {
     const groups = [
       {
         title: 'Часы и загрузка',
-        keys: ['plannedHours', 'actualHours', 'loadPercent']
+        keys: ['plannedHours', 'actualHours', 'loadPercent'],
+        gridClass: 'employee-metric-grid--hours',
+        groupClass: 'employee-metric-group--hours'
       },
       {
         title: 'Задачи',
-        keys: ['tasksTotal', 'completedTasks', 'tasksInProgress', 'tasksLate']
+        keys: ['tasksTotal', 'completedTasks', 'tasksInProgress', 'tasksLate'],
+        gridClass: 'employee-metric-grid--tasks',
+        groupClass: 'employee-metric-group--tasks'
       }
     ];
     const renderedGroups = groups.map((group) => {
@@ -1750,18 +1817,18 @@ const StaffApp = {
         .filter(Boolean);
       if (!groupMetrics.length) return '';
       return `
-        <div class="metrics-group">
-          <div class="metrics-group__title">${this.escapeHtml(group.title)}</div>
-          <div class="metrics-grid">
+        <section class="metrics-group employee-metric-group ${this.escapeHtml(group.groupClass || '')}">
+          <div class="metrics-group__title employee-metric-group__title">${this.escapeHtml(group.title)}</div>
+          <div class="metrics-grid employee-metric-grid ${this.escapeHtml(group.gridClass || '')}">
             ${groupMetrics.map((metric) => this.renderKpiCard(metric)).join('')}
           </div>
-        </div>
+        </section>
       `;
     }).filter(Boolean);
     if (!renderedGroups.length) return '';
     return `
-      <section class="metrics-panel metrics-panel--employee">
-        ${renderedGroups.map((groupMarkup, index) => `${index > 0 ? '<div class="metrics-separator" aria-hidden="true"></div>' : ''}${groupMarkup}`).join('')}
+      <section class="metrics-panel metrics-panel--employee employee-metrics-section">
+        ${renderedGroups.join('<div class="employee-metrics-divider" aria-hidden="true"></div>')}
       </section>
     `;
   },
@@ -2090,7 +2157,6 @@ const StaffApp = {
             <h3 class="data-viz-card__title">${this.escapeHtml(card.title)}</h3>
             <p class="data-viz-card__subtitle">${this.escapeHtml(card.subtitle || '')}</p>
           </div>
-          ${this.renderDataVizMetric(`${card.percent}%`, 'загрузка')}
         </div>
         <div class="data-viz-card__body donut-layout">
           <div class="donut-layout__chart chart-frame chart-frame--donut">
@@ -2212,6 +2278,7 @@ const StaffApp = {
   },
   renderEmployeesPageWithTransition() {
     this.closeTaskModal({ immediate: true });
+    this.closeEmployeePreview({ immediate: true });
     this.state.currentPage = 'employees';
     document.body.dataset.page = 'employees';
     this.state.currentCenter = '';
@@ -2269,10 +2336,6 @@ const StaffApp = {
           <button class="button button--primary employees-reset" id="resetFilters">Сбросить</button>
         </div>
         <div class="employees-table-wrapper">
-          <div class="table-card__head">
-            <h3>Сотрудники</h3>
-            <span class="chip" id="employeesCountChip">${filterBlock.length} сотрудников</span>
-          </div>
           <div id="employeesResults">
             ${this.renderEmployeesResults(filterBlock)}
           </div>
@@ -2336,8 +2399,6 @@ const StaffApp = {
     }
     const statusSelect = root.querySelector('#filterStatus');
     if (statusSelect) statusSelect.value = this.state.filters.status || '';
-    const countChip = root.querySelector('#employeesCountChip');
-    if (countChip) countChip.textContent = `${filtered.length} сотрудников`;
     const results = root.querySelector('#employeesResults');
     if (results) {
       results.innerHTML = this.renderEmployeesResults(filtered);
@@ -2453,26 +2514,149 @@ const StaffApp = {
       ${managements.map((management) => `<option value="${this.escapeHtml(management.id)}" ${currentManagementId === management.id ? 'selected' : ''}>${this.escapeHtml(management.name)}</option>`).join('')}
     `;
   },
+  ensureFloatingPanelsRoot() {
+    let root = document.getElementById('floatingPanelsRoot');
+    if (!root) {
+      root = document.createElement('div');
+      root.id = 'floatingPanelsRoot';
+      document.body.appendChild(root);
+    }
+    return root;
+  },
+  getFloatingPanelContainer(panelId) {
+    return this.ensureFloatingPanelsRoot().querySelector(`[data-floating-panel-id="${panelId}"]`);
+  },
+  getFloatingPanelElement(panelId) {
+    const container = this.getFloatingPanelContainer(panelId);
+    if (!container) return null;
+    return container.matches?.('.floating-panel, .task-modal, .employee-preview, .staff-employee-preview')
+      ? container
+      : container.querySelector('.floating-panel, .task-modal, .employee-preview, .staff-employee-preview');
+  },
+  openFloatingPanel(options = {}) {
+    const {
+      id,
+      html,
+      triggerElement = null,
+      panelSelector = '.floating-panel',
+      handleSelector = '.floating-panel__drag-handle',
+      width = '',
+      position = null,
+      draggable = true,
+      modalType = id,
+      centerIfNoTrigger = false,
+      margin = 8,
+      gap = 8
+    } = options;
+    if (!id || !html) return null;
+    const root = this.ensureFloatingPanelsRoot();
+    this.closeFloatingPanel(id, { immediate: true });
+    const template = document.createElement('template');
+    template.innerHTML = html.trim();
+    const container = template.content.firstElementChild;
+    if (!container) return null;
+    container.dataset.floatingPanelId = id;
+    root.appendChild(container);
+    const panelElement = container.matches?.(panelSelector)
+      ? container
+      : container.querySelector(panelSelector) || container.querySelector('.floating-panel, .task-modal, .employee-preview, .staff-employee-preview') || container;
+    panelElement.dataset.modalType = modalType || id;
+    if (width) {
+      panelElement.style.width = width;
+    }
+    this.positionFloatingPanel(triggerElement, panelElement, {
+      position,
+      panelId: modalType || id,
+      centerIfNoTrigger,
+      margin,
+      gap
+    });
+    if (draggable) {
+      this.makeDraggable(panelElement, panelElement.querySelector(handleSelector));
+    }
+    window.requestAnimationFrame(() => {
+      container.classList.add('is-visible');
+      panelElement.classList.add('is-visible');
+    });
+    return { container, panelElement };
+  },
+  closeFloatingPanel(panelId, options = {}) {
+    const { immediate = false, callback = null } = options;
+    const container = this.getFloatingPanelContainer(panelId);
+    if (!container) {
+      callback?.();
+      return;
+    }
+    const finishClose = () => {
+      container.remove();
+      callback?.();
+    };
+    if (immediate) {
+      finishClose();
+      return;
+    }
+    this.closeFloatingPanelWithAnimation(container, finishClose);
+  },
+  positionFloatingPanel(triggerElement, panelElement, options = {}) {
+    if (!panelElement) return;
+    const margin = Number(options.margin ?? 8);
+    const gap = Number(options.gap ?? 8);
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const panelWidth = panelElement.offsetWidth || panelElement.getBoundingClientRect().width;
+    const panelHeight = panelElement.offsetHeight || panelElement.getBoundingClientRect().height;
+    const savedPosition = !triggerElement && !options.position ? this.state.modalPositions?.[options.panelId] : null;
+    const triggerRect = triggerElement?.getBoundingClientRect?.();
+    let left = options.position?.left ?? savedPosition?.x ?? margin;
+    let top = options.position?.top ?? savedPosition?.y ?? margin;
+
+    if (triggerRect && !options.position) {
+      left = triggerRect.left;
+      top = triggerRect.bottom + gap;
+      if (top + panelHeight > viewportHeight - margin) {
+        top = triggerRect.top - panelHeight - gap;
+      }
+    } else if (!savedPosition && !options.position && options.centerIfNoTrigger) {
+      left = (viewportWidth - panelWidth) / 2;
+      top = (viewportHeight - panelHeight) / 2;
+    }
+
+    const maxLeft = Math.max(margin, viewportWidth - panelWidth - margin);
+    const maxTop = Math.max(margin, viewportHeight - panelHeight - margin);
+    left = Math.max(margin, Math.min(left, maxLeft));
+    top = Math.max(margin, Math.min(top, maxTop));
+
+    panelElement.style.position = 'fixed';
+    panelElement.style.right = 'auto';
+    panelElement.style.bottom = 'auto';
+    panelElement.style.left = `${Math.round(left)}px`;
+    panelElement.style.top = `${Math.round(top)}px`;
+    panelElement.style.margin = '0';
+  },
   renderEmployeePreview(employeeId, rowElement = null) {
     const employee = this.getNormalizedEmployees().find((item) => Number(item.id) === Number(employeeId));
     if (!employee) return;
+    const existingPreview = this.getFloatingPanelElement('employee-preview');
+    const preservedPosition = !rowElement && existingPreview ? existingPreview.getBoundingClientRect() : null;
     this.state.previewEmployeeId = employeeId;
-    const previewRoot = document.getElementById('employeePreviewRoot');
-    if (!previewRoot) return;
     const filtered = this.getFilteredEmployees();
     const currentIndex = filtered.findIndex((item) => item.id === employeeId);
     const previewMetrics = this.getEmployeeCoreMetrics([employee]);
     document.querySelectorAll('.employee-row.is-selected').forEach((row) => row.classList.remove('is-selected'));
     document.querySelector(`.employee-row[data-employee-id="${employee.id}"]`)?.classList.add('is-selected');
-    previewRoot.innerHTML = `
-      <section class="employee-preview">
-        <div class="employee-preview__head">
+    const html = `
+      <section class="employee-preview employee-preview--floating floating-panel" role="dialog" aria-modal="false" aria-labelledby="employeePreviewTitle">
+        <div class="employee-preview__head employee-preview__header employee-preview__drag-handle floating-panel__header floating-panel__drag-handle">
           <div>
-            <h3 class="section-title">${this.escapeHtml(employee.fullName)}</h3>
+            <h3 class="section-title" id="employeePreviewTitle">${this.escapeHtml(employee.fullName)}</h3>
           </div>
-          <button class="button button--ghost employee-preview__close" id="closePreview">✕</button>
+          <button class="employee-preview__close floating-panel__close" id="closePreview" type="button" aria-label="Закрыть">
+            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+            </svg>
+          </button>
         </div>
-        <div class="employee-preview__body">
+        <div class="employee-preview__body floating-panel__body">
           <div class="detail-list">
             <div class="preview-info-row"><span class="preview-info-row__value">${this.escapeHtml(employee.centerName || employee.center)}</span><span class="preview-info-row__label">Центр</span></div>
             <div class="preview-info-row"><span class="preview-info-row__value">${this.escapeHtml(employee.managementName || employee.management)}</span><span class="preview-info-row__label">Управление</span></div>
@@ -2490,94 +2674,128 @@ const StaffApp = {
         </div>
       </section>
     `;
-    this.revealInteractiveOverlays();
-    const preview = previewRoot.querySelector('.employee-preview');
-    if (preview) {
-      this.positionEmployeePreview(rowElement || document.querySelector(`.employee-row[data-employee-id="${employee.id}"]`));
-      this.makeDraggable(preview, preview.querySelector('.employee-preview__head'));
-    }
-    document.getElementById('closePreview')?.addEventListener('click', () => this.closeEmployeePreview());
-    document.getElementById('nextPreview')?.addEventListener('click', () => this.showNextEmployeePreview());
+    const opened = this.openFloatingPanel({
+      id: 'employee-preview',
+      html,
+      triggerElement: rowElement || document.querySelector(`.employee-row[data-employee-id="${employee.id}"]`),
+      panelSelector: '.employee-preview',
+      handleSelector: '.employee-preview__drag-handle',
+      width: 'min(440px, calc(100vw - 32px))',
+      position: preservedPosition,
+      modalType: 'employeePreview',
+      draggable: true,
+      margin: 16,
+      gap: 8
+    });
+    const preview = opened?.panelElement;
+    preview?.querySelector('#closePreview')?.addEventListener('click', (event) => {
+      event.stopPropagation();
+      this.closeEmployeePreview();
+    });
+    preview?.querySelector('#nextPreview')?.addEventListener('click', (event) => {
+      event.stopPropagation();
+      this.showNextEmployeePreview();
+    });
+    preview?.querySelector('.preview-actions a')?.addEventListener('click', (event) => {
+      event.stopPropagation();
+    });
   },
   positionEmployeePreview(rowElement) {
-    const preview = document.querySelector('#employeePreviewRoot .employee-preview');
+    const preview = this.getFloatingPanelElement('employee-preview') || document.querySelector('#employeePreviewRoot .employee-preview');
     if (!preview) return;
-    const margin = 12;
-    const savedPosition = this.state.modalPositions?.employeePreview;
-    const previewRect = preview.getBoundingClientRect();
-    let left = savedPosition?.x ?? null;
-    let top = savedPosition?.y ?? null;
-    if (rowElement) {
-      const rowRect = rowElement.getBoundingClientRect();
-      left = rowRect.right + margin;
-      if (left + previewRect.width > window.innerWidth - margin) {
-        left = Math.min(rowRect.left + 24, window.innerWidth - previewRect.width - margin);
-      }
-      top = rowRect.bottom + 8;
-      if (top + previewRect.height > window.innerHeight - margin) {
-        top = rowRect.top - previewRect.height - 8;
-      }
-    }
-    left = Math.max(margin, Math.min(left ?? window.innerWidth - previewRect.width - 24, window.innerWidth - previewRect.width - margin));
-    top = Math.max(margin, Math.min(top ?? 24, window.innerHeight - previewRect.height - margin));
-    preview.style.right = 'auto';
-    preview.style.left = `${Math.round(left)}px`;
-    preview.style.top = `${Math.round(top)}px`;
+    this.positionFloatingPanel(rowElement, preview, { panelId: 'employeePreview', margin: 16, gap: 8 });
   },
   makeDraggable(modalElement, handleElement) {
     if (!modalElement || !handleElement || handleElement.dataset.dragBound === 'true') return;
     handleElement.dataset.dragBound = 'true';
-    handleElement.addEventListener('mousedown', (event) => {
-      if (event.button !== 0 || event.target.closest('button, a, input, select, textarea')) return;
-      event.preventDefault();
+    let isDragging = false;
+    let offsetX = 0;
+    let offsetY = 0;
+    const interactiveSelector = 'button, a, input, select, textarea, label, [role="button"], [contenteditable="true"], .preview-metric-card, .preview-kpi-card, .detail-item, .preview-info-row';
+
+    const onPointerMove = (event) => {
+      if (!isDragging) return;
+      const margin = 8;
+      const currentWidth = modalElement.offsetWidth;
+      const currentHeight = modalElement.offsetHeight;
+      const minX = margin;
+      const minY = margin;
+      const maxX = Math.max(minX, window.innerWidth - currentWidth - margin);
+      const maxY = Math.max(minY, window.innerHeight - currentHeight - margin);
+      const nextLeft = Math.max(minX, Math.min(event.clientX - offsetX, maxX));
+      const nextTop = Math.max(minY, Math.min(event.clientY - offsetY, maxY));
+      modalElement.style.right = 'auto';
+      modalElement.style.bottom = 'auto';
+      modalElement.style.left = `${Math.round(nextLeft)}px`;
+      modalElement.style.top = `${Math.round(nextTop)}px`;
+    };
+
+    const onPointerUp = (event) => {
+      if (!isDragging) return;
+      isDragging = false;
+      const type = modalElement.dataset.modalType || (modalElement.classList.contains('employee-preview') ? 'employeePreview' : modalElement.classList.contains('staff-employee-preview') ? 'staffEmployeePreview' : modalElement.classList.contains('task-modal') ? 'taskModal' : 'modal');
+      const nextRect = modalElement.getBoundingClientRect();
+      this.saveModalPosition(type, nextRect.left, nextRect.top);
+      modalElement.classList.remove('is-dragging');
+      document.body.classList.remove('is-modal-dragging', 'is-dragging-modal');
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+      if (handleElement.hasPointerCapture?.(event.pointerId)) {
+        handleElement.releasePointerCapture?.(event.pointerId);
+      }
+    };
+
+    handleElement.addEventListener('pointerdown', (event) => {
+      if (isDragging || event.button !== 0 || event.target.closest?.(interactiveSelector)) return;
       const modalRect = modalElement.getBoundingClientRect();
       const modalWidth = modalRect.width;
-      const modalHeight = modalRect.height;
-      const offsetX = event.clientX - modalRect.left;
-      const offsetY = event.clientY - modalRect.top;
-      const type = modalElement.dataset.modalType || (modalElement.classList.contains('employee-preview') ? 'employeePreview' : modalElement.classList.contains('staff-employee-preview') ? 'staffEmployeePreview' : modalElement.classList.contains('task-modal') ? 'taskModal' : 'modal');
+      offsetX = event.clientX - modalRect.left;
+      offsetY = event.clientY - modalRect.top;
+      isDragging = true;
       modalElement.style.position = 'fixed';
-      modalElement.style.right = 'auto';
       modalElement.style.left = `${Math.round(modalRect.left)}px`;
       modalElement.style.top = `${Math.round(modalRect.top)}px`;
+      modalElement.style.right = 'auto';
+      modalElement.style.bottom = 'auto';
       modalElement.style.margin = '0';
       modalElement.style.width = `${Math.round(modalWidth)}px`;
+      modalElement.style.transform = 'none';
       modalElement.classList.add('is-dragging');
-      document.body.classList.add('is-modal-dragging');
-      const moveModal = (moveEvent) => {
-        const nextLeft = Math.max(8, Math.min(moveEvent.clientX - offsetX, window.innerWidth - modalWidth - 8));
-        const nextTop = Math.max(8, Math.min(moveEvent.clientY - offsetY, window.innerHeight - modalHeight - 8));
-        modalElement.style.right = 'auto';
-        modalElement.style.left = `${Math.round(nextLeft)}px`;
-        modalElement.style.top = `${Math.round(nextTop)}px`;
-      };
-      const stopDrag = () => {
-        const nextRect = modalElement.getBoundingClientRect();
-        this.saveModalPosition(type, nextRect.left, nextRect.top);
-        modalElement.classList.remove('is-dragging');
-        document.body.classList.remove('is-modal-dragging');
-        document.removeEventListener('mousemove', moveModal);
-        document.removeEventListener('mouseup', stopDrag);
-      };
-      document.addEventListener('mousemove', moveModal);
-      document.addEventListener('mouseup', stopDrag);
+      document.body.classList.add('is-modal-dragging', 'is-dragging-modal');
+      handleElement.setPointerCapture?.(event.pointerId);
+      window.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointerup', onPointerUp);
+      window.addEventListener('pointercancel', onPointerUp);
+      event.preventDefault();
     });
   },
   saveModalPosition(type, x, y) {
     this.state.modalPositions = this.state.modalPositions || {};
     this.state.modalPositions[type] = { x: Math.round(x), y: Math.round(y) };
   },
-  closeEmployeePreview() {
-    const previewRoot = document.getElementById('employeePreviewRoot');
-    if (!previewRoot) return;
-    const preview = previewRoot.querySelector('.employee-preview');
+  closeEmployeePreview(options = {}) {
+    const { immediate = false } = options;
+    const legacyPreviewRoot = document.getElementById('employeePreviewRoot');
     const finishClose = () => {
-      previewRoot.innerHTML = '';
+      if (legacyPreviewRoot) {
+        legacyPreviewRoot.innerHTML = '';
+      }
       document.querySelectorAll('.employee-row.is-selected').forEach((row) => row.classList.remove('is-selected'));
       this.state.previewEmployeeId = null;
     };
-    if (preview) {
-      this.closeModalWithAnimation(preview, finishClose);
+    if (this.getFloatingPanelContainer('employee-preview')) {
+      this.closeFloatingPanel('employee-preview', { immediate, callback: finishClose });
+      return;
+    }
+    const legacyPreview = legacyPreviewRoot?.querySelector('.employee-preview');
+    if (legacyPreview) {
+      if (immediate) {
+        legacyPreview.remove();
+        finishClose();
+        return;
+      }
+      this.closeModalWithAnimation(legacyPreview, finishClose);
       return;
     }
     finishClose();
@@ -2627,6 +2845,10 @@ const StaffApp = {
       }
       document.querySelector('[data-modal-backdrop="task"]')?.remove();
     };
+    if (this.getFloatingPanelContainer('task-subtasks-modal')) {
+      this.closeFloatingPanel('task-subtasks-modal', { immediate, callback: finishClose });
+      return;
+    }
     const backdrop = document.querySelector('[data-modal-backdrop="task"]');
     if (immediate) {
       finishClose();
@@ -2650,39 +2872,37 @@ const StaffApp = {
     panelElement.classList.add('is-closing');
     floatingPanel?.classList.remove('is-visible');
     floatingPanel?.classList.add('is-closing');
-    window.setTimeout(() => callback?.(), 240);
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      floatingPanel?.removeEventListener('transitionend', finish);
+      callback?.();
+    };
+    floatingPanel?.addEventListener('transitionend', finish, { once: true });
+    window.setTimeout(finish, 260);
   },
   renderTaskModalIntoPage(triggerElement = null, position = null) {
     const container = this.getCurrentViewLayer();
     if (!container || this.state.currentPage !== 'employee') return;
+    this.closeFloatingPanel('task-subtasks-modal', { immediate: true });
     document.querySelector('[data-modal-backdrop="task"]')?.remove();
     if (!this.state.showTaskModal) return;
-    document.body.insertAdjacentHTML('beforeend', this.renderTaskModal(this.state.selectedTaskId));
-    const backdrop = document.querySelector('[data-modal-backdrop="task"]');
-    const modal = backdrop?.querySelector('.task-subtasks-modal');
-    if (modal) {
-      if (position) {
-        const modalRect = modal.getBoundingClientRect();
-        const modalWidth = modal.offsetWidth || modalRect.width;
-        const modalHeight = modal.offsetHeight || modalRect.height;
-        const width = position.width || modalWidth;
-        const left = Math.max(16, Math.min(position.left, window.innerWidth - width - 16));
-        const top = Math.max(16, Math.min(position.top, window.innerHeight - modalHeight - 16));
-        modal.style.position = 'fixed';
-        modal.style.right = 'auto';
-        modal.style.left = `${Math.round(left)}px`;
-        modal.style.top = `${Math.round(top)}px`;
-        modal.style.margin = '0';
-        modal.style.width = `${Math.round(width)}px`;
-      } else {
-        this.positionTaskModal(triggerElement, modal);
-      }
-    }
-    this.bindTaskModalEvents(backdrop || container);
-    window.requestAnimationFrame(() => {
-      backdrop?.classList.add('is-visible');
-      modal?.classList.add('is-visible');
+    const opened = this.openFloatingPanel({
+      id: 'task-subtasks-modal',
+      html: this.renderTaskModal(this.state.selectedTaskId),
+      triggerElement,
+      panelSelector: '.task-subtasks-modal',
+      handleSelector: '.task-modal__header',
+      width: position?.width ? `${Math.round(position.width)}px` : 'min(1180px, calc(100vw - 32px))',
+      position,
+      modalType: 'taskModal',
+      draggable: true,
+      centerIfNoTrigger: true,
+      margin: 8,
+      gap: 8
     });
+    this.bindTaskModalEvents(opened?.container || container);
   },
   bindTaskModalEvents(root = document) {
     const backdrop = root.matches?.('[data-modal-backdrop="task"]') ? root : root.querySelector('[data-modal-backdrop="task"]');
@@ -2706,48 +2926,6 @@ const StaffApp = {
         width: modalRect.width
       } : null);
     });
-  },
-  positionTaskModal(triggerElement, modalElement) {
-    if (!modalElement) return;
-    const modalRect = modalElement.getBoundingClientRect();
-    const modalWidth = modalElement.offsetWidth || modalRect.width;
-    const modalHeight = modalElement.offsetHeight || modalRect.height;
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    const gap = 8;
-    const margin = 16;
-    const savedPosition = !triggerElement ? this.state.modalPositions?.taskModal : null;
-    const triggerRect = triggerElement?.getBoundingClientRect?.();
-
-    let top = savedPosition?.y ?? margin;
-    let left = savedPosition?.x ?? Math.max(margin, viewportWidth - modalWidth - 24);
-
-    if (triggerRect) {
-      top = triggerRect.bottom + gap;
-      left = triggerRect.left;
-      if (top + modalHeight > viewportHeight - margin) {
-        top = triggerRect.top - modalHeight - gap;
-      }
-    }
-
-    if (left + modalWidth > viewportWidth - margin) {
-      left = viewportWidth - modalWidth - margin;
-    }
-    if (left < margin) {
-      left = margin;
-    }
-    if (top + modalHeight > viewportHeight - margin) {
-      top = viewportHeight - modalHeight - margin;
-    }
-    if (top < margin) {
-      top = margin;
-    }
-
-    modalElement.style.position = 'fixed';
-    modalElement.style.right = 'auto';
-    modalElement.style.left = `${Math.round(left)}px`;
-    modalElement.style.top = `${Math.round(top)}px`;
-    modalElement.style.margin = '0';
   },
   getTaskSubtasks(taskId) {
     const numericTaskId = Number(taskId);
@@ -2852,7 +3030,7 @@ const StaffApp = {
     return `
       <div class="modal-backdrop modal-backdrop--floating" data-modal-backdrop="task">
         <section class="task-modal task-subtasks-modal floating-panel" data-modal-type="taskModal" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
-          <div class="task-modal__header">
+          <div class="task-modal__header floating-panel__header floating-panel__drag-handle">
             <div>
               <h3 id="taskModalTitle">Работы по задаче: ${this.escapeHtml(task.taskName)}</h3>
               <div class="task-modal__meta">
@@ -2861,9 +3039,13 @@ const StaffApp = {
                 <span class="status-pill task-indicator ${this.getStatusClass(task.indicator)}">${this.escapeHtml(task.indicator)}</span>
               </div>
             </div>
-            <button class="task-modal__close" id="taskModalClose" type="button" aria-label="Закрыть">✕</button>
+            <button class="task-modal__close floating-panel__close" id="taskModalClose" type="button" aria-label="Закрыть">
+              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                <path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+              </svg>
+            </button>
           </div>
-          <div class="task-modal__body">
+          <div class="task-modal__body floating-panel__body">
             <label class="toggle task-modal__toggle">
               <input type="checkbox" id="taskModalActiveToggle" ${onlyActive ? 'checked' : ''}>
               Только активные участники
@@ -2880,14 +3062,14 @@ const StaffApp = {
               <table class="task-modal__table">
                 <thead>
                   <tr>
-                    <th>Название подзадачи</th>
-                    <th>Вид работы</th>
-                    <th>Название детали</th>
-                    <th>Срок выполнения подзадачи</th>
-                    <th>Время выполнения, ч</th>
-                    <th>Статус задачи</th>
-                    <th>Индикатор</th>
-                    <th>Участники подзадачи</th>
+                    <th class="name-cell">Название подзадачи</th>
+                    <th class="work-type-cell">Вид работы</th>
+                    <th class="detail-cell">Название детали</th>
+                    <th class="date-cell">Срок выполнения подзадачи</th>
+                    <th class="hours-cell">Время выполнения, ч</th>
+                    <th class="status-cell">Статус задачи</th>
+                    <th class="indicator-cell">Индикатор</th>
+                    <th class="participants-cell">Участники подзадачи</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2895,14 +3077,14 @@ const StaffApp = {
                     const participants = this.getTaskParticipants(subtask, onlyActive);
                     return `
                       <tr>
-                        <td>${this.escapeHtml(subtask.subtaskName || subtask.taskName || 'Без названия')}</td>
-                        <td>${this.escapeHtml(subtask.workType || '—')}</td>
-                        <td>${this.escapeHtml(subtask.detailName || subtask.assignedDetails || '—')}</td>
-                        <td>${this.escapeHtml(subtask.dueDate || '—')}</td>
-                        <td>${this.escapeHtml(this.formatHours(this.parseWorkHours(subtask.workTime)))}</td>
-                        <td><span class="status-pill task-status ${this.getStatusClass(subtask.status)}">${this.escapeHtml(subtask.status || '—')}</span></td>
-                        <td><span class="status-pill task-indicator ${this.getStatusClass(subtask.indicator)}">${this.escapeHtml(subtask.indicator || '—')}</span></td>
-                        <td>
+                        <td class="name-cell">${this.escapeHtml(subtask.subtaskName || subtask.taskName || 'Без названия')}</td>
+                        <td class="work-type-cell">${this.escapeHtml(subtask.workType || '—')}</td>
+                        <td class="detail-cell">${this.escapeHtml(subtask.detailName || subtask.assignedDetails || '—')}</td>
+                        <td class="date-cell">${this.escapeHtml(subtask.dueDate || '—')}</td>
+                        <td class="hours-cell">${this.escapeHtml(this.formatHours(this.parseWorkHours(subtask.workTime)))}</td>
+                        <td class="status-cell"><span class="status-pill task-status ${this.getStatusClass(subtask.status)}">${this.escapeHtml(subtask.status || '—')}</span></td>
+                        <td class="indicator-cell"><span class="status-pill task-indicator ${this.getStatusClass(subtask.indicator)}">${this.escapeHtml(subtask.indicator || '—')}</span></td>
+                        <td class="participants-cell">
                           <div class="participant-list">
                             ${participants.length ? participants.map((participant) => this.renderParticipantLink(participant)).join('') : '<span class="participant-name">—</span>'}
                           </div>
@@ -3154,6 +3336,7 @@ const StaffApp = {
   },
   renderEmployeePageWithTransition() {
     this.closeTaskModal({ immediate: true });
+    this.closeEmployeePreview({ immediate: true });
     return this.renderWithTransition(
       (targetLayer, transitionState) => {
         this.renderEmployeePage(targetLayer, { preserveExistingCharts: !transitionState.direct });

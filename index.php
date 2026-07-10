@@ -31,6 +31,7 @@
         </main>
       </div>
       <div id="employeePreviewRoot"></div>
+      <div id="floatingPanelsRoot"></div>
     </div>
 
     <div id="staffAppRoot" class="staff-app-root"></div>

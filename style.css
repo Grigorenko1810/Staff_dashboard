@@ -58,6 +58,13 @@
   --duration-control: 220ms;
   --ease-view: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-control: cubic-bezier(0.65, 0, 0.35, 1);
+  --metric-card-padding-x: 18px;
+  --metric-card-padding-y: 14px;
+  --metric-card-gap: 8px;
+  --metric-card-min-height: 118px;
+  --metric-card-padding-large-x: 20px;
+  --metric-card-padding-large-y: 18px;
+  --employee-content-offset: 40px;
 }
 
 * { box-sizing: border-box; }
@@ -4882,32 +4889,114 @@ body.is-modal-dragging {
   min-height: 100%;
 }
 
-/* Final QA fix — keep wide tables inside their scroll wrapper so the
-   page never scrolls horizontally (grid/flex min-width:auto gotcha). */
-.main {
-  min-width: 0;
-}
-.employees-card,
-.employees-table-wrapper {
-  min-width: 0;
-  max-width: 100%;
+/* ============================================================
+   Metric card inner rhythm
+   One padding system for numeric KPI cards, preview counters,
+   centre summaries and chart header metrics.
+   ============================================================ */
+.metric-card,
+.kpi-card,
+.preview-metric-card,
+.employee-metric-card,
+.summary-card,
+.staff-kpi-card,
+.preview-kpi-card,
+.center-summary-kpi {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: var(--metric-card-gap);
+  padding: var(--metric-card-padding-y) var(--metric-card-padding-x);
 }
 
-/* Final QA fix — the filter toolbar's desktop 5-column grid is redefined
-   after the responsive media queries, so it overflowed once the sidebar
-   left too little room. Re-assert responsive columns here (last wins). */
-@media (max-width: 1200px) {
-  .employees-toolbar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .employees-reset {
-    width: 100%;
-  }
+.data-viz-card__metric {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: var(--metric-card-gap);
+  padding: var(--metric-card-padding-large-y) var(--metric-card-padding-large-x);
 }
-@media (max-width: 640px) {
-  .employees-toolbar {
-    grid-template-columns: 1fr;
-  }
+
+.kpi-card__metric {
+  margin-top: 0;
+  gap: var(--metric-card-gap);
+}
+
+.kpi-card__label,
+.metric-card__label,
+.preview-metric-card__label,
+.preview-kpi-card__label,
+.staff-kpi-card__label,
+.center-summary-kpi span,
+.data-viz-card__metric-label {
+  margin: 0;
+}
+
+.kpi-card__value,
+.kpi-card__meta,
+.metric-card__value,
+.preview-metric-card__value,
+.preview-kpi-card__value,
+.preview-kpi-card__label,
+.staff-kpi-card__value,
+.center-summary-kpi strong,
+.data-viz-card__metric-value,
+.preview-kpi-card__delta {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.center-summary-kpi strong {
+  align-self: flex-start;
+}
+
+.kpi-card::after {
+  left: var(--metric-card-padding-x);
+  right: var(--metric-card-padding-x);
+  bottom: var(--metric-card-padding-y);
+}
+
+.employees-compact-kpis .metric-card,
+.metrics-panel--employee .metric-card,
+.employee-kpi-grid .kpi-card,
+.preview-metric-card,
+.preview-kpi-card,
+.staff-kpi-card {
+  padding: var(--metric-card-padding-y) var(--metric-card-padding-x);
+}
+
+/* ============================================================
+   Period load cards
+   Keep the donut value as the only visible load percent.
+   ============================================================ */
+.data-viz-card--period .data-viz-card__header,
+.dashboard-periods-grid .card__header,
+.load-card__header,
+.period-card__header {
+  display: block;
+}
+
+.data-viz-card--period .data-viz-card__header > div,
+.load-card__header > div,
+.period-card__header > div {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.data-viz-card--period .data-viz-card__title,
+.load-card__title,
+.period-card__title {
+  max-width: 100%;
+  white-space: normal;
+  line-height: 1.15;
+}
+
+.data-viz-card--period .data-viz-card__header > .data-viz-card__metric,
+.load-card__corner-percent,
+.period-card__corner-percent,
+.card-percent--corner {
+  display: none;
 }
 
 /* ============================================================
@@ -4916,18 +5005,753 @@ body.is-modal-dragging {
    ("Понедельник, 6 июля 2026") wrap to a different number of
    lines per card, so the header's bottom border (the divider
    above the chart) landed at a different height on each one.
-   Reserve a fixed header height sized for the worst case (a
-   2-line title plus a 2-line subtitle) and bottom-align the
-   text block inside it, so the divider sits at the same level
-   on every card no matter how the title/subtitle wrap.
+   Reserve a fixed min-height on the title+subtitle block sized
+   for the tallest real card and bottom-align its text inside
+   it, so the divider sits at the same level on every card no
+   matter how the title/subtitle wrap.
    ============================================================ */
-.data-viz-card--period .data-viz-card__header {
-  min-height: 108px;
-}
-
 .data-viz-card--period .data-viz-card__header-text {
+  min-height: 84px;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
+}
+
+/* ============================================================
+   Sidebar centers dropdown
+   JS owns the open state so the menu closes after selection and
+   after a short pointer/focus leave delay.
+   ============================================================ */
+.sidebar:not(.sidebar--collapsed) .sidebar__item--has-dropdown .sidebar__chevron {
+  grid-column: 3;
+  justify-self: end;
+  align-self: center;
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  color: var(--muted);
+  transform: translateX(9px) rotate(0deg);
+  transform-origin: 50% 50%;
+  transition:
+    color var(--duration-fast) var(--ease-out-soft),
+    transform var(--duration-base) var(--ease-out-soft);
+}
+
+.sidebar:not(.sidebar--collapsed) .sidebar__item--has-dropdown .sidebar__chevron path {
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.sidebar__item--has-dropdown:hover .sidebar__dropdown,
+.sidebar__item--has-dropdown:focus-within .sidebar__dropdown {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px);
+  pointer-events: none;
+}
+
+.sidebar__item--has-dropdown:hover .sidebar__chevron,
+.sidebar__item--has-dropdown:focus-within .sidebar__chevron {
+  color: var(--text);
+  transform: translateX(9px) rotate(0deg);
+}
+
+.sidebar__item--has-dropdown.is-open .sidebar__dropdown,
+.sidebar__item--has-dropdown.is-open:hover .sidebar__dropdown,
+.sidebar__item--has-dropdown.is-open:focus-within .sidebar__dropdown {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.sidebar__item--has-dropdown.is-open .sidebar__chevron,
+.sidebar__item--has-dropdown.is-open:hover .sidebar__chevron,
+.sidebar__item--has-dropdown.is-open:focus-within .sidebar__chevron {
+  color: var(--text);
+  transform: translateX(9px) rotate(90deg);
+}
+
+/* ============================================================
+   Employees table density
+   The filters should lead straight into the table without the
+   redundant local title/count header.
+   ============================================================ */
+.employees-card .employees-toolbar {
+  margin-bottom: 10px;
+}
+
+.employees-card .employees-table-wrapper {
+  margin-top: 0;
+  padding-top: 8px;
+}
+
+.employees-card .employees-table-wrapper > .table-card__head {
+  display: none;
+}
+
+/* ============================================================
+   Metric value alignment
+   Numbers, deltas and the bottom rule share one left axis; compact
+   employee-page KPI labels reserve equal height so values sit on one
+   visual baseline.
+   ============================================================ */
+.metric-card.kpi-card {
+  --metric-rule-offset-x: 0px;
+}
+
+.metric-card--centersCount,
+.metric-card--managementsCount {
+  --metric-rule-offset-x: 2px;
+}
+
+.metric-card.kpi-card .kpi-card__metric {
+  align-items: flex-start;
+  width: 100%;
+  padding-left: var(--metric-rule-offset-x);
+  box-sizing: border-box;
+}
+
+.metric-card.kpi-card::after {
+  left: calc(var(--metric-card-padding-x) + var(--metric-rule-offset-x));
+}
+
+.metric-card__value,
+.kpi-card__value,
+.summary-metric__value,
+.employee-count-value {
+  display: block;
+  align-self: flex-start;
+  text-align: left;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.employees-compact-kpis .metric-card__label {
+  display: flex;
+  align-items: flex-start;
+  min-height: 28px;
+}
+
+.employees-compact-kpis .metric-card__value,
+.employees-compact-kpis .kpi-card__value,
+.employees-compact-kpis .employee-count-value {
+  line-height: 1;
+}
+
+.metric-card.kpi-card .metric-card__delta {
+  margin-bottom: 8px;
+}
+
+.employees-compact-kpis .metric-card__delta {
+  margin-bottom: 0;
+}
+
+.employees-compact-kpis {
+  grid-template-columns: repeat(4, minmax(190px, 1fr));
+  gap: 16px;
+  align-items: stretch;
+  margin-bottom: 20px;
+}
+
+.employees-compact-kpis .metric-card {
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  min-height: var(--metric-card-min-height);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: var(--metric-card-gap);
+  padding: var(--metric-card-padding-y) var(--metric-card-padding-x);
+  border-radius: var(--radius-card);
+}
+
+.employees-compact-kpis .metric-card.kpi-card .kpi-card__metric {
+  width: 100%;
+  margin-top: 0;
+  padding-left: 0;
+  gap: 0;
+}
+
+.employees-compact-kpis .metric-card__label {
+  min-height: 28px;
+  color: var(--muted, #828282);
+  font-size: 12px;
+  letter-spacing: 0;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.employees-compact-kpis .metric-card__value,
+.employees-compact-kpis .kpi-card__value,
+.employees-compact-kpis .employee-count-value,
+.employees-compact-kpis .metric-card__value.percent-value {
+  color: var(--text, #202020);
+  font-size: 36px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.employees-compact-kpis .metric-card__delta {
+  display: block;
+  visibility: hidden;
+  min-height: 18px;
+  margin-top: 4px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.employees-compact-kpis .metric-card.kpi-card::after {
+  left: var(--metric-card-padding-x);
+  right: var(--metric-card-padding-x);
+  bottom: var(--metric-card-padding-y);
+}
+
+@media (max-width: 980px) {
+  .employees-compact-kpis {
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  }
+}
+
+/* ============================================================
+   Employee metric groups
+   Hours/load and tasks share one section grid, one horizontal
+   title axis and identical card sizing.
+   ============================================================ */
+.employee-metrics-section.metrics-panel--employee {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: start;
+  column-gap: 0;
+  row-gap: 0;
+  width: 100%;
+  margin: 18px 0 20px;
+  padding: 0 var(--employee-content-offset);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.employee-period-card .date-row {
+  padding-inline: var(--employee-content-offset);
+}
+
+.employee-metrics-section .employee-metric-group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.employee-metrics-section .employee-metric-group__title {
+  margin: 0;
+  padding: 0;
+  min-height: 15px;
+  color: var(--text, #202020);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.employee-metrics-divider {
+  width: 1px;
+  min-height: 100%;
   align-self: stretch;
+  background: var(--border, #e8e8e8);
+  margin: 0 24px;
+}
+
+.employee-metrics-section .employee-metric-grid {
+  display: grid;
+  grid-auto-rows: 1fr;
+  align-items: stretch;
+  gap: 12px;
+  width: 100%;
+}
+
+.employee-metrics-section .employee-metric-grid--hours {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.employee-metrics-section .employee-metric-grid--tasks {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.employee-metrics-section .metric-card {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: minmax(28px, auto) auto 1fr;
+  align-content: start;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  min-height: 136px;
+  height: 136px;
+  padding: var(--metric-card-padding-y) var(--metric-card-padding-x);
+}
+
+.employee-metrics-section .metric-card__label {
+  display: flex;
+  align-items: flex-start;
+  min-height: 28px;
+  max-width: 100%;
+  color: var(--muted, #828282);
+  font-size: 12px;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.employee-metrics-section .metric-card.kpi-card .kpi-card__metric {
+  display: grid;
+  grid-template-rows: auto 18px;
+  row-gap: 4px;
+  width: 100%;
+  margin: 0;
+  padding-left: var(--metric-rule-offset-x);
+  align-self: start;
+}
+
+.employee-metrics-section .metric-card__value,
+.employee-metrics-section .kpi-card__value {
+  font-size: 36px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--text, #202020);
+}
+
+.employee-metrics-section .metric-card__value.percent-value,
+.employee-metrics-section .kpi-card__value.metric-card__value.percent-value {
+  font-size: 36px;
+  line-height: 1;
+}
+
+.employee-metrics-section .metric-card__delta {
+  display: flex;
+  align-items: flex-start;
+  min-height: 18px;
+  margin: 0 0 8px;
+}
+
+.employee-metrics-section .metric-card__delta .metric-delta {
+  min-height: 18px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.employee-metrics-section .metric-card.kpi-card::after {
+  left: var(--metric-card-padding-x);
+  right: var(--metric-card-padding-x);
+  bottom: var(--metric-card-padding-y);
+}
+
+@media (max-width: 1180px) {
+  .employee-period-card {
+    --employee-content-offset: 24px;
+  }
+
+  .employee-metrics-section.metrics-panel--employee {
+    padding-inline: var(--employee-content-offset);
+  }
+}
+
+@media (max-width: 860px) {
+  .employee-period-card {
+    --employee-content-offset: 0px;
+  }
+
+  .employee-metrics-section.metrics-panel--employee {
+    grid-template-columns: 1fr;
+    row-gap: 22px;
+    padding-inline: var(--employee-content-offset);
+  }
+
+  .employee-metrics-divider {
+    width: 100%;
+    height: 1px;
+    min-height: 1px;
+    margin: 0;
+  }
+
+  .employee-metrics-section .employee-metric-grid--hours,
+  .employee-metrics-section .employee-metric-grid--tasks {
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  }
+}
+
+/* ============================================================
+   Subtasks modal sizing and table fit
+   The subtasks dialog uses the available desktop width and lets
+   descriptive columns wrap instead of forcing horizontal scroll.
+   ============================================================ */
+.task-subtasks-modal {
+  width: min(1180px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+}
+
+.task-subtasks-modal .task-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  padding: 14px 16px 16px;
+  overflow: auto;
+}
+
+.task-subtasks-modal .task-modal__table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-y: visible;
+}
+
+.task-subtasks-modal .task-modal__table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.task-subtasks-modal .task-modal__table th,
+.task-subtasks-modal .task-modal__table td {
+  padding: 10px 8px;
+  vertical-align: top;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.task-subtasks-modal .task-modal__table .name-cell {
+  width: 18%;
+}
+
+.task-subtasks-modal .task-modal__table .work-type-cell {
+  width: 11%;
+}
+
+.task-subtasks-modal .task-modal__table .detail-cell {
+  width: 16%;
+}
+
+.task-subtasks-modal .task-modal__table .date-cell {
+  width: 12%;
+}
+
+.task-subtasks-modal .task-modal__table .hours-cell {
+  width: 8%;
+}
+
+.task-subtasks-modal .task-modal__table .status-cell {
+  width: 10%;
+}
+
+.task-subtasks-modal .task-modal__table .indicator-cell {
+  width: 9%;
+}
+
+.task-subtasks-modal .task-modal__table .participants-cell {
+  width: 16%;
+}
+
+.task-subtasks-modal .task-modal__table td.date-cell,
+.task-subtasks-modal .task-modal__table td.hours-cell,
+.task-subtasks-modal .task-modal__table td.status-cell,
+.task-subtasks-modal .task-modal__table td.indicator-cell,
+.task-subtasks-modal .task-modal__table .status-pill {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+.task-subtasks-modal .task-modal__table .name-cell,
+.task-subtasks-modal .task-modal__table .detail-cell,
+.task-subtasks-modal .task-modal__table .participants-cell {
+  white-space: normal;
+  word-break: normal;
+}
+
+.task-subtasks-modal .participants-cell .participant-list,
+.task-subtasks-modal .task-modal__participants .participant-list {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 860px) {
+  .task-subtasks-modal .task-modal__table-wrap {
+    overflow-x: auto;
+  }
+
+  .task-subtasks-modal .task-modal__table {
+    min-width: 760px;
+  }
+}
+
+/* ============================================================
+   Visualization metric scale and donut legend rhythm
+   Chart corner values are compact; donut legends move farther from
+   the chart while label/value spacing stays tight.
+   ============================================================ */
+.viz-metric-value,
+.data-viz-card__metric-value.viz-metric-value,
+.metric-value-large.viz-metric-value,
+.donut-center-label__value.viz-metric-value {
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.data-viz-card__metric-value.viz-metric-value.percent-value {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.data-viz-card__metric {
+  align-items: flex-end;
+  min-width: 76px;
+}
+
+.employee-chart-card .data-viz-card__metric {
+  min-width: 88px;
+}
+
+.donut-layout {
+  grid-template-columns: auto max-content;
+  column-gap: 42px;
+  row-gap: 18px;
+  justify-content: start;
+}
+
+.donut-layout__legend {
+  min-width: 220px;
+}
+
+.donut-layout__legend .chart-legend {
+  min-width: 220px;
+}
+
+.donut-layout__legend .chart-legend__item {
+  grid-template-columns: 10px minmax(60px, auto) max-content;
+  column-gap: 8px;
+}
+
+.donut-layout__legend .chart-legend__label {
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.donut-layout__legend .chart-legend__value {
+  justify-self: end;
+}
+
+.employee-chart-card .donut-layout {
+  grid-template-columns: auto minmax(220px, 1fr);
+}
+
+.employee-chart-card .donut-layout__legend,
+.employee-chart-card .donut-layout__legend .chart-legend {
+  width: 100%;
+  justify-items: stretch;
+}
+
+.employee-chart-card .donut-layout__legend .chart-legend__item {
+  width: 100%;
+  grid-template-columns: 10px minmax(60px, 1fr) max-content;
+  column-gap: 8px;
+}
+
+.employee-chart-card .donut-layout__legend .chart-legend__value {
+  padding-right: 26px;
+}
+
+/* Regression fix - the wider legend styling above forced a 220px
+   floor and let labels overflow unwrapped, which pushed the whole
+   employee page into horizontal scroll on this narrower card. Let
+   the legend shrink to the card's real width and wrap long labels
+   instead of spilling past it. */
+.employee-chart-card .donut-layout__legend,
+.employee-chart-card .donut-layout__legend .chart-legend {
+  min-width: 0;
+}
+
+.employee-chart-card .donut-layout__legend .chart-legend__label {
+  white-space: normal;
+}
+
+.employee-chart-card .donut-layout {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.status-pill {
+  align-items: center;
+  vertical-align: middle;
+}
+
+.status-pill::before {
+  flex: 0 0 6px;
+  align-self: center;
+}
+
+.page-back:hover,
+.page-back:hover a,
+.page-back a:hover,
+.nav-link:hover,
+.button-link:hover,
+.breadcrumb-link:hover {
+  text-decoration: none;
+}
+
+.page-back,
+.page-back:hover,
+.page-back:focus-visible,
+.page-back a,
+.page-back a:hover,
+.page-back a:focus-visible,
+.nav-link:hover,
+.nav-link:focus-visible,
+.button-link:hover,
+.button-link:focus-visible,
+.breadcrumb-link:hover,
+.breadcrumb-link:focus-visible {
+  border-bottom-color: transparent;
+  text-decoration: none;
+}
+
+.data-viz-card--period .donut-layout {
+  grid-template-columns: 1fr;
+  column-gap: 0;
+}
+
+@media (max-width: 720px) {
+  .donut-layout {
+    grid-template-columns: 1fr;
+    column-gap: 0;
+  }
+}
+
+.employee-preview__header,
+.employee-preview__drag-handle {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+#floatingPanelsRoot {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+}
+
+#floatingPanelsRoot .floating-panel,
+#floatingPanelsRoot .modal-backdrop {
+  pointer-events: auto;
+}
+
+.floating-panel {
+  position: fixed;
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  z-index: 101;
+}
+
+.floating-panel__header,
+.floating-panel__drag-handle {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.floating-panel.is-dragging .floating-panel__drag-handle {
+  cursor: grabbing;
+}
+
+.floating-panel__body {
+  min-height: 0;
+}
+
+.employee-preview.employee-preview--floating {
+  right: auto;
+  bottom: auto;
+  width: min(440px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  z-index: 101;
+  opacity: 0;
+  transform: translateY(4px) scale(0.98);
+  transform-origin: top left;
+  transition:
+    opacity 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.employee-preview.employee-preview--floating.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.employee-preview.employee-preview--floating.is-closing {
+  opacity: 0;
+  transform: translateY(4px) scale(0.98);
+}
+
+.employee-preview.is-dragging,
+.staff-employee-preview.is-dragging {
+  transition: none;
+}
+
+.employee-preview.is-dragging .employee-preview__drag-handle,
+.staff-employee-preview.is-dragging .employee-preview__drag-handle {
+  cursor: grabbing;
+}
+
+body.is-dragging-modal,
+body.is-modal-dragging {
+  user-select: none;
+  cursor: grabbing;
+}
+
+.employee-preview__close,
+.floating-panel__close {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  flex: 0 0 40px;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--text, #202020);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text, #202020);
+  font-size: 20px;
+  line-height: 1;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.employee-preview__close svg,
+.floating-panel__close svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+  pointer-events: none;
+}
+
+.employee-preview__close:hover,
+.floating-panel__close:hover {
+  background: var(--text, #202020);
+  border-color: var(--text, #202020);
+  color: var(--bg, #ffffff);
+  transform: none;
 }
