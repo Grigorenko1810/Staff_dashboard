@@ -125,7 +125,7 @@ const StaffCharts = {
         maintainAspectRatio: false,
         cutout: '74%',
         radius: '88%',
-        rotation: -90,
+        rotation: 0,
         animation: {
           duration: 450,
           easing: 'easeOutQuart'
@@ -1588,13 +1588,15 @@ const StaffApp = {
         key: 'plannedHours',
         label: 'Плановые часы',
         value: this.sumMetric(employeeList, 'plannedHours'),
-        previousValue: this.sumMetric(employeeList, 'previousPlannedHours')
+        previousValue: this.sumMetric(employeeList, 'previousPlannedHours'),
+        suffix: ' ч'
       },
       {
         key: 'actualHours',
         label: 'Фактические часы',
         value: this.sumMetric(employeeList, 'actualHours'),
-        previousValue: this.sumMetric(employeeList, 'previousActualHours')
+        previousValue: this.sumMetric(employeeList, 'previousActualHours'),
+        suffix: ' ч'
       },
       {
         key: 'loadPercent',
@@ -2084,7 +2086,7 @@ const StaffApp = {
     const cardsMarkup = (summary.periods || []).map((card) => `
       <article class="card data-viz-card data-viz-card--period">
         <div class="data-viz-card__header">
-          <div>
+          <div class="data-viz-card__header-text">
             <h3 class="data-viz-card__title">${this.escapeHtml(card.title)}</h3>
             <p class="data-viz-card__subtitle">${this.escapeHtml(card.subtitle || '')}</p>
           </div>
@@ -2101,10 +2103,10 @@ const StaffApp = {
           </div>
         </div>
         <div class="card__stats">
-          <div class="stat-row"><span>Факт</span><strong>${card.fact}</strong></div>
-          <div class="stat-row"><span>План</span><strong>${card.plan}</strong></div>
-          <div class="stat-row"><span>Простой</span><strong>${card.idle}</strong></div>
-          <div class="stat-row"><span>Отсутствие</span><strong>${card.absence}</strong></div>
+          <div class="stat-row"><span>Факт</span><strong>${this.formatHours(card.fact)}</strong></div>
+          <div class="stat-row"><span>План</span><strong>${this.formatHours(card.plan)}</strong></div>
+          <div class="stat-row"><span>Простой</span><strong>${this.formatHours(card.idle)}</strong></div>
+          <div class="stat-row"><span>Отсутствие</span><strong>${this.formatHours(card.absence)}</strong></div>
         </div>
         <div class="analytics-list-title">${isTechBlock ? 'Загрузка центров' : 'Загрузка управлений'}</div>
         <div class="card__list">

@@ -4909,3 +4909,25 @@ body.is-modal-dragging {
     grid-template-columns: 1fr;
   }
 }
+
+/* ============================================================
+   Period card header alignment
+   Titles ("Нарастающий итог по неделям") and subtitles
+   ("Понедельник, 6 июля 2026") wrap to a different number of
+   lines per card, so the header's bottom border (the divider
+   above the chart) landed at a different height on each one.
+   Reserve a fixed header height sized for the worst case (a
+   2-line title plus a 2-line subtitle) and bottom-align the
+   text block inside it, so the divider sits at the same level
+   on every card no matter how the title/subtitle wrap.
+   ============================================================ */
+.data-viz-card--period .data-viz-card__header {
+  min-height: 108px;
+}
+
+.data-viz-card--period .data-viz-card__header-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-self: stretch;
+}

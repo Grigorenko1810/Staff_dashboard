@@ -493,7 +493,7 @@
           options: {
             cutout: '74%',
             radius: '88%',
-            rotation: -90,
+            rotation: 0,
             responsive: true,
             maintainAspectRatio: false,
             animation: { duration: 450, easing: 'easeOutQuart' },
