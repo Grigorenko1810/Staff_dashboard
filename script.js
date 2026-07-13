@@ -781,6 +781,18 @@ const StaffApp = {
     const root = this.ensureTransitionRoot();
     return root?.querySelector('.view-layer--current') || document.getElementById('pageContent');
   },
+  resolveLiveViewLayer(container) {
+    // A container captured in a click-handler closure can go stale: once a
+    // page transition commits, '.view-layer--next' (where the handler's
+    // container pointed) is emptied out and '.view-layer--current' becomes
+    // the visible one, but DOM nodes are moved (not recreated), so the old
+    // closure still references the now-invisible layer. Redirect back to
+    // whatever's actually on screen before rendering into it.
+    if (container?.classList?.contains('view-layer--next')) {
+      return this.getCurrentViewLayer() || container;
+    }
+    return container;
+  },
   async renderWithTransition(renderFn, options = {}) {
     const root = this.ensureTransitionRoot();
     if (!root) {
@@ -796,11 +808,18 @@ const StaffApp = {
     const nextLayer = root.querySelector('.view-layer--next');
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (!currentLayer || !nextLayer || !currentLayer.children.length || prefersReducedMotion) {
+      root.classList.remove('is-navigating');
       options.beforeDirectRender?.(currentLayer);
       renderFn(currentLayer || document.getElementById('pageContent'), { direct: true });
       options.afterCommit?.(currentLayer);
       return;
     }
+    // Block interaction on the outgoing layer for the whole click-to-commit
+    // window (can span 500ms+): otherwise a click landing on soon-to-be-
+    // replaced content (e.g. a period-filter button) races the delayed DOM
+    // swap below and can leave different controls reflecting different
+    // renders once the commit overwrites currentLayer.
+    root.classList.add('is-navigating');
     const oldCharts = options.oldCharts || StaffCharts.charts.filter((chart) => currentLayer.contains(chart.canvas));
     const pendingCharts = StaffCharts.charts.filter((chart) => nextLayer.contains(chart.canvas));
     pendingCharts.forEach((chart) => chart.destroy());
@@ -831,6 +850,7 @@ const StaffApp = {
       root.classList.remove('is-loading');
       window.requestAnimationFrame(() => {
         root.classList.remove('is-committing');
+        root.classList.remove('is-navigating');
         options.afterCommit?.(currentLayer);
       });
     }, options.duration || 480);
@@ -2327,19 +2347,19 @@ const StaffApp = {
     container.querySelectorAll(`[data-period-preset][data-dynamic-level="${level}"]`).forEach((button) => {
       button.addEventListener('click', () => {
         this.setDynamicPeriod(level, button.dataset.periodPreset);
-        this.refreshDynamicControls(level, container, sourceData, chartId);
+        this.refreshDynamicControls(level, this.resolveLiveViewLayer(container), sourceData, chartId);
       });
     });
     container.querySelectorAll(`[data-dynamic-granularity][data-dynamic-level="${level}"]`).forEach((button) => {
       button.addEventListener('click', () => {
         this.setDynamicGranularity(level, button.dataset.dynamicGranularity);
-        this.updateDynamicChart(level, chartId, sourceData, container);
+        this.updateDynamicChart(level, chartId, sourceData, this.resolveLiveViewLayer(container));
       });
     });
     container.querySelectorAll(`[data-period-unit-select][data-dynamic-level="${level}"]`).forEach((select) => {
       select.addEventListener('change', () => {
         this.setDynamicPeriodUnit(level, select.value);
-        this.updateDynamicChart(level, chartId, sourceData, container);
+        this.updateDynamicChart(level, chartId, sourceData, this.resolveLiveViewLayer(container));
       });
     });
     container.querySelectorAll(`.dynamic-controls[data-dynamic-level="${level}"] input[type="date"]`).forEach((input) => {
@@ -2348,7 +2368,7 @@ const StaffApp = {
         const startInput = fields?.querySelector('[data-custom-period-start]');
         const endInput = fields?.querySelector('[data-custom-period-end]');
         this.setCustomDynamicPeriod(level, startInput?.value || '', endInput?.value || '');
-        this.updateDynamicChart(level, chartId, sourceData, container);
+        this.updateDynamicChart(level, chartId, sourceData, this.resolveLiveViewLayer(container));
       });
     });
   },
@@ -2636,7 +2656,7 @@ const StaffApp = {
     container.querySelectorAll('.center-tab').forEach((button) => {
       button.addEventListener('click', () => this.setCurrentCenter(button.dataset.centerId));
     });
-    this.attachOverviewPeriodListeners(overviewLevel, container, () => this.renderAnalyticsPage(summary, container, options));
+    this.attachOverviewPeriodListeners(overviewLevel, container, () => this.renderAnalyticsPage(summary, this.resolveLiveViewLayer(container), options));
     this.attachDynamicControlsListeners(dynamicLevel, container, summary, 'dynamicLoadChart');
     const cards = container.querySelectorAll('[data-chart="doughnut"]');
     cards.forEach((canvas, index) => {

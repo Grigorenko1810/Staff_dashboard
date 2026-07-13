@@ -2969,6 +2969,15 @@ html {
   filter: none;
 }
 
+/* Block interaction on the outgoing layer for the entire click-to-commit
+   window, not just while it's visually fading - otherwise a click can
+   race the delayed DOM swap in renderWithTransition and leave the page
+   showing a mix of two different renders (e.g. an active period button
+   from one render next to a sub-selector from another). */
+.view-transition-root.is-navigating .view-layer--current {
+  pointer-events: none;
+}
+
 .view-transition-root.is-transitioning .view-layer--next {
   opacity: 1;
   transform: none;
