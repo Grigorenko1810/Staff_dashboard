@@ -1154,7 +1154,7 @@ const StaffApp = {
   getAllowedGranularities(periodPreset) {
     const preset = String(periodPreset || 'month');
     if (preset === 'month') {
-      return ['days', 'weeks'];
+      return ['weeks'];
     }
     if (preset === 'quarter') {
       return ['weeks', 'months'];
@@ -1288,6 +1288,24 @@ const StaffApp = {
       return `<option value="0" selected>${year}</option>`;
     }
     return '';
+  },
+  getAveragePeriodLabel(settings) {
+    const year = new Date().getFullYear();
+    const preset = settings?.periodPreset;
+    if (preset === 'month') {
+      const months = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+      const index = Number.isInteger(settings.periodUnit) ? settings.periodUnit : new Date().getMonth();
+      return `среднее за ${months[index] || ''} ${year}`;
+    }
+    if (preset === 'quarter') {
+      const quarters = ['I квартал', 'II квартал', 'III квартал', 'IV квартал'];
+      const index = Number.isInteger(settings.periodUnit) ? settings.periodUnit : 0;
+      return `среднее за ${quarters[index] || ''} ${year}`;
+    }
+    if (preset === 'year') {
+      return `среднее за ${year} год`;
+    }
+    return 'среднее за выбранный период';
   },
   getDynamicSettings(level = 'techBlock') {
     const defaultSettings = {
@@ -2382,6 +2400,10 @@ const StaffApp = {
       averageBadge.textContent = averageBadge.classList.contains('data-viz-card__metric-value')
         ? (average !== null ? `${average}%` : '—')
         : (average !== null ? `Среднее ${average}%` : 'Нет данных');
+      const averageLabel = averageBadge.closest('.data-viz-card__metric')?.querySelector('.data-viz-card__metric-label');
+      if (averageLabel) {
+        averageLabel.textContent = this.getAveragePeriodLabel(settings);
+      }
     }
 
     this.updateDynamicControlsState(level, root);
@@ -2599,7 +2621,7 @@ const StaffApp = {
               <h3 class="data-viz-card__title">Динамика загрузки</h3>
               <p class="data-viz-card__subtitle" id="dynamicLoadSubtitle">${this.escapeHtml(this.formatDynamicSubtitle(dynamicSettings))}</p>
             </div>
-            ${this.renderDataVizMetric(dynamicAverage !== null ? `${dynamicAverage}%` : '—', 'среднее', 'dynamicLoadAverage')}
+            ${this.renderDataVizMetric(dynamicAverage !== null ? `${dynamicAverage}%` : '—', this.getAveragePeriodLabel(dynamicSettings), 'dynamicLoadAverage')}
           </div>
           ${this.renderDynamicControls(dynamicLevel)}
           <div class="data-viz-card__body chart-frame chart-frame--wide">
@@ -3645,7 +3667,7 @@ const StaffApp = {
             <h3 class="data-viz-card__title">Динамика загруженности сотрудника</h3>
             <p class="data-viz-card__subtitle" id="employeeHistorySubtitle">${this.escapeHtml(this.formatDynamicSubtitle(employeeDynamicSettings))}</p>
           </div>
-          ${this.renderDataVizMetric(employeeHistoryAverage !== null ? `${employeeHistoryAverage}%` : '—', 'среднее', 'employeeHistoryAverage')}
+          ${this.renderDataVizMetric(employeeHistoryAverage !== null ? `${employeeHistoryAverage}%` : '—', this.getAveragePeriodLabel(employeeDynamicSettings), 'employeeHistoryAverage')}
         </div>
         ${this.renderDynamicControls('employee')}
         <div class="data-viz-card__body chart-frame chart-frame--wide">

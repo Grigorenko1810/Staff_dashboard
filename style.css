@@ -31,8 +31,8 @@
   --input-border: #d8d8d8;
   --input-bg: #ffffff;
   --focus-ring: rgba(255,104,44,0.24);
-  --green: #407128;
-  --red: #92301c;
+  --green: #2e7d32;
+  --red: #c62828;
   --orange: #ff682c;
   --blue: #4d4d4d;
   --shadow: none;
@@ -1209,7 +1209,7 @@ h1, h2, h3,
 .badge.load-level--low,
 .status-pill--delay { background: #f3e8e3; color: var(--red); border-color: #ead4ca; }
 .badge.load-level--medium,
-.status-pill--warning { background: var(--surface-muted); color: var(--secondary-accent); border-color: #ddd5c8; }
+.status-pill--warning { background: var(--surface-muted); color: var(--orange); border-color: #ddd5c8; }
 .badge.load-level--high,
 .status-pill--done { background: #edf0e8; color: var(--green); border-color: #dce3d5; }
 .status-pill--process { background: var(--surface-soft); color: var(--secondary-text); border-color: var(--border); }
@@ -5776,16 +5776,26 @@ body.is-modal-dragging {
    ============================================================ */
 .metric-card__value-suffix {
   display: inline-block;
-  margin-left: 3ch;
+  margin-left: 2ch;
   max-width: 100%;
   font-family: var(--font-body);
-  font-size: 0.72em;
+  font-size: 0.48em;
   font-weight: 500;
   letter-spacing: 0;
   color: var(--muted);
   white-space: normal;
   overflow-wrap: break-word;
   vertical-align: baseline;
+}
+
+/* The generic '.center-summary-kpi span { margin: 0 }' reset (meant
+   for the small uppercase label span) was also zeroing this suffix's
+   gap and shrinking its font to the label's 12px, since both are
+   literal <span> elements in that card. Re-assert the intended
+   suffix sizing/spacing here with higher specificity. */
+.center-summary-kpi .metric-card__value-suffix {
+  margin-left: 2ch;
+  font-size: 0.48em;
 }
 
 /* ============================================================
