@@ -1390,7 +1390,7 @@ const StaffApp = {
     return settings;
   },
   getOverviewPeriodSettings(level) {
-    const normalizedLevel = ['techBlock', 'center', 'employees'].includes(level) ? level : 'techBlock';
+    const normalizedLevel = ['techBlock', 'center', 'employees', 'employeePreview'].includes(level) ? level : 'techBlock';
     this.state.overviewPeriod = this.state.overviewPeriod || {};
     const current = this.state.overviewPeriod[normalizedLevel] || {};
     const preset = current.periodPreset || 'month';
@@ -3038,7 +3038,11 @@ const StaffApp = {
     this.state.previewEmployeeId = employeeId;
     const filtered = this.getFilteredEmployees();
     const currentIndex = filtered.findIndex((item) => item.id === employeeId);
-    const previewMetrics = this.getEmployeeCoreMetrics([employee]);
+    const previewPeriodSettings = this.getOverviewPeriodSettings('employeePreview');
+    const previewPeriodRange = { startDate: previewPeriodSettings.startDate, endDate: previewPeriodSettings.endDate };
+    const previewTasks = this.getTasksForEmployees([employee], previewPeriodRange);
+    const previewAverageLoad = this.getAverageLoadForRange(employee, previewPeriodRange.startDate, previewPeriodRange.endDate);
+    const previewMetrics = this.getEmployeeCoreMetrics([employee], previewTasks, previewPeriodRange, previewAverageLoad);
     document.querySelectorAll('.employee-row.is-selected').forEach((row) => row.classList.remove('is-selected'));
     document.querySelector(`.employee-row[data-employee-id="${employee.id}"]`)?.classList.add('is-selected');
     const html = `
@@ -3060,6 +3064,7 @@ const StaffApp = {
             <div class="preview-info-row"><span class="preview-info-row__value">${this.escapeHtml(employee.department)}</span><span class="preview-info-row__label">Отдел</span></div>
             <div class="preview-info-row"><span class="preview-info-row__value">${this.escapeHtml(employee.position)}</span><span class="preview-info-row__label">Должность</span></div>
           </div>
+          ${this.renderOverviewPeriodBar('employeePreview')}
           <div class="preview-metric-grid">
             ${previewMetrics.map((metric) => this.renderPreviewMetricCard(metric)).join('')}
           </div>
@@ -3085,6 +3090,9 @@ const StaffApp = {
       gap: 8
     });
     const preview = opened?.panelElement;
+    if (preview) {
+      this.attachOverviewPeriodListeners('employeePreview', preview, () => this.renderEmployeePreview(employeeId));
+    }
     preview?.querySelector('#closePreview')?.addEventListener('click', (event) => {
       event.stopPropagation();
       this.closeEmployeePreview();
