@@ -983,7 +983,6 @@ const StaffApp = {
               <span class="sidebar__compact-label" aria-hidden="true">${compactLabel}</span>
               <span class="sidebar__content">
                 <span class="sidebar__label">${this.escapeHtml(item.label)}</span>
-                ${item.key === 'techBlock' ? '<span class="sidebar__subtitle">верхний уровень</span>' : ''}
               </span>
             </a>
           </div>
@@ -1102,7 +1101,16 @@ const StaffApp = {
   renderMetricDelta(currentValue, previousValue, isNegativeMetric = false) {
     const delta = this.getPercentChange(currentValue, previousValue);
     const deltaClass = this.getDeltaClass(delta, isNegativeMetric);
-    return `<div class="metric-delta ${deltaClass}">${this.escapeHtml(this.formatDeltaPercent(delta))}</div>`;
+    const deltaMarkup = `<div class="metric-delta ${deltaClass}">${this.escapeHtml(this.formatDeltaPercent(delta))}</div>`;
+    if (delta === null) {
+      return deltaMarkup;
+    }
+    return `
+      <div class="metric-delta-wrap">
+        ${deltaMarkup}
+        <div class="metric-delta__compare">к прошлому периоду</div>
+      </div>
+    `;
   },
   getLoadLevelClass(percent) {
     const numericValue = Number(percent);
@@ -1256,8 +1264,15 @@ const StaffApp = {
     };
   },
   getDefaultPeriodUnit(periodPreset) {
+    const preset = String(periodPreset);
     const today = new Date();
-    return String(periodPreset) === 'quarter' ? Math.floor(today.getMonth() / 3) : today.getMonth();
+    if (preset === 'quarter') {
+      return Math.floor(today.getMonth() / 3);
+    }
+    if (preset === 'year') {
+      return 0;
+    }
+    return today.getMonth();
   },
   getPeriodUnitOptionsMarkup(periodPreset, selectedUnit) {
     const year = new Date().getFullYear();
@@ -1268,6 +1283,9 @@ const StaffApp = {
     if (periodPreset === 'quarter') {
       const quarters = ['I квартал', 'II квартал', 'III квартал', 'IV квартал'];
       return quarters.map((name, index) => `<option value="${index}" ${selectedUnit === index ? 'selected' : ''}>${this.escapeHtml(name)} ${year}</option>`).join('');
+    }
+    if (periodPreset === 'year') {
+      return `<option value="0" selected>${year}</option>`;
     }
     return '';
   },
@@ -1434,7 +1452,7 @@ const StaffApp = {
           ${unitSelector ? `
           <span class="dynamic-controls__divider" aria-hidden="true"></span>
           <div class="dynamic-controls__group dynamic-controls__group--unit">
-            <span class="dynamic-controls__label">${settings.periodPreset === 'month' ? 'Месяц' : 'Квартал'}</span>
+            <span class="dynamic-controls__label">${settings.periodPreset === 'month' ? 'Месяц' : settings.periodPreset === 'quarter' ? 'Квартал' : 'Год'}</span>
             ${unitSelector}
           </div>
           ` : ''}
@@ -2231,7 +2249,7 @@ const StaffApp = {
           ${unitSelector ? `
           <span class="dynamic-controls__divider" aria-hidden="true"></span>
           <div class="dynamic-controls__group dynamic-controls__group--unit">
-            <span class="dynamic-controls__label">${settings.periodPreset === 'month' ? 'Месяц' : 'Квартал'}</span>
+            <span class="dynamic-controls__label">${settings.periodPreset === 'month' ? 'Месяц' : settings.periodPreset === 'quarter' ? 'Квартал' : 'Год'}</span>
             ${unitSelector}
           </div>
           ` : ''}
@@ -2402,7 +2420,7 @@ const StaffApp = {
     const periods = this.getPeriodCards().map((period, index) => {
       const plan = Math.round(Number(period.plan || 0) * employees.length);
       const basePercent = Number(period.percent || averageLoad || 0);
-      const percent = plan ? Math.max(0, Math.min(100, Math.round((averageLoad * 0.65) + (basePercent * 0.35) + ((centerIndex % 3) - 1) * 2))) : 0;
+      const percent = plan ? Math.max(0, Math.min(100, Math.round((averageLoad * 0.35) + (basePercent * 0.65) + ((centerIndex % 3) - 1) * 2))) : 0;
       const fact = Math.round(plan * percent / 100);
       const absence = Math.round(Number(period.missing ?? period.absence ?? 0) * employees.length);
       const idle = Math.max(0, Math.round(plan - fact));

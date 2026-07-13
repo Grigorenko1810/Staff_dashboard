@@ -31,8 +31,8 @@
   --input-border: #d8d8d8;
   --input-bg: #ffffff;
   --focus-ring: rgba(255,104,44,0.24);
-  --green: #5f6f54;
-  --red: #8b3f2f;
+  --green: #407128;
+  --red: #92301c;
   --orange: #ff682c;
   --blue: #4d4d4d;
   --shadow: none;
@@ -1217,7 +1217,7 @@ h1, h2, h3,
 
 .load-level--low { color: var(--red); }
 .load-level--medium { color: var(--orange); }
-.load-level--high { color: var(--secondary-accent); }
+.load-level--high { color: var(--green); }
 
 .chart-center-label { font-family: var(--font-polysans); font-weight: 400; }
 
@@ -1787,7 +1787,7 @@ body {
   gap: 1px;
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 20px;
 }
 
 .stat-row {
@@ -1903,7 +1903,7 @@ body {
   min-height: 112px;
   padding: 18px;
   background: var(--surface-soft);
-  border-radius: 12px;
+  border-radius: 20px;
 }
 
 .center-summary-kpi strong {
@@ -2513,7 +2513,7 @@ body.sidebar-collapsed .sidebar__chevron {
   min-width: 0;
   background: var(--surface-soft);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 20px;
   overflow: hidden;
 }
 
@@ -2532,7 +2532,7 @@ body.sidebar-collapsed .sidebar__chevron {
   width: 240px;
   height: 240px;
   margin: 0 auto;
-  padding: 12px;
+  padding: 6px 12px 12px;
   background: linear-gradient(180deg, var(--surface-soft), var(--surface-card));
 }
 
@@ -3568,7 +3568,7 @@ body.sidebar-collapsed .sidebar__chevron {
   display: inline-block;
   width: max-content;
   max-width: 100%;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .date-fit,
@@ -4679,9 +4679,9 @@ body.is-modal-dragging {
 
 .metrics-grid .metric-card {
   flex: 0 0 auto;
-  width: 180px;
-  min-width: 180px;
-  max-width: 180px;
+  width: 285px;
+  min-width: 285px;
+  max-width: 285px;
   min-height: 0;
 }
 
@@ -4776,7 +4776,7 @@ body.is-modal-dragging {
   max-width: 100%;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 20px;
   overflow: hidden;
 }
 
@@ -5283,11 +5283,11 @@ body.is-modal-dragging {
 }
 
 .employee-metrics-section .employee-metric-grid--hours {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
 .employee-metrics-section .employee-metric-grid--tasks {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
 .employee-metrics-section .metric-card {
@@ -5300,7 +5300,7 @@ body.is-modal-dragging {
   min-width: 0;
   max-width: none;
   min-height: 136px;
-  height: 136px;
+  height: auto;
   padding: var(--metric-card-padding-y) var(--metric-card-padding-x);
 }
 
@@ -5776,13 +5776,15 @@ body.is-modal-dragging {
    ============================================================ */
 .metric-card__value-suffix {
   display: inline-block;
-  margin-left: 8px;
+  margin-left: 3ch;
+  max-width: 100%;
   font-family: var(--font-body);
-  font-size: 0.36em;
+  font-size: 0.72em;
   font-weight: 500;
   letter-spacing: 0;
   color: var(--muted);
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: break-word;
   vertical-align: baseline;
 }
 
@@ -5885,7 +5887,7 @@ body.is-modal-dragging {
   max-width: 100%;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 20px;
   overflow: hidden;
 }
 
@@ -5910,4 +5912,34 @@ body.is-modal-dragging {
     flex-direction: column;
     width: 100%;
   }
+}
+
+/* ============================================================
+   Comparison-period caption under each dynamics delta ('+6.3%'
+   etc). Sits below the delta pill, nudged right, so it reads as
+   attached to the number it annotates rather than a stray label.
+   ============================================================ */
+.metric-delta-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.metric-delta__compare {
+  margin-left: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ============================================================
+   Nudge the page-level period filter's captions ('Период
+   страницы' and the month/quarter/year unit label) up slightly
+   so they sit tighter against the controls they describe.
+   ============================================================ */
+.overview-period-bar .dynamic-controls__label {
+  margin-top: -3px;
 }
