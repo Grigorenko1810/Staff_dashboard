@@ -5964,3 +5964,36 @@ body.is-modal-dragging {
 .overview-period-bar .dynamic-controls__label {
   margin-top: -3px;
 }
+
+/* ============================================================
+   Custom date-range group inside the period-filter panel (sits
+   to the right of the preset buttons, like the month/quarter/year
+   dropdown it replaces). Never let it shrink below its content -
+   two side-by-side date inputs breaking onto separate lines reads
+   as broken, whereas the preset/granularity button rows can wrap
+   gracefully if the panel runs out of room.
+   ============================================================ */
+.dynamic-controls__group--custom-dates {
+  flex-shrink: 0;
+}
+
+.dynamic-controls__group--custom-dates .custom-period-fields {
+  flex-wrap: nowrap;
+}
+
+/* Технический блок / Центры KPI panel: put the comparison caption on
+   the same line as the delta percentage instead of stacking below it. */
+.metric-delta-wrap--inline {
+  display: block;
+}
+
+.metric-delta-wrap--inline .metric-delta {
+  vertical-align: baseline;
+  margin-right: 6px;
+}
+
+.metric-delta-wrap--inline .metric-delta__compare {
+  display: inline;
+  margin-left: 0;
+  white-space: normal;
+}

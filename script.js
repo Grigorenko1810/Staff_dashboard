@@ -1118,7 +1118,19 @@ const StaffApp = {
     const isGoodDelta = isNegativeMetric ? !isPositiveDelta : isPositiveDelta;
     return isGoodDelta ? 'metric-delta--positive' : 'metric-delta--negative';
   },
-  renderMetricDelta(currentValue, previousValue, isNegativeMetric = false) {
+  getComparisonCaption(periodPreset) {
+    if (periodPreset === 'month') {
+      return 'по сравнению с предыдущим месяцем';
+    }
+    if (periodPreset === 'quarter') {
+      return 'по сравнению с предыдущим кварталом';
+    }
+    if (periodPreset === 'year') {
+      return 'по сравнению с предыдущим годом';
+    }
+    return 'по сравнению с предыдущим периодом';
+  },
+  renderMetricDelta(currentValue, previousValue, isNegativeMetric = false, compareCaption = 'к прошлому периоду', inlineCompare = false) {
     const delta = this.getPercentChange(currentValue, previousValue);
     const deltaClass = this.getDeltaClass(delta, isNegativeMetric);
     const deltaMarkup = `<div class="metric-delta ${deltaClass}">${this.escapeHtml(this.formatDeltaPercent(delta))}</div>`;
@@ -1126,9 +1138,9 @@ const StaffApp = {
       return deltaMarkup;
     }
     return `
-      <div class="metric-delta-wrap">
+      <div class="metric-delta-wrap${inlineCompare ? ' metric-delta-wrap--inline' : ''}">
         ${deltaMarkup}
-        <div class="metric-delta__compare">к прошлому периоду</div>
+        <div class="metric-delta__compare">${this.escapeHtml(compareCaption)}</div>
       </div>
     `;
   },
@@ -1468,12 +1480,40 @@ const StaffApp = {
       { key: 'year', label: 'Год' },
       { key: 'custom', label: 'Свой период' }
     ];
+    const isCustom = settings.periodPreset === 'custom';
     const unitOptionsMarkup = this.getPeriodUnitOptionsMarkup(settings.periodPreset, settings.periodUnit);
     const unitSelector = unitOptionsMarkup ? `
       <select class="period-unit-select" data-overview-level="${this.escapeHtml(level)}" data-overview-period-unit-select>
         ${unitOptionsMarkup}
       </select>
     ` : '';
+    const customDateFields = `
+      <div class="custom-period-fields custom-period-fields--inline">
+        <label>
+          <span>Дата начала</span>
+          <input class="date-fit" type="date" value="${this.escapeHtml(settings.startDate)}" data-overview-level="${this.escapeHtml(level)}" data-overview-period-start>
+        </label>
+        <label>
+          <span>Дата окончания</span>
+          <input class="date-fit" type="date" value="${this.escapeHtml(settings.endDate)}" data-overview-level="${this.escapeHtml(level)}" data-overview-period-end>
+        </label>
+      </div>
+    `;
+    const rightGroup = isCustom
+      ? `
+        <span class="dynamic-controls__divider" aria-hidden="true"></span>
+        <div class="dynamic-controls__group dynamic-controls__group--custom-dates">
+          <span class="dynamic-controls__label">Свой период</span>
+          ${customDateFields}
+        </div>
+      `
+      : (unitSelector ? `
+        <span class="dynamic-controls__divider" aria-hidden="true"></span>
+        <div class="dynamic-controls__group dynamic-controls__group--unit">
+          <span class="dynamic-controls__label">${settings.periodPreset === 'month' ? 'Месяц' : settings.periodPreset === 'quarter' ? 'Квартал' : 'Год'}</span>
+          ${unitSelector}
+        </div>
+      ` : '');
     return `
       <div class="overview-period-bar" data-overview-level="${this.escapeHtml(level)}">
         <div class="dynamic-controls__panel">
@@ -1487,23 +1527,7 @@ const StaffApp = {
               `).join('')}
             </div>
           </div>
-          ${unitSelector ? `
-          <span class="dynamic-controls__divider" aria-hidden="true"></span>
-          <div class="dynamic-controls__group dynamic-controls__group--unit">
-            <span class="dynamic-controls__label">${settings.periodPreset === 'month' ? 'Месяц' : settings.periodPreset === 'quarter' ? 'Квартал' : 'Год'}</span>
-            ${unitSelector}
-          </div>
-          ` : ''}
-        </div>
-        <div class="custom-period-fields ${settings.periodPreset === 'custom' ? 'is-visible' : 'is-hidden'}">
-          <label>
-            <span>Дата начала</span>
-            <input class="date-fit" type="date" value="${this.escapeHtml(settings.startDate)}" data-overview-level="${this.escapeHtml(level)}" data-overview-period-start>
-          </label>
-          <label>
-            <span>Дата окончания</span>
-            <input class="date-fit" type="date" value="${this.escapeHtml(settings.endDate)}" data-overview-level="${this.escapeHtml(level)}" data-overview-period-end>
-          </label>
+          ${rightGroup}
         </div>
       </div>
     `;
@@ -2076,7 +2100,7 @@ const StaffApp = {
     }
     return `${numberText}<span class="metric-card__value-suffix">${this.escapeHtml(suffix)}</span>`;
   },
-  renderKpiCard(metric, meta = '') {
+  renderKpiCard(metric, meta = '', compareCaption = 'к прошлому периоду', inlineCompare = false) {
     const valueClass = metric.valueClass ? ` ${metric.valueClass}` : '';
     const metricKey = metric.key ? String(metric.key) : '';
     const metricKeyClass = metricKey ? ` metric-card--${this.escapeHtml(metricKey)}` : '';
@@ -2088,13 +2112,15 @@ const StaffApp = {
         <div class="kpi-card__label metric-card__label">${this.escapeHtml(metric.label)}</div>
         <div class="kpi-card__metric">
           <div class="kpi-card__value metric-card__value value-fit${valueClass}${valueRoleClass}${percentValueClass}">${this.renderMetricValueMarkup(metric.value, metric.suffix || '')}</div>
-          <div class="metric-card__delta">${this.renderMetricDelta(metric.value, metric.previousValue, Boolean(metric.isNegativeMetric))}</div>
+          <div class="metric-card__delta">${this.renderMetricDelta(metric.value, metric.previousValue, Boolean(metric.isNegativeMetric), compareCaption, inlineCompare)}</div>
         </div>
         ${meta ? `<div class="kpi-card__meta">${this.escapeHtml(meta)}</div>` : ''}
       </article>
     `;
   },
   renderMetricsPanel(metrics = [], options = {}) {
+    const compareCaption = options.compareCaption || 'к прошлому периоду';
+    const inlineCompare = Boolean(options.inlineCompare);
     const hiddenMetricKeys = new Set(['efficiency', 'projectCount', 'projectsOnTime', 'projectsLate', 'projectHours']);
     const visibleMetrics = (metrics || []).filter((metric) => metric && !hiddenMetricKeys.has(metric.key));
     const groups = [
@@ -2116,7 +2142,7 @@ const StaffApp = {
         <div class="metrics-group">
           <div class="metrics-group__title">${this.escapeHtml(group.title)}</div>
           <div class="metrics-grid">
-            ${groupMetrics.map((metric) => this.renderKpiCard(metric)).join('')}
+            ${groupMetrics.map((metric) => this.renderKpiCard(metric, '', compareCaption, inlineCompare)).join('')}
           </div>
         </div>
       `;
@@ -2127,7 +2153,7 @@ const StaffApp = {
         <div class="metrics-group">
           <div class="metrics-group__title">Дополнительно</div>
           <div class="metrics-grid">
-            ${uncategorizedMetrics.map((metric) => this.renderKpiCard(metric)).join('')}
+            ${uncategorizedMetrics.map((metric) => this.renderKpiCard(metric, '', compareCaption, inlineCompare)).join('')}
           </div>
         </div>
       `);
@@ -2278,7 +2304,35 @@ const StaffApp = {
   },
   renderDynamicControls(level) {
     const settings = this.getDynamicSettings(level);
+    const isCustom = settings.periodPreset === 'custom';
     const unitSelector = this.renderPeriodUnitSelector(level);
+    const customDateFields = `
+      <div class="custom-period-fields custom-period-fields--inline">
+        <label>
+          <span>Дата начала</span>
+          <input class="date-fit" type="date" value="${this.escapeHtml(settings.startDate)}" data-dynamic-level="${this.escapeHtml(level)}" data-custom-period-start>
+        </label>
+        <label>
+          <span>Дата окончания</span>
+          <input class="date-fit" type="date" value="${this.escapeHtml(settings.endDate)}" data-dynamic-level="${this.escapeHtml(level)}" data-custom-period-end>
+        </label>
+      </div>
+    `;
+    const middleGroup = isCustom
+      ? `
+        <span class="dynamic-controls__divider" aria-hidden="true"></span>
+        <div class="dynamic-controls__group dynamic-controls__group--custom-dates">
+          <span class="dynamic-controls__label">Свой период</span>
+          ${customDateFields}
+        </div>
+      `
+      : (unitSelector ? `
+        <span class="dynamic-controls__divider" aria-hidden="true"></span>
+        <div class="dynamic-controls__group dynamic-controls__group--unit">
+          <span class="dynamic-controls__label">${settings.periodPreset === 'month' ? 'Месяц' : settings.periodPreset === 'quarter' ? 'Квартал' : 'Год'}</span>
+          ${unitSelector}
+        </div>
+      ` : '');
     return `
       <div class="dynamic-controls" data-dynamic-level="${this.escapeHtml(level)}">
         <div class="dynamic-controls__panel">
@@ -2286,28 +2340,12 @@ const StaffApp = {
             <span class="dynamic-controls__label">Период</span>
             ${this.renderPeriodPresetSwitcher(level)}
           </div>
-          ${unitSelector ? `
-          <span class="dynamic-controls__divider" aria-hidden="true"></span>
-          <div class="dynamic-controls__group dynamic-controls__group--unit">
-            <span class="dynamic-controls__label">${settings.periodPreset === 'month' ? 'Месяц' : settings.periodPreset === 'quarter' ? 'Квартал' : 'Год'}</span>
-            ${unitSelector}
-          </div>
-          ` : ''}
+          ${middleGroup}
           <span class="dynamic-controls__divider" aria-hidden="true"></span>
           <div class="dynamic-controls__group dynamic-controls__group--granularity">
             <span class="dynamic-controls__label">Детализация</span>
             ${this.renderGranularitySwitcher(level)}
           </div>
-        </div>
-        <div class="custom-period-fields ${settings.periodPreset === 'custom' ? 'is-visible' : 'is-hidden'}">
-          <label>
-            <span>Дата начала</span>
-            <input class="date-fit" type="date" value="${this.escapeHtml(settings.startDate)}" data-dynamic-level="${this.escapeHtml(level)}" data-custom-period-start>
-          </label>
-          <label>
-            <span>Дата окончания</span>
-            <input class="date-fit" type="date" value="${this.escapeHtml(settings.endDate)}" data-dynamic-level="${this.escapeHtml(level)}" data-custom-period-end>
-          </label>
         </div>
       </div>
     `;
@@ -2632,7 +2670,7 @@ const StaffApp = {
           </div>
         </div>
         ${this.renderOverviewPeriodBar(overviewLevel)}
-        ${this.renderMetricsPanel(analyticsKpis)}
+        ${this.renderMetricsPanel(analyticsKpis, { compareCaption: this.getComparisonCaption(overviewSettings.periodPreset), inlineCompare: true })}
         <section class="hero-grid dashboard-periods-grid">
           ${cardsMarkup}
         </section>
