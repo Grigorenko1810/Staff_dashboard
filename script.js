@@ -1668,11 +1668,13 @@ const StaffApp = {
     `;
   },
   formatEmployeePlanFactSubtitle() {
-    const granularityLabel = this.state.employeePeriod === 'month'
-      ? 'по неделям'
-      : this.state.employeePeriod === 'week'
-        ? 'по дням'
-        : 'по этапам';
+    const granularityLabels = {
+      week: 'по дням',
+      month: 'по неделям',
+      quarter: 'по месяцам',
+      year: 'по кварталам'
+    };
+    const granularityLabel = granularityLabels[this.state.employeePeriod] || 'по этапам';
     return `Период: ${this.formatDateForDisplay(this.state.employeeStartDate)} — ${this.formatDateForDisplay(this.state.employeeEndDate)} · детализация ${granularityLabel}`;
   },
   getDynamicRawSeries(sourceData) {
@@ -2032,9 +2034,9 @@ const StaffApp = {
       }
     ];
   },
-  getEmployeeCoreMetrics(employees, tasks = this.getTasksForEmployees(employees)) {
+  getEmployeeCoreMetrics(employees, tasks = this.getTasksForEmployees(employees), periodRange = null, averageLoadOverride = null) {
     const coreMetricKeys = new Set(['plannedHours', 'actualHours', 'loadPercent', 'tasksTotal', 'completedTasks', 'tasksInProgress', 'tasksLate']);
-    return this.buildDynamicKpis(employees, tasks).filter((metric) => coreMetricKeys.has(metric.key));
+    return this.buildDynamicKpis(employees, tasks, periodRange, averageLoadOverride).filter((metric) => coreMetricKeys.has(metric.key));
   },
   formatMetricValue(value, suffix = '') {
     const numericValue = this.getNumericValue(value);
@@ -3517,16 +3519,20 @@ const StaffApp = {
       StaffCharts.destroyAll();
     }
     this.state.activeEmployee = employee;
-    const tasks = this.mockData.tasks.filter((task) => task.employeeId === employee.id);
-    const employeeMetrics = this.getEmployeeCoreMetrics([employee], tasks);
     const periodButtons = [
       { key: 'week', label: 'Неделя' },
       { key: 'month', label: 'Месяц' },
+      { key: 'quarter', label: 'Квартал' },
+      { key: 'year', label: 'Год' },
       { key: 'custom', label: 'Свой период' }
     ];
     const periodMeta = this.getEmployeePeriodMeta();
     this.state.employeeStartDate = this.state.employeeStartDate || periodMeta.startDate;
     this.state.employeeEndDate = this.state.employeeEndDate || periodMeta.endDate;
+    const employeePeriodRange = { startDate: this.state.employeeStartDate, endDate: this.state.employeeEndDate };
+    const tasks = this.getTasksForEmployees([employee], employeePeriodRange);
+    const employeePeriodAverageLoad = this.getAverageLoadForRange(employee, employeePeriodRange.startDate, employeePeriodRange.endDate);
+    const employeeMetrics = this.getEmployeeCoreMetrics([employee], tasks, employeePeriodRange, employeePeriodAverageLoad);
     const dateDisabled = this.state.employeePeriod !== 'custom';
     const employeeDynamicSettings = this.getDynamicSettings('employee');
     const employeeHistoryData = this.getDynamicChartData(
@@ -3563,11 +3569,7 @@ const StaffApp = {
           <div class="period-switcher">
             ${periodButtons.map((button) => `<button class="period-btn ${this.state.employeePeriod === button.key ? 'is-active' : ''}" data-period="${button.key}">${this.escapeHtml(button.label)}</button>`).join('')}
           </div>
-          ${this.state.employeePeriod === 'month' ? `
-            <select class="period-unit-select" id="employeePeriodMonthSelect">
-              ${this.getPeriodUnitOptionsMarkup('month', Number.isInteger(this.state.employeePeriodMonth) ? this.state.employeePeriodMonth : new Date().getMonth())}
-            </select>
-          ` : ''}
+          ${this.renderEmployeePeriodUnitSelector()}
         </div>
         <div class="date-row">
           <div class="field field--date">
@@ -3700,6 +3702,13 @@ const StaffApp = {
         this.state.employeeEndDate = nextMeta.endDate;
         this.renderEmployeePageWithTransition();
       });
+      container.querySelector('#employeePeriodQuarterSelect')?.addEventListener('change', (event) => {
+        this.state.employeePeriodQuarter = Number(event.target.value);
+        const nextMeta = this.getEmployeePeriodMeta('quarter');
+        this.state.employeeStartDate = nextMeta.startDate;
+        this.state.employeeEndDate = nextMeta.endDate;
+        this.renderEmployeePageWithTransition();
+      });
       container.querySelectorAll('.employee-load-table__task-link').forEach((button) => {
         button.addEventListener('click', (event) => {
           event.stopPropagation();
@@ -3749,6 +3758,27 @@ const StaffApp = {
         rangeLabel: 'Месяц'
       };
     }
+    if (periodKey === 'quarter') {
+      const quarterIndex = Number.isInteger(this.state.employeePeriodQuarter) ? this.state.employeePeriodQuarter : Math.floor(today.getMonth() / 3);
+      const startDate = new Date(today.getFullYear(), quarterIndex * 3, 1);
+      const endDate = new Date(today.getFullYear(), quarterIndex * 3 + 3, 0);
+      return {
+        startDate: format(startDate),
+        endDate: format(endDate),
+        label: `${this.getQuarterLabel(quarterIndex)} ${today.getFullYear()}`,
+        rangeLabel: 'Квартал'
+      };
+    }
+    if (periodKey === 'year') {
+      const startDate = new Date(today.getFullYear(), 0, 1);
+      const endDate = new Date(today.getFullYear(), 11, 31);
+      return {
+        startDate: format(startDate),
+        endDate: format(endDate),
+        label: `${today.getFullYear()} год`,
+        rangeLabel: 'Год'
+      };
+    }
     if (periodKey === 'custom') {
       return {
         startDate: this.state.employeeStartDate || format(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7)),
@@ -3768,6 +3798,33 @@ const StaffApp = {
   },
   getMonthName(monthIndex) {
     return ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'][monthIndex] || '';
+  },
+  renderEmployeePeriodUnitSelector() {
+    const period = this.state.employeePeriod;
+    if (period === 'month') {
+      const index = Number.isInteger(this.state.employeePeriodMonth) ? this.state.employeePeriodMonth : new Date().getMonth();
+      return `
+        <select class="period-unit-select" id="employeePeriodMonthSelect">
+          ${this.getPeriodUnitOptionsMarkup('month', index)}
+        </select>
+      `;
+    }
+    if (period === 'quarter') {
+      const index = Number.isInteger(this.state.employeePeriodQuarter) ? this.state.employeePeriodQuarter : Math.floor(new Date().getMonth() / 3);
+      return `
+        <select class="period-unit-select" id="employeePeriodQuarterSelect">
+          ${this.getPeriodUnitOptionsMarkup('quarter', index)}
+        </select>
+      `;
+    }
+    if (period === 'year') {
+      return `
+        <select class="period-unit-select" id="employeePeriodYearSelect">
+          ${this.getPeriodUnitOptionsMarkup('year', 0)}
+        </select>
+      `;
+    }
+    return '';
   },
   getDayName(dayIndex) {
     return ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'][dayIndex] || '';
