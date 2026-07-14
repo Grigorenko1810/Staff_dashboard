@@ -100,24 +100,38 @@ const StaffCharts = {
       totalIndex: labels.length + 1
     };
   },
-  createDoughnut(canvas, labels, values, colors) {
+  createDoughnut(canvas, labels, values, colors, options = {}) {
     this.destroyChart(canvas);
     if (typeof Chart === 'undefined') {
       this.renderFallback(canvas, 'Диаграмма');
       return null;
     }
     const prepared = this.prepareDoughnutData(labels, values, colors);
+    const fillPercent = Number.isFinite(options.fillPercent) ? Math.max(0, Math.min(100, options.fillPercent)) : null;
+    let chartLabels = prepared.labels;
+    let chartValues = prepared.values;
+    let chartColors = prepared.colors;
+    let trackIndex = -1;
+    if (fillPercent !== null) {
+      const total = chartValues.reduce((sum, value) => sum + value, 0) || 1;
+      chartValues = chartValues.map((value) => (value / total) * fillPercent);
+      trackIndex = chartValues.length;
+      chartLabels = [...chartLabels, 'Свободно'];
+      chartValues = [...chartValues, Math.max(0, 100 - fillPercent)];
+      chartColors = [...chartColors, this.palette.fog];
+    }
+    const hoverOffset = trackIndex >= 0 ? chartValues.map((value, index) => index === trackIndex ? 0 : 3) : 3;
     const chart = new Chart(canvas, {
       type: 'doughnut',
       data: {
-        labels: prepared.labels,
+        labels: chartLabels,
         datasets: [{
-          data: prepared.values,
-          backgroundColor: prepared.colors,
+          data: chartValues,
+          backgroundColor: chartColors,
           borderWidth: 0,
           borderRadius: 3,
           spacing: 1,
-          hoverOffset: 3
+          hoverOffset
         }]
       },
       options: {
@@ -132,7 +146,10 @@ const StaffCharts = {
         },
         plugins: {
           legend: { display: false },
-          tooltip: this.getTooltipOptions()
+          tooltip: {
+            ...this.getTooltipOptions(),
+            filter: trackIndex >= 0 ? (item) => item.dataIndex !== trackIndex : undefined
+          }
         },
         elements: {
           arc: { borderWidth: 0 }
@@ -157,7 +174,7 @@ const StaffCharts = {
           {
             label: 'План',
             data: prepared.planned,
-            backgroundColor: (context) => context.dataIndex === prepared.totalIndex ? this.palette.slate : this.palette.mist,
+            backgroundColor: (context) => context.dataIndex === prepared.totalIndex ? this.palette.graphite : this.palette.mist,
             borderColor: (context) => context.dataIndex === prepared.totalIndex ? this.palette.graphite : 'transparent',
             borderWidth: (context) => context.dataIndex === prepared.totalIndex ? 1.5 : 0,
             borderRadius: 3,
@@ -168,8 +185,8 @@ const StaffCharts = {
           {
             label: 'Факт',
             data: prepared.actual,
-            backgroundColor: (context) => context.dataIndex === prepared.totalIndex ? this.palette.graphite : this.palette.brass,
-            borderColor: (context) => context.dataIndex === prepared.totalIndex ? this.palette.graphite : 'transparent',
+            backgroundColor: (context) => context.dataIndex === prepared.totalIndex ? this.palette.ember : this.palette.brass,
+            borderColor: (context) => context.dataIndex === prepared.totalIndex ? this.palette.ember : 'transparent',
             borderWidth: (context) => context.dataIndex === prepared.totalIndex ? 1.5 : 0,
             borderRadius: 3,
             barThickness: 22,
@@ -1734,7 +1751,7 @@ const StaffApp = {
         ${this.renderChartLegend([
           { label: 'План', value: 1, color: REFERENCE_CHART_THEME.colors.mist },
           { label: 'Факт', value: 1, color: REFERENCE_CHART_THEME.colors.brass },
-          { label: 'Итого', value: 1, color: REFERENCE_CHART_THEME.colors.graphite }
+          { label: 'Итого', value: 1, color: REFERENCE_CHART_THEME.colors.ember }
         ], { suffix: '', maxItems: 3, hideValues: true })}
         <div class="bar-chart-total-note">Последняя группа показывает сумму за выбранный период.</div>
       </div>
@@ -2130,8 +2147,11 @@ const StaffApp = {
     return `${numberText}<span class="metric-card__value-suffix">${this.escapeHtml(suffix)}</span>`;
   },
   renderKpiCard(metric, meta = '', compareCaption = 'к прошлому периоду', inlineCompare = false) {
-    const valueClass = metric.valueClass ? ` ${metric.valueClass}` : '';
     const metricKey = metric.key ? String(metric.key) : '';
+    const autoLoadClass = !metric.valueClass && (metricKey === 'loadPercent' || metricKey === 'averageLoad')
+      ? this.getLoadLevelClass(metric.value)
+      : '';
+    const valueClass = metric.valueClass ? ` ${metric.valueClass}` : (autoLoadClass ? ` ${autoLoadClass}` : '');
     const metricKeyClass = metricKey ? ` metric-card--${this.escapeHtml(metricKey)}` : '';
     const valueRoleClass = metricKey === 'employeesCount' || metricKey === 'totalEmployees' ? ' employee-count-value' : '';
     const formattedValue = this.formatMetricValue(metric.value, metric.suffix || '');
@@ -2267,11 +2287,14 @@ const StaffApp = {
     const formattedValue = this.formatMetricValue(metric.value, metric.suffix || '');
     const percentValueClass = this.isPercentText(formattedValue) ? ' percent-value preview-metric-card__value--percent' : '';
     const metricKey = metric.key ? String(metric.key) : '';
+    const autoLoadClass = (metricKey === 'loadPercent' || metricKey === 'averageLoad')
+      ? ` ${this.getLoadLevelClass(metric.value)}`
+      : '';
     return `
       <div class="preview-metric-card">
         <span class="kpi-card__icon" aria-hidden="true">${this.getKpiIconSvg(metricKey)}</span>
         <div class="preview-metric-card__label">${this.escapeHtml(metric.label)}</div>
-        <div class="preview-metric-card__value value-fit${percentValueClass}">${this.renderMetricValueMarkup(metric.value, metric.suffix || '')}</div>
+        <div class="preview-metric-card__value value-fit${percentValueClass}${autoLoadClass}">${this.renderMetricValueMarkup(metric.value, metric.suffix || '')}</div>
         ${this.renderMetricDelta(metric.value, metric.previousValue, Boolean(metric.isNegativeMetric))}
       </div>
     `;
@@ -2763,7 +2786,7 @@ const StaffApp = {
       const labels = (card.projectTypes || []).map((item) => item.name);
       const values = (card.projectTypes || []).map((item) => item.percent);
       const colors = this.getChartPaletteSequence();
-      StaffCharts.createDoughnut(canvas, labels, values, colors);
+      StaffCharts.createDoughnut(canvas, labels, values, colors, { fillPercent: card.percent });
     });
     this.updateDynamicChart(dynamicLevel, 'dynamicLoadChart', summary, container);
     this.initCenterTabsAnimation(container);
@@ -2995,7 +3018,7 @@ const StaffApp = {
               </td>
               <td>${this.escapeHtml(employee.position)}</td>
               <td>${this.escapeHtml(employee.managementName || employee.management || 'Без управления')}</td>
-              <td>${this.renderPercentBadge(`${employee.loadPercent}%`, 'badge--accent')}</td>
+              <td>${this.renderPercentBadge(`${employee.loadPercent}%`, this.getLoadLevelClass(employee.loadPercent))}</td>
               <td>${employee.completedTasks}/${employee.tasksTotal}</td>
               <td>
                 <button class="button button--subtle profile-button" data-profile-id="${employee.id}">Профиль</button>
@@ -3201,7 +3224,7 @@ const StaffApp = {
       triggerElement: rowElement || document.querySelector(`.employee-row[data-employee-id="${employee.id}"]`),
       panelSelector: '.employee-preview',
       handleSelector: '.employee-preview__drag-handle',
-      width: 'min(440px, calc(100vw - 32px))',
+      width: 'min(650px, calc(100vw - 32px))',
       position: preservedPosition,
       modalType: 'employeePreview',
       draggable: true,

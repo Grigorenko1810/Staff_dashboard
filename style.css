@@ -1534,11 +1534,6 @@ body {
   transition: background 180ms ease, transform 180ms ease;
 }
 
-.sidebar__item:first-child {
-  min-height: 56px;
-  font-size: 20px;
-}
-
 .sidebar__item:hover,
 .sidebar__item:focus-visible,
 .sidebar__item--has-dropdown:hover {
@@ -2016,7 +2011,7 @@ body {
 }
 
 .employee-preview {
-  width: min(440px, calc(100vw - 48px));
+  width: min(650px, calc(100vw - 48px));
   padding: 24px;
   background: var(--surface-card);
   border-radius: var(--radius-card);
@@ -3785,7 +3780,7 @@ body.sidebar-collapsed .sidebar__chevron {
 }
 
 .sidebar__item--parent {
-  min-height: 92px;
+  min-height: 46px;
   padding-left: 18px;
 }
 
@@ -4328,7 +4323,7 @@ body.sidebar-collapsed .app-shell {
 }
 
 .sidebar:not(.sidebar--collapsed) .sidebar__item--parent .sidebar__item-link {
-  min-height: 76px;
+  min-height: 48px;
 }
 
 .sidebar:not(.sidebar--collapsed) .sidebar__dot,
@@ -5244,10 +5239,10 @@ body.is-modal-dragging {
   row-gap: 0;
   width: 100%;
   margin: 18px 0 20px;
-  padding: 0 var(--employee-content-offset);
-  background: transparent;
+  padding: 22px var(--employee-content-offset);
+  background: var(--surface-soft, #f5f5f5);
   border: 0;
-  border-radius: 0;
+  border-radius: var(--radius-card, 20px);
 }
 
 .employee-period-card .date-row {
@@ -5288,12 +5283,9 @@ body.is-modal-dragging {
   width: 100%;
 }
 
-.employee-metrics-section .employee-metric-grid--hours {
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-}
-
+.employee-metrics-section .employee-metric-grid--hours,
 .employee-metrics-section .employee-metric-grid--tasks {
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .employee-metrics-section .metric-card {
@@ -5337,7 +5329,6 @@ body.is-modal-dragging {
   font-weight: 400;
   letter-spacing: -0.02em;
   line-height: 1;
-  color: var(--text, #202020);
 }
 
 .employee-metrics-section .metric-card__value.percent-value,
@@ -5410,6 +5401,8 @@ body.is-modal-dragging {
   max-width: calc(100vw - 32px);
   max-height: calc(100vh - 32px);
   overflow: auto;
+  border-color: var(--input-border, #d8d8d8);
+  box-shadow: 0 24px 56px rgba(32, 32, 32, 0.22), 0 4px 12px rgba(32, 32, 32, 0.1);
 }
 
 .task-subtasks-modal .task-modal__body {
@@ -5698,7 +5691,7 @@ body.is-modal-dragging {
 .employee-preview.employee-preview--floating {
   right: auto;
   bottom: auto;
-  width: min(440px, calc(100vw - 32px));
+  width: min(650px, calc(100vw - 32px));
   max-width: calc(100vw - 32px);
   max-height: calc(100vh - 32px);
   overflow: auto;
