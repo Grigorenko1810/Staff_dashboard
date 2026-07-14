@@ -1146,30 +1146,36 @@ const StaffApp = {
   },
   getComparisonCaption(periodPreset) {
     if (periodPreset === 'week') {
-      return 'по сравнению с предыдущей неделей';
+      return 'по сравнению с прошлой неделей';
     }
     if (periodPreset === 'month') {
-      return 'по сравнению с предыдущим месяцем';
+      return 'по сравнению с прошлым месяцем';
     }
     if (periodPreset === 'quarter') {
-      return 'по сравнению с предыдущим кварталом';
+      return 'по сравнению с прошлым кварталом';
     }
     if (periodPreset === 'year') {
-      return 'по сравнению с предыдущим годом';
+      return 'по сравнению с прошлым годом';
     }
-    return 'по сравнению с предыдущим периодом';
+    return 'по сравнению с прошлым периодом';
   },
-  renderMetricDelta(currentValue, previousValue, isNegativeMetric = false, compareCaption = 'к прошлому периоду', inlineCompare = false) {
+  renderTrendArrow(isUp) {
+    const upPath = '<polyline points="0.7 8 6 2.7 9.3 6 15.3 0.7" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><polyline points="11.3 0.7 15.3 0.7 15.3 4.7" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>';
+    const downPath = '<polyline points="0.7 4.7 6 10 9.3 6.7 15.3 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><polyline points="11.3 12 15.3 12 15.3 8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>';
+    return `<span class="metric-delta__trend" aria-hidden="true"><svg viewBox="0 0 16 13" focusable="false">${isUp ? upPath : downPath}</svg></span>`;
+  },
+  renderMetricDelta(currentValue, previousValue, isNegativeMetric = false, compareCaption = 'по сравнению с прошлым периодом', inlineCompare = false) {
     const delta = this.getPercentChange(currentValue, previousValue);
     const deltaClass = this.getDeltaClass(delta, isNegativeMetric);
-    const deltaMarkup = `<div class="metric-delta ${deltaClass}">${this.escapeHtml(this.formatDeltaPercent(delta))}</div>`;
+    const trendIcon = (delta === null || Math.abs(delta) < 0.1) ? '' : this.renderTrendArrow(delta > 0);
+    const deltaMarkup = `<div class="metric-delta ${deltaClass}">${trendIcon}${this.escapeHtml(this.formatDeltaPercent(delta))}</div>`;
     if (delta === null) {
       return deltaMarkup;
     }
     return `
       <div class="metric-delta-wrap${inlineCompare ? ' metric-delta-wrap--inline' : ''}">
         ${deltaMarkup}
-        <div class="metric-delta__compare">${this.escapeHtml(compareCaption)}</div>
+        <div class="metric-delta__compare" title="${this.escapeHtml(compareCaption)}">${this.escapeHtml(compareCaption)}</div>
       </div>
     `;
   },
@@ -1190,7 +1196,7 @@ const StaffApp = {
     }
     return {
       key: 'present',
-      label: 'Сейчас',
+      label: 'Настоящее',
       icon: '<circle cx="8" cy="8" r="5.3" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="8" r="1.8" fill="currentColor" stroke="none"/>'
     };
   },
@@ -2176,7 +2182,7 @@ const StaffApp = {
     }
     return `${numberText}<span class="metric-card__value-suffix">${this.escapeHtml(suffix)}</span>`;
   },
-  renderKpiCard(metric, meta = '', compareCaption = 'к прошлому периоду', inlineCompare = false) {
+  renderKpiCard(metric, meta = '', compareCaption = 'по сравнению с прошлым периодом', inlineCompare = false) {
     const metricKey = metric.key ? String(metric.key) : '';
     const autoLoadClass = !metric.valueClass && (metricKey === 'loadPercent' || metricKey === 'averageLoad')
       ? this.getLoadLevelClass(metric.value)
@@ -2218,7 +2224,7 @@ const StaffApp = {
     return `<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">${markup}</svg>`;
   },
   renderMetricsPanel(metrics = [], options = {}) {
-    const compareCaption = options.compareCaption || 'к прошлому периоду';
+    const compareCaption = options.compareCaption || 'по сравнению с прошлым периодом';
     const inlineCompare = Boolean(options.inlineCompare);
     const hiddenMetricKeys = new Set(['efficiency', 'projectCount', 'projectsOnTime', 'projectsLate', 'projectHours']);
     const visibleMetrics = (metrics || []).filter((metric) => metric && !hiddenMetricKeys.has(metric.key));
@@ -2314,7 +2320,7 @@ const StaffApp = {
       { key: 'activeTasks', label: 'Активных задач', value: activeTasks, previousValue: null, suffix: 'задач' }
     ];
   },
-  renderPreviewMetricCard(metric, compareCaption = 'по сравнению с предыдущим периодом') {
+  renderPreviewMetricCard(metric, compareCaption = 'по сравнению с прошлым периодом') {
     const formattedValue = this.formatMetricValue(metric.value, metric.suffix || '');
     const percentValueClass = this.isPercentText(formattedValue) ? ' percent-value preview-metric-card__value--percent' : '';
     const metricKey = metric.key ? String(metric.key) : '';
@@ -2733,7 +2739,11 @@ const StaffApp = {
     const dynamicSettings = this.getDynamicSettings(dynamicLevel);
     const dynamicAverage = this.getDynamicAverageValue(summary, dynamicSettings);
     this.state.activeAnalyticsSummary = summary;
-    const cardsMarkup = (summary.periods || []).map((card, index) => `
+    const periodsSource = summary.periods || [];
+    const periodDisplayOrder = [3, 0, 1, 2, 4].filter((index) => periodsSource[index]);
+    const cardsMarkup = periodDisplayOrder.map((index) => {
+      const card = periodsSource[index];
+      return `
       <article class="card data-viz-card data-viz-card--period data-viz-card--period-${this.getPeriodTemporalGroup(index).key}">
         ${this.renderPeriodCardGroupBadge(index)}
         <div class="data-viz-card__header">
@@ -2773,7 +2783,8 @@ const StaffApp = {
           `}
         </div>
       </article>
-    `).join('');
+    `;
+    }).join('');
 
     container.innerHTML = `
       <section class="center-page-shell analytics-content center-content-transition is-visible">
@@ -2812,8 +2823,10 @@ const StaffApp = {
     this.attachOverviewPeriodListeners(overviewLevel, container, () => this.renderAnalyticsPage(summary, this.resolveLiveViewLayer(container), options));
     this.attachDynamicControlsListeners(dynamicLevel, container, summary, 'dynamicLoadChart');
     const cards = container.querySelectorAll('[data-chart="doughnut"]');
-    cards.forEach((canvas, index) => {
-      const card = summary.periods[index];
+    const periodsById = new Map((summary.periods || []).map((item) => [String(item.id), item]));
+    cards.forEach((canvas) => {
+      const card = periodsById.get(canvas.dataset.index);
+      if (!card) return;
       const labels = (card.projectTypes || []).map((item) => item.name);
       const values = (card.projectTypes || []).map((item) => item.percent);
       const colors = this.getChartPaletteSequence();

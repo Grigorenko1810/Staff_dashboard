@@ -294,7 +294,7 @@ button, input, select { font: inherit; }
 .kpi-card__meta { margin-top: 6px; font-size: 14px; color: var(--muted); }
 .kpi-card__metric { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 8px; }
 .kpi-card__metric .kpi-card__value { margin-top: 0; }
-.metric-delta { display: inline-flex; align-items: center; gap: 4px; min-height: 18px; line-height: 1.2; font-size: 13px; font-weight: 600; color: var(--muted); }
+.metric-delta { display: inline-flex; align-items: center; gap: 4px; min-height: 18px; line-height: 1.2; font-size: 14px; font-weight: 600; color: var(--muted); }
 .metric-delta--positive { color: var(--green); }
 .metric-delta--negative { color: var(--red); }
 .metric-delta--neutral { color: var(--muted); }
@@ -1847,7 +1847,7 @@ body {
 }
 
 .metric-delta {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
 }
 
@@ -5939,11 +5939,24 @@ body.is-modal-dragging {
 
 .metric-delta__compare {
   margin-left: 4px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   line-height: 1.2;
   color: var(--muted);
   white-space: nowrap;
+}
+
+.metric-delta__trend {
+  display: inline-flex;
+  align-items: center;
+  width: 13px;
+  height: 11px;
+  flex-shrink: 0;
+}
+
+.metric-delta__trend svg {
+  width: 100%;
+  height: 100%;
 }
 
 /* ============================================================
@@ -5976,11 +5989,19 @@ body.is-modal-dragging {
    The caption never wraps to a second line - it truncates with an
    ellipsis instead, since the KPI cards are too narrow to guarantee
    the full phrase fits at every breakpoint. */
+.kpi-card__metric,
+.metric-card__delta {
+  max-width: 100%;
+  min-width: 0;
+}
+
 .metric-delta-wrap--inline {
   display: flex;
+  flex-direction: row;
   flex-wrap: nowrap;
   align-items: baseline;
   gap: 6px;
+  width: 100%;
   min-width: 0;
 }
 
@@ -5998,7 +6019,7 @@ body.is-modal-dragging {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 10px;
+  font-size: 11px;
 }
 
 /* ============================================================
@@ -6088,10 +6109,22 @@ body.is-modal-dragging {
 
 .data-viz-card--period-past .period-card__group {
   color: var(--muted);
-  background: var(--surface-soft);
+  background: var(--surface-card);
 }
 
 .data-viz-card--period-future .period-card__group {
   color: var(--future);
   background: rgba(52, 98, 199, 0.1);
+}
+
+/* Past/future cards read as dimmer than the present set: a touch
+   lighter than the page background but duller than the present
+   cards' bright white, so the eye lands on "now" first. */
+.data-viz-card--period-past,
+.data-viz-card--period-future {
+  background: var(--surface-soft);
+}
+
+.data-viz-card--period .data-viz-card__header-text {
+  margin-top: 34px;
 }
