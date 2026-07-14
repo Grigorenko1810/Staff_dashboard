@@ -47,6 +47,15 @@ const StaffCharts = {
   getPaletteSequence() {
     return [this.palette.ember, this.palette.brass, this.palette.graphite, this.palette.slate, this.palette.mist];
   },
+  pluralizeHours(count) {
+    const n = Math.abs(Math.round(Number(count) || 0));
+    const lastTwo = n % 100;
+    const last = n % 10;
+    if (lastTwo >= 11 && lastTwo <= 14) return 'часов';
+    if (last === 1) return 'час';
+    if (last >= 2 && last <= 4) return 'часа';
+    return 'часов';
+  },
   prepareDoughnutData(labels = [], values = [], colors = []) {
     const palette = this.getPaletteSequence();
     const entries = labels.map((label, index) => ({
@@ -216,7 +225,7 @@ const StaffCharts = {
               label: (context) => {
                 const value = Math.round(context.parsed.y || 0);
                 const name = context.dataset.label === 'План' ? 'Плановые часы' : 'Фактические часы';
-                return `${name}: ${value} ч`;
+                return `${name}: ${value} ${this.pluralizeHours(value)}`;
               },
               afterBody: (items) => {
                 if (!items || !items.length) return '';
@@ -226,7 +235,7 @@ const StaffCharts = {
                 const fact = Math.round(Number(datasets[1]?.data?.[index]) || 0);
                 const diff = fact - plan;
                 const percent = plan > 0 ? Math.round((fact / plan) * 100) : 0;
-                return [`Разница: ${diff > 0 ? '+' : ''}${diff} ч`, `Процент выполнения: ${percent}%`];
+                return [`Разница: ${diff > 0 ? '+' : ''}${diff} ${this.pluralizeHours(diff)}`, `Процент выполнения: ${percent}%`];
               }
             }
           }
@@ -1209,6 +1218,9 @@ const StaffApp = {
   },
   getDynamicSubtitle(granularity) {
     const value = this.normalizeGranularity(granularity);
+    if (value === 'days') {
+      return 'Средняя загрузка по дням';
+    }
     if (value === 'months') {
       return 'Средняя загрузка по месяцам';
     }
@@ -1233,7 +1245,7 @@ const StaffApp = {
   getAllowedGranularities(periodPreset) {
     const preset = String(periodPreset || 'month');
     if (preset === 'month') {
-      return ['weeks'];
+      return ['weeks', 'days'];
     }
     if (preset === 'quarter') {
       return ['weeks', 'months'];
@@ -1936,12 +1948,25 @@ const StaffApp = {
     const match = String(value || '').replace(',', '.').match(/-?\d+(\.\d+)?/);
     return match ? Number(match[0]) : 0;
   },
+  pluralizeRu(count, one, few, many) {
+    const n = Math.abs(Math.round(Number(count) || 0));
+    const lastTwo = n % 100;
+    const last = n % 10;
+    if (lastTwo >= 11 && lastTwo <= 14) return many;
+    if (last === 1) return one;
+    if (last >= 2 && last <= 4) return few;
+    return many;
+  },
+  pluralizeHours(count) {
+    return this.pluralizeRu(count, 'час', 'часа', 'часов');
+  },
   formatHours(value) {
     const numericValue = Number(value);
     if (!Number.isFinite(numericValue)) {
-      return '0 ч';
+      return `0 ${this.pluralizeHours(0)}`;
     }
-    return `${Number.isInteger(numericValue) ? numericValue : numericValue.toFixed(1)} ч`;
+    const displayValue = Number.isInteger(numericValue) ? numericValue : numericValue.toFixed(1);
+    return `${displayValue} ${this.pluralizeHours(numericValue)}`;
   },
   getProjectDeadlineStatus(tasks) {
     const taskList = tasks || [];
@@ -2042,20 +2067,22 @@ const StaffApp = {
     const completedTaskCount = taskList.filter((task) => /заверш|выполн/i.test(`${task.status || ''}`)).length;
     const plannedHoursBase = this.sumMetric(employeeList, 'plannedHours');
     const actualHoursBase = this.sumMetric(employeeList, 'actualHours');
+    const plannedHoursValue = periodRange ? this.getProratedHours(plannedHoursBase, periodRange) : plannedHoursBase;
+    const actualHoursValue = periodRange ? this.getProratedHours(actualHoursBase, periodRange) : actualHoursBase;
     return [
       {
         key: 'plannedHours',
         label: 'Плановые часы',
-        value: periodRange ? this.getProratedHours(plannedHoursBase, periodRange) : plannedHoursBase,
+        value: plannedHoursValue,
         previousValue: this.sumMetric(employeeList, 'previousPlannedHours'),
-        suffix: 'ч'
+        suffix: this.pluralizeHours(plannedHoursValue)
       },
       {
         key: 'actualHours',
         label: 'Фактические часы',
-        value: periodRange ? this.getProratedHours(actualHoursBase, periodRange) : actualHoursBase,
+        value: actualHoursValue,
         previousValue: this.sumMetric(employeeList, 'previousActualHours'),
-        suffix: 'ч'
+        suffix: this.pluralizeHours(actualHoursValue)
       },
       {
         key: 'loadPercent',
@@ -2120,7 +2147,7 @@ const StaffApp = {
         label: 'Суммарные часы по проектам',
         value: projectMetrics.projectHours,
         previousValue: null,
-        suffix: 'ч'
+        suffix: this.pluralizeHours(projectMetrics.projectHours)
       }
     ];
   },
@@ -3613,7 +3640,7 @@ const StaffApp = {
                     <th class="work-type-cell">Вид работы</th>
                     <th class="detail-cell">Название детали</th>
                     <th class="date-cell">Срок выполнения подзадачи</th>
-                    <th class="hours-cell">Время выполнения, ч</th>
+                    <th class="hours-cell">Время выполнения, часов</th>
                     <th class="status-cell">Статус задачи</th>
                     <th class="indicator-cell">Индикатор</th>
                     <th class="participants-cell">Участники подзадачи</th>
@@ -3786,7 +3813,7 @@ const StaffApp = {
                 <th>Название задачи</th>
                 <th>Вид работы</th>
                 <th>Срок выполнения задачи</th>
-                <th>Время выполнения работы, ч</th>
+                <th>Время выполнения работы, часов</th>
                 <th>Статус задачи</th>
                 <th>Индикатор</th>
               </tr>
