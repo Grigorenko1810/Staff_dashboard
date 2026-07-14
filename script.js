@@ -2108,6 +2108,7 @@ const StaffApp = {
     const percentValueClass = this.isPercentText(formattedValue) ? ' percent-value kpi-card__value--percent' : '';
     return `
       <article class="kpi-card metric-card${metricKeyClass}">
+        <span class="kpi-card__icon" aria-hidden="true">${this.getKpiIconSvg(metricKey)}</span>
         <div class="kpi-card__label metric-card__label">${this.escapeHtml(metric.label)}</div>
         <div class="kpi-card__metric">
           <div class="kpi-card__value metric-card__value value-fit${valueClass}${valueRoleClass}${percentValueClass}">${this.renderMetricValueMarkup(metric.value, metric.suffix || '')}</div>
@@ -2116,6 +2117,25 @@ const StaffApp = {
         ${meta ? `<div class="kpi-card__meta">${this.escapeHtml(meta)}</div>` : ''}
       </article>
     `;
+  },
+  getKpiIconSvg(key) {
+    const icons = {
+      plannedHours: '<rect x="2" y="3" width="12" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M2 6.5h12" stroke="currentColor" stroke-width="1.3"/><path d="M5 2v2.4M11 2v2.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>',
+      actualHours: '<circle cx="8" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 5.3V8.5l3 1.7" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>',
+      loadPercent: '<path d="M2.5 11.5a5.5 5.5 0 0 1 11 0" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M8 11.5 10.3 7.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11.5" r="0.9" fill="currentColor" stroke="none"/>',
+      averageLoad: '<path d="M2.5 11.5a5.5 5.5 0 0 1 11 0" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M8 11.5 10.3 7.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11.5" r="0.9" fill="currentColor" stroke="none"/>',
+      totalEmployees: '<circle cx="6" cy="5.6" r="2.1" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M2.3 13.2c0-2.3 1.7-3.9 3.7-3.9s3.7 1.6 3.7 3.9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="11.3" cy="5.1" r="1.7" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M9.6 9.6c.6-.5 1.3-.8 2.1-.8 1.7 0 3.1 1.3 3.3 3" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>',
+      employeesCount: '<circle cx="6" cy="5.6" r="2.1" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M2.3 13.2c0-2.3 1.7-3.9 3.7-3.9s3.7 1.6 3.7 3.9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="11.3" cy="5.1" r="1.7" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M9.6 9.6c.6-.5 1.3-.8 2.1-.8 1.7 0 3.1 1.3 3.3 3" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>',
+      tasksTotal: '<rect x="2.5" y="2.5" width="11" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M5 6h6M5 8.3h6M5 10.6h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>',
+      activeTasks: '<rect x="2.5" y="2.5" width="11" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M5 6h6M5 8.3h6M5 10.6h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>',
+      completedTasks: '<circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M5.5 8.2l1.8 1.8 3.2-3.6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>',
+      tasksInProgress: '<circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 8V4.2A3.8 3.8 0 0 1 11.8 8H8Z" fill="currentColor" stroke="none"/>',
+      tasksLate: '<path d="M8 2.6 14 13H2L8 2.6Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M8 6.4v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11.1" r="0.7" fill="currentColor" stroke="none"/>',
+      centersCount: '<circle cx="4" cy="4" r="2" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="12" cy="4" r="2" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5.6 5.4L6.8 10.2M10.4 5.4L9.2 10.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>',
+      managementsCount: '<rect x="6" y="2" width="4" height="3" rx="0.8" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="2" y="10.5" width="4" height="3" rx="0.8" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="10" y="10.5" width="4" height="3" rx="0.8" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 5v2.5M8 7.5H4v3M8 7.5h4v3" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>'
+    };
+    const markup = icons[key] || '<path d="M3 13V9M8 13V5M13 13V7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>';
+    return `<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">${markup}</svg>`;
   },
   renderMetricsPanel(metrics = [], options = {}) {
     const compareCaption = options.compareCaption || 'к прошлому периоду';
@@ -2245,10 +2265,20 @@ const StaffApp = {
   },
   getAnalyticsKpis(summary) {
     if (summary.id !== 'techBlock') {
-      return (summary.dynamicKpis || []).filter((metric) => metric.key !== 'efficiency');
+      const dynamicKpis = (summary.dynamicKpis || []).filter((metric) => metric.key !== 'efficiency');
+      return [...dynamicKpis, this.buildTotalEmployeesKpi(summary)];
     }
     const dynamicKpis = (summary.dynamicKpis || []).filter((metric) => metric.key !== 'loadPercent' && metric.key !== 'efficiency');
     return [...this.buildTechBlockOverviewKpis(summary), ...dynamicKpis];
+  },
+  buildTotalEmployeesKpi(summary) {
+    return {
+      key: 'totalEmployees',
+      label: 'Всего сотрудников',
+      value: summary.totalEmployees,
+      previousValue: null,
+      suffix: 'сотрудников'
+    };
   },
   renderPeriodPresetSwitcher(level) {
     const settings = this.getDynamicSettings(level);
