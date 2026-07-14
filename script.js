@@ -1145,6 +1145,9 @@ const StaffApp = {
     return isGoodDelta ? 'metric-delta--positive' : 'metric-delta--negative';
   },
   getComparisonCaption(periodPreset) {
+    if (periodPreset === 'week') {
+      return 'по сравнению с предыдущей неделей';
+    }
     if (periodPreset === 'month') {
       return 'по сравнению с предыдущим месяцем';
     }
@@ -2263,6 +2266,7 @@ const StaffApp = {
   },
   renderEmployeeMetricsPanel(metrics = []) {
     const visibleMetrics = (metrics || []).filter((metric) => metric && metric.key !== 'efficiency');
+    const compareCaption = this.getComparisonCaption(this.state.employeePeriod);
     const groups = [
       {
         title: 'Часы и загрузка',
@@ -2286,7 +2290,7 @@ const StaffApp = {
         <section class="metrics-group employee-metric-group ${this.escapeHtml(group.groupClass || '')}">
           <div class="metrics-group__title employee-metric-group__title">${this.escapeHtml(group.title)}</div>
           <div class="metrics-grid employee-metric-grid ${this.escapeHtml(group.gridClass || '')}">
-            ${groupMetrics.map((metric) => this.renderKpiCard(metric)).join('')}
+            ${groupMetrics.map((metric) => this.renderKpiCard(metric, '', compareCaption, true)).join('')}
           </div>
         </section>
       `;
@@ -2310,7 +2314,7 @@ const StaffApp = {
       { key: 'activeTasks', label: 'Активных задач', value: activeTasks, previousValue: null, suffix: 'задач' }
     ];
   },
-  renderPreviewMetricCard(metric) {
+  renderPreviewMetricCard(metric, compareCaption = 'по сравнению с предыдущим периодом') {
     const formattedValue = this.formatMetricValue(metric.value, metric.suffix || '');
     const percentValueClass = this.isPercentText(formattedValue) ? ' percent-value preview-metric-card__value--percent' : '';
     const metricKey = metric.key ? String(metric.key) : '';
@@ -2322,7 +2326,7 @@ const StaffApp = {
         <span class="kpi-card__icon" aria-hidden="true">${this.getKpiIconSvg(metricKey)}</span>
         <div class="preview-metric-card__label">${this.escapeHtml(metric.label)}</div>
         <div class="preview-metric-card__value value-fit${percentValueClass}${autoLoadClass}">${this.renderMetricValueMarkup(metric.value, metric.suffix || '')}</div>
-        ${this.renderMetricDelta(metric.value, metric.previousValue, Boolean(metric.isNegativeMetric))}
+        ${this.renderMetricDelta(metric.value, metric.previousValue, Boolean(metric.isNegativeMetric), compareCaption, true)}
       </div>
     `;
   },
@@ -3235,7 +3239,7 @@ const StaffApp = {
           </div>
           ${this.renderOverviewPeriodBar('employeePreview')}
           <div class="preview-metric-grid">
-            ${previewMetrics.map((metric) => this.renderPreviewMetricCard(metric)).join('')}
+            ${previewMetrics.map((metric) => this.renderPreviewMetricCard(metric, this.getComparisonCaption(previewPeriodSettings.periodPreset))).join('')}
           </div>
           <div class="preview-actions preview-actions--compact">
             <a class="button button--primary button--sm" href="employee.html?id=${employee.id}">Подробнее</a>

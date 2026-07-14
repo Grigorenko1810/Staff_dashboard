@@ -5972,20 +5972,33 @@ body.is-modal-dragging {
 }
 
 /* Технический блок / Центры KPI panel: put the comparison caption on
-   the same line as the delta percentage instead of stacking below it. */
+   the same line as the delta percentage instead of stacking below it.
+   The caption never wraps to a second line - it truncates with an
+   ellipsis instead, since the KPI cards are too narrow to guarantee
+   the full phrase fits at every breakpoint. */
 .metric-delta-wrap--inline {
-  display: block;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
 }
 
 .metric-delta-wrap--inline .metric-delta {
   vertical-align: baseline;
-  margin-right: 6px;
+  margin-right: 0;
+  flex-shrink: 0;
 }
 
 .metric-delta-wrap--inline .metric-delta__compare {
-  display: inline;
+  display: block;
   margin-left: 0;
-  white-space: normal;
+  min-width: 0;
+  flex: 1 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 10px;
 }
 
 /* ============================================================
