@@ -1149,7 +1149,7 @@ const StaffApp = {
       return {
         key: 'past',
         label: 'Прошлое',
-        icon: '<path d="M4 5.5h4.6a4 4 0 1 1-3.8 4.9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M4 3v3.2h3.2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>'
+        icon: '<polyline points="0.7 2.7 0.7 6.7 4.7 6.7" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.3 10a6 6 0 1 0 1.4-6.2L0.7 6.7" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>'
       };
     }
     if (index === 4) {
@@ -2266,8 +2266,10 @@ const StaffApp = {
   renderPreviewMetricCard(metric) {
     const formattedValue = this.formatMetricValue(metric.value, metric.suffix || '');
     const percentValueClass = this.isPercentText(formattedValue) ? ' percent-value preview-metric-card__value--percent' : '';
+    const metricKey = metric.key ? String(metric.key) : '';
     return `
       <div class="preview-metric-card">
+        <span class="kpi-card__icon" aria-hidden="true">${this.getKpiIconSvg(metricKey)}</span>
         <div class="preview-metric-card__label">${this.escapeHtml(metric.label)}</div>
         <div class="preview-metric-card__value value-fit${percentValueClass}">${this.renderMetricValueMarkup(metric.value, metric.suffix || '')}</div>
         ${this.renderMetricDelta(metric.value, metric.previousValue, Boolean(metric.isNegativeMetric))}
@@ -2679,9 +2681,9 @@ const StaffApp = {
     this.state.activeAnalyticsSummary = summary;
     const cardsMarkup = (summary.periods || []).map((card, index) => `
       <article class="card data-viz-card data-viz-card--period data-viz-card--period-${this.getPeriodTemporalGroup(index).key}">
+        ${this.renderPeriodCardGroupBadge(index)}
         <div class="data-viz-card__header">
           <div class="data-viz-card__header-text">
-            ${this.renderPeriodCardGroupBadge(index)}
             <h3 class="data-viz-card__title">${this.escapeHtml(card.title)}</h3>
             <p class="data-viz-card__subtitle">${this.escapeHtml(card.subtitle || '')}</p>
           </div>

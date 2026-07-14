@@ -6020,11 +6020,20 @@ body.is-modal-dragging {
 }
 
 .employees-compact-kpis .kpi-card__icon,
-.metrics-panel--employee .kpi-card__icon {
+.metrics-panel--employee .kpi-card__icon,
+.preview-metric-card .kpi-card__icon {
   top: 12px;
   right: 12px;
   width: 15px;
   height: 15px;
+}
+
+.preview-metric-card {
+  position: relative;
+}
+
+.preview-metric-card__label {
+  padding-right: 20px;
 }
 
 /* ============================================================
@@ -6033,23 +6042,30 @@ body.is-modal-dragging {
    the timeline explicit instead of relying on column position,
    which changes with the grid's responsive column count.
    ============================================================ */
+.data-viz-card--period {
+  position: relative;
+}
+
 .period-card__group {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 2;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   width: fit-content;
-  padding: 3px 10px 3px 7px;
+  padding: 5px 12px 5px 9px;
   border-radius: var(--radius-pill);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  margin-bottom: 8px;
 }
 
 .period-card__group-icon {
-  width: 13px;
-  height: 13px;
+  width: 15px;
+  height: 15px;
   display: flex;
   flex-shrink: 0;
 }
