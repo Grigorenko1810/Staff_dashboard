@@ -1144,6 +1144,36 @@ const StaffApp = {
       </div>
     `;
   },
+  getPeriodTemporalGroup(index) {
+    if (index === 3) {
+      return {
+        key: 'past',
+        label: 'Прошлое',
+        icon: '<path d="M4 5.5h4.6a4 4 0 1 1-3.8 4.9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M4 3v3.2h3.2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>'
+      };
+    }
+    if (index === 4) {
+      return {
+        key: 'future',
+        label: 'Будущее',
+        icon: '<path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>'
+      };
+    }
+    return {
+      key: 'present',
+      label: 'Сейчас',
+      icon: '<circle cx="8" cy="8" r="5.3" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="8" r="1.8" fill="currentColor" stroke="none"/>'
+    };
+  },
+  renderPeriodCardGroupBadge(index) {
+    const group = this.getPeriodTemporalGroup(index);
+    return `
+      <div class="period-card__group">
+        <span class="period-card__group-icon" aria-hidden="true"><svg viewBox="0 0 16 16" focusable="false">${group.icon}</svg></span>
+        <span class="period-card__group-label">${this.escapeHtml(group.label)}</span>
+      </div>
+    `;
+  },
   getLoadLevelClass(percent) {
     const numericValue = Number(percent);
     if (!Number.isFinite(numericValue)) {
@@ -2647,10 +2677,11 @@ const StaffApp = {
     const dynamicSettings = this.getDynamicSettings(dynamicLevel);
     const dynamicAverage = this.getDynamicAverageValue(summary, dynamicSettings);
     this.state.activeAnalyticsSummary = summary;
-    const cardsMarkup = (summary.periods || []).map((card) => `
-      <article class="card data-viz-card data-viz-card--period">
+    const cardsMarkup = (summary.periods || []).map((card, index) => `
+      <article class="card data-viz-card data-viz-card--period data-viz-card--period-${this.getPeriodTemporalGroup(index).key}">
         <div class="data-viz-card__header">
           <div class="data-viz-card__header-text">
+            ${this.renderPeriodCardGroupBadge(index)}
             <h3 class="data-viz-card__title">${this.escapeHtml(card.title)}</h3>
             <p class="data-viz-card__subtitle">${this.escapeHtml(card.subtitle || '')}</p>
           </div>

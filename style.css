@@ -35,6 +35,8 @@
   --red: #c62828;
   --orange: #ff682c;
   --blue: #4d4d4d;
+  --yellow: #b8860b;
+  --future: #3462c7;
   --shadow: none;
   --card-radius: 20px;
   --control-radius: 0px;
@@ -297,10 +299,10 @@ button, input, select { font: inherit; }
 .metric-delta--negative { color: var(--red); }
 .metric-delta--neutral { color: var(--muted); }
 .load-level--low { color: var(--red); }
-.load-level--medium { color: var(--orange); }
+.load-level--medium { color: var(--yellow); }
 .load-level--high { color: var(--green); }
 .badge.load-level--low { background: #f3e8e3; color: var(--red); }
-.badge.load-level--medium { background: var(--surface-muted); color: var(--orange); }
+.badge.load-level--medium { background: var(--surface-muted); color: var(--yellow); }
 .badge.load-level--high { background: #edf0e8; color: var(--green); }
 .dynamic-controls {
   display: flex;
@@ -1208,7 +1210,7 @@ h1, h2, h3,
 
 .badge.load-level--low,
 .status-pill--delay { background: #f3e8e3; color: var(--red); border-color: #ead4ca; }
-.badge.load-level--medium,
+.badge.load-level--medium { background: var(--surface-muted); color: var(--yellow); border-color: #ddd5c8; }
 .status-pill--warning { background: var(--surface-muted); color: var(--orange); border-color: #ddd5c8; }
 .badge.load-level--high,
 .status-pill--done { background: #edf0e8; color: var(--green); border-color: #dce3d5; }
@@ -1216,7 +1218,7 @@ h1, h2, h3,
 .status-pill--neutral { background: var(--surface-soft); color: var(--muted); border-color: var(--border); }
 
 .load-level--low { color: var(--red); }
-.load-level--medium { color: var(--orange); }
+.load-level--medium { color: var(--yellow); }
 .load-level--high { color: var(--green); }
 
 .chart-center-label { font-family: var(--font-polysans); font-weight: 400; }
@@ -2802,7 +2804,7 @@ body.sidebar-collapsed .sidebar__chevron {
 
 .percent-value.load-level--medium,
 .load-level--medium .percent-value {
-  color: var(--orange);
+  color: var(--yellow);
 }
 
 .percent-value.load-level--high,
@@ -6023,4 +6025,51 @@ body.is-modal-dragging {
   right: 12px;
   width: 15px;
   height: 15px;
+}
+
+/* ============================================================
+   Period card temporal grouping (present / past / future).
+   A small icon + label chip makes each donut card's place on
+   the timeline explicit instead of relying on column position,
+   which changes with the grid's responsive column count.
+   ============================================================ */
+.period-card__group {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  padding: 3px 10px 3px 7px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 8px;
+}
+
+.period-card__group-icon {
+  width: 13px;
+  height: 13px;
+  display: flex;
+  flex-shrink: 0;
+}
+
+.period-card__group-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.data-viz-card--period-present .period-card__group {
+  color: var(--accent);
+  background: rgba(255, 104, 44, 0.1);
+}
+
+.data-viz-card--period-past .period-card__group {
+  color: var(--muted);
+  background: var(--surface-soft);
+}
+
+.data-viz-card--period-future .period-card__group {
+  color: var(--future);
+  background: rgba(52, 98, 199, 0.1);
 }
