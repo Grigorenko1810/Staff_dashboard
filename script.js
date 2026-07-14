@@ -1503,7 +1503,6 @@ const StaffApp = {
       ? `
         <span class="dynamic-controls__divider" aria-hidden="true"></span>
         <div class="dynamic-controls__group dynamic-controls__group--custom-dates">
-          <span class="dynamic-controls__label">Свой период</span>
           ${customDateFields}
         </div>
       `
@@ -2322,7 +2321,6 @@ const StaffApp = {
       ? `
         <span class="dynamic-controls__divider" aria-hidden="true"></span>
         <div class="dynamic-controls__group dynamic-controls__group--custom-dates">
-          <span class="dynamic-controls__label">Свой период</span>
           ${customDateFields}
         </div>
       `
