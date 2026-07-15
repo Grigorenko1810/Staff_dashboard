@@ -957,6 +957,97 @@ button, input, select { font: inherit; }
 .employees-search input:focus-visible,
 .employees-filter select:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255,104,44,0.16); border-color: var(--accent); }
 .employees-reset { height: 40px; padding: 0 18px; border-radius: 12px; align-self: end; white-space: nowrap; }
+
+.custom-select {
+  position: relative;
+  width: 100%;
+}
+
+.custom-select__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  height: 40px;
+  border: 1px solid var(--input-border);
+  border-radius: 12px;
+  padding: 0 12px;
+  background: var(--input-bg);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.custom-select__trigger:hover { border-color: var(--accent); }
+
+.custom-select__trigger:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255,104,44,0.16);
+  border-color: var(--accent);
+}
+
+.custom-select.is-open .custom-select__trigger { border-color: var(--accent); }
+
+.custom-select__value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.custom-select__trigger-icon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  color: var(--muted);
+  transition: transform 160ms ease;
+}
+
+.custom-select.is-open .custom-select__trigger-icon { transform: rotate(180deg); }
+
+.custom-select__panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  max-height: 280px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 16px 32px rgba(32, 32, 32, 0.14);
+}
+
+.custom-select__panel[hidden] {
+  display: none;
+}
+
+.custom-select__option {
+  display: block;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.custom-select__option:hover { background: var(--surface-soft); }
+
+.custom-select__option.is-selected {
+  background: var(--surface-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
 .employees-table-wrapper { width: 100%; overflow-x: auto; }
 .employees-table { width: 100%; border-collapse: collapse; }
 .employees-table th, .employees-table td { padding: 10px 9px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: middle; }
@@ -4581,10 +4672,7 @@ body.sidebar-collapsed .app-shell {
 
 /* Employees filters: explicit dropdown chevrons */
 .employees-toolbar .employees-filter select,
-.employees-card .employees-filter select,
-#filterCenter,
-#filterManagement,
-#filterStatus {
+.employees-card .employees-filter select {
   appearance: none;
   -webkit-appearance: none;
   padding-right: 38px;
@@ -4596,10 +4684,7 @@ body.sidebar-collapsed .app-shell {
 }
 
 .employees-toolbar .employees-filter select::-ms-expand,
-.employees-card .employees-filter select::-ms-expand,
-#filterCenter::-ms-expand,
-#filterManagement::-ms-expand,
-#filterStatus::-ms-expand {
+.employees-card .employees-filter select::-ms-expand {
   display: none;
 }
 

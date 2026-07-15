@@ -465,6 +465,7 @@ const StaffApp = {
         } else {
           this.closeEmployeePreview();
         }
+        document.querySelectorAll('.custom-select.is-open').forEach((select) => this.closeCustomSelect(select));
       }
     });
     document.addEventListener('pointerdown', (event) => {
@@ -472,6 +473,10 @@ const StaffApp = {
       if (!preview || document.body.classList.contains('is-dragging-modal')) return;
       if (preview.contains(event.target)) return;
       this.closeEmployeePreview();
+    });
+    document.addEventListener('pointerdown', (event) => {
+      if (event.target.closest('.custom-select')) return;
+      document.querySelectorAll('.custom-select.is-open').forEach((select) => this.closeCustomSelect(select));
     });
     document.getElementById('importBtn')?.addEventListener('click', () => {
       document.getElementById('excelInput')?.click();
@@ -3156,23 +3161,16 @@ const StaffApp = {
             <input id="employeeSearch" type="text" placeholder="Введите ФИО" value="${this.escapeHtml(this.state.filters.search)}">
           </div>
           <div class="employees-filter field">
-            <label for="filterCenter">Центр</label>
-            <select id="filterCenter">
-              ${this.populateCenterFilter()}
-            </select>
+            <label id="filterCenterLabel">Центр</label>
+            ${this.renderCustomSelect('filterCenter', this.getCenterFilterOptions(), this.state.filters.centerId)}
           </div>
           <div class="employees-filter field">
-            <label for="filterManagement">Управление</label>
-            <select id="filterManagement">
-              ${this.populateManagementFilter()}
-            </select>
+            <label id="filterManagementLabel">Управление</label>
+            ${this.renderCustomSelect('filterManagement', this.getManagementFilterOptions(), this.state.filters.managementId)}
           </div>
           <div class="employees-filter field">
-            <label for="filterStatus">Статус</label>
-            <select id="filterStatus">
-              <option value="">Все статусы</option>
-              ${statuses.map((status) => `<option value="${this.escapeHtml(status)}" ${this.state.filters.status === status ? 'selected' : ''}>${this.escapeHtml(status)}</option>`).join('')}
-            </select>
+            <label id="filterStatusLabel">Статус</label>
+            ${this.renderCustomSelect('filterStatus', this.getStatusFilterOptions(statuses), this.state.filters.status)}
           </div>
           <button class="button button--primary employees-reset" id="resetFilters">Сбросить</button>
         </div>
@@ -3193,26 +3191,50 @@ const StaffApp = {
       this.state.filters.search = event.target.value;
       this.applyEmployeeFilters();
     });
-    root.querySelector('#filterCenter')?.addEventListener('change', (event) => {
-      this.state.filters.centerId = event.target.value;
-      if (!this.isManagementAvailableForCenter(this.state.filters.managementId, this.state.filters.centerId)) {
-        this.state.filters.managementId = '';
-      }
-      this.applyEmployeeFilters();
-    });
-    root.querySelector('#filterManagement')?.addEventListener('change', (event) => {
-      this.state.filters.managementId = event.target.value;
-      this.applyEmployeeFilters();
-    });
-    root.querySelector('#filterStatus')?.addEventListener('change', (event) => {
-      this.state.filters.status = event.target.value;
-      this.applyEmployeeFilters();
-    });
     root.querySelector('#resetFilters')?.addEventListener('click', () => {
       this.state.filters = { search: '', centerId: '', managementId: '', status: '' };
       this.applyEmployeeFilters();
     });
     this.bindEmployeesTableEvents(root);
+    this.bindCustomSelectEvents(root);
+  },
+  bindCustomSelectEvents(root = document) {
+    // Bind to the toolbar (freshly recreated by renderEmployeesPage's innerHTML
+    // replacement each call), not `root` itself: `root` can be a view-transition
+    // layer that's reused across renders, which would accumulate one listener
+    // per re-render instead of replacing it.
+    const scope = root.querySelector('.employees-toolbar') || root;
+    scope.addEventListener('click', (event) => {
+      const trigger = event.target.closest('.custom-select__trigger');
+      if (trigger) {
+        const select = trigger.closest('.custom-select');
+        const wasOpen = select.classList.contains('is-open');
+        scope.querySelectorAll('.custom-select.is-open').forEach((openSelect) => this.closeCustomSelect(openSelect));
+        if (!wasOpen) this.openCustomSelect(select);
+        return;
+      }
+      const option = event.target.closest('.custom-select__option');
+      if (option) {
+        const select = option.closest('.custom-select');
+        this.closeCustomSelect(select);
+        this.handleEmployeeFilterChange(select.id, option.dataset.value || '');
+      }
+    });
+  },
+  handleEmployeeFilterChange(selectId, value) {
+    if (selectId === 'filterCenter') {
+      this.state.filters.centerId = value;
+      if (!this.isManagementAvailableForCenter(this.state.filters.managementId, this.state.filters.centerId)) {
+        this.state.filters.managementId = '';
+      }
+    } else if (selectId === 'filterManagement') {
+      this.state.filters.managementId = value;
+    } else if (selectId === 'filterStatus') {
+      this.state.filters.status = value;
+    } else {
+      return;
+    }
+    this.applyEmployeeFilters();
   },
   applyEmployeeFilters() {
     if (!this.isManagementAvailableForCenter(this.state.filters.managementId, this.state.filters.centerId)) {
@@ -3232,15 +3254,10 @@ const StaffApp = {
     if (searchInput && searchInput.value !== this.state.filters.search) {
       searchInput.value = this.state.filters.search || '';
     }
-    const centerSelect = root.querySelector('#filterCenter');
-    if (centerSelect) centerSelect.value = this.state.filters.centerId || '';
-    const managementSelect = root.querySelector('#filterManagement');
-    if (managementSelect) {
-      managementSelect.innerHTML = this.populateManagementFilter();
-      managementSelect.value = this.state.filters.managementId || '';
-    }
-    const statusSelect = root.querySelector('#filterStatus');
-    if (statusSelect) statusSelect.value = this.state.filters.status || '';
+    this.refreshCustomSelect('filterCenter', this.getCenterFilterOptions(), this.state.filters.centerId);
+    this.refreshCustomSelect('filterManagement', this.getManagementFilterOptions(), this.state.filters.managementId);
+    const statuses = [...new Set(this.getNormalizedEmployees().map((employee) => employee.status))];
+    this.refreshCustomSelect('filterStatus', this.getStatusFilterOptions(statuses), this.state.filters.status);
     const results = root.querySelector('#employeesResults');
     if (results) {
       results.innerHTML = this.renderEmployeesResults(filtered);
@@ -3339,24 +3356,57 @@ const StaffApp = {
       ? this.renderEmployeesTable(filterBlock)
       : `<div class="empty-state">Под выбранные фильтры сотрудников не найдено.</div>`;
   },
-  populateCenterFilter() {
+  getCenterFilterOptions() {
     const centers = this.getCentersList();
-    const currentCenterId = String(this.state.filters.centerId || '');
+    return [{ value: '', label: 'Все центры' }, ...centers.map((center) => ({ value: center.id, label: center.name }))];
+  },
+  getManagementFilterOptions() {
+    const centerId = String(this.state.filters.centerId || '');
+    const managements = this.getManagementsList().filter((management) => !centerId || management.centerId === centerId);
+    return [{ value: '', label: 'Все управления' }, ...managements.map((management) => ({ value: management.id, label: management.name }))];
+  },
+  getStatusFilterOptions(statuses) {
+    return [{ value: '', label: 'Все статусы' }, ...(statuses || []).map((status) => ({ value: status, label: status }))];
+  },
+  renderCustomSelectInner(options, value) {
+    const currentValue = String(value || '');
+    const selected = options.find((option) => String(option.value) === currentValue) || options[0] || { label: '' };
     return `
-      <option value="">Все центры</option>
-      ${centers.map((center) => `<option value="${this.escapeHtml(center.id)}" ${currentCenterId === center.id ? 'selected' : ''}>${this.escapeHtml(center.name)}</option>`).join('')}
+      <button type="button" class="custom-select__trigger" aria-haspopup="listbox" aria-expanded="false">
+        <span class="custom-select__value">${this.escapeHtml(selected.label || '')}</span>
+        <svg class="custom-select__trigger-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <div class="custom-select__panel" role="listbox" hidden>
+        ${options.map((option) => `
+          <button type="button" class="custom-select__option${String(option.value) === currentValue ? ' is-selected' : ''}" role="option" data-value="${this.escapeHtml(option.value)}">${this.escapeHtml(option.label)}</button>
+        `).join('')}
+      </div>
     `;
   },
-  populateManagementFilter() {
-    const centerId = String(this.state.filters.centerId || '');
-    const currentManagementId = this.isManagementAvailableForCenter(this.state.filters.managementId, centerId)
-      ? String(this.state.filters.managementId || '')
-      : '';
-    const managements = this.getManagementsList().filter((management) => !centerId || management.centerId === centerId);
-    return `
-      <option value="">Все управления</option>
-      ${managements.map((management) => `<option value="${this.escapeHtml(management.id)}" ${currentManagementId === management.id ? 'selected' : ''}>${this.escapeHtml(management.name)}</option>`).join('')}
-    `;
+  renderCustomSelect(id, options, value) {
+    return `<div class="custom-select" id="${this.escapeHtml(id)}">${this.renderCustomSelectInner(options, value)}</div>`;
+  },
+  refreshCustomSelect(id, options, value) {
+    const select = document.getElementById(id);
+    if (select) select.innerHTML = this.renderCustomSelectInner(options, value);
+  },
+  openCustomSelect(select) {
+    if (!select) return;
+    select.classList.add('is-open');
+    const trigger = select.querySelector('.custom-select__trigger');
+    const panel = select.querySelector('.custom-select__panel');
+    if (trigger) trigger.setAttribute('aria-expanded', 'true');
+    if (panel) panel.hidden = false;
+  },
+  closeCustomSelect(select) {
+    if (!select) return;
+    select.classList.remove('is-open');
+    const trigger = select.querySelector('.custom-select__trigger');
+    const panel = select.querySelector('.custom-select__panel');
+    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+    if (panel) panel.hidden = true;
   },
   ensureFloatingPanelsRoot() {
     let root = document.getElementById('floatingPanelsRoot');
