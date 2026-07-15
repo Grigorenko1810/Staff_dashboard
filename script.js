@@ -1577,7 +1577,7 @@ const StaffApp = {
       : (unitSelector ? `
         <span class="dynamic-controls__divider" aria-hidden="true"></span>
         <div class="dynamic-controls__group dynamic-controls__group--unit">
-          <span class="dynamic-controls__label">${settings.periodPreset === 'month' ? 'Месяц' : settings.periodPreset === 'quarter' ? 'Квартал' : 'Год'}</span>
+          <span class="dynamic-controls__label">${settings.periodPreset === 'month' ? 'Выберите месяц' : settings.periodPreset === 'quarter' ? 'Выберите квартал' : 'Выберите год'}</span>
           ${unitSelector}
         </div>
       ` : '');
@@ -1585,7 +1585,7 @@ const StaffApp = {
       <div class="overview-period-bar" data-overview-level="${this.escapeHtml(level)}">
         <div class="dynamic-controls__panel">
           <div class="dynamic-controls__group dynamic-controls__group--period">
-            <span class="dynamic-controls__label">Период страницы</span>
+            <span class="dynamic-controls__label">Выберите период</span>
             <div class="period-preset-switcher" data-overview-level="${this.escapeHtml(level)}">
               ${presetOptions.map((option) => `
                 <button type="button" class="period-preset-btn ${settings.periodPreset === option.key ? 'is-active' : ''}" data-overview-level="${this.escapeHtml(level)}" data-overview-period-preset="${option.key}">
