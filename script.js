@@ -3056,6 +3056,7 @@ const StaffApp = {
             <th>Сотрудник</th>
             <th>Должность</th>
             <th>Управление</th>
+            <th>Устроен в</th>
             <th>Загрузка</th>
             <th>Выполнено задач</th>
             <th></th>
@@ -3072,6 +3073,7 @@ const StaffApp = {
               </td>
               <td>${this.escapeHtml(employee.position)}</td>
               <td>${this.escapeHtml(employee.managementName || employee.management || 'Без управления')}</td>
+              <td>${this.escapeHtml(employee.employmentType || '—')}</td>
               <td>${this.renderPercentBadge(`${employee.loadPercent}%`, this.getLoadLevelClass(employee.loadPercent))}</td>
               <td>${employee.completedTasks}/${employee.tasksTotal}</td>
               <td>
@@ -3259,6 +3261,7 @@ const StaffApp = {
             <div class="preview-info-row"><span class="preview-info-row__value">${this.escapeHtml(employee.managementName || employee.management)}</span><span class="preview-info-row__label">Управление</span></div>
             <div class="preview-info-row"><span class="preview-info-row__value">${this.escapeHtml(employee.department)}</span><span class="preview-info-row__label">Отдел</span></div>
             <div class="preview-info-row"><span class="preview-info-row__value">${this.escapeHtml(employee.position)}</span><span class="preview-info-row__label">Должность</span></div>
+            <div class="preview-info-row"><span class="preview-info-row__value">${this.escapeHtml(employee.employmentType || '—')}</span><span class="preview-info-row__label">Устроен в</span></div>
           </div>
           ${this.renderOverviewPeriodBar('employeePreview')}
           <div class="preview-metric-grid">
@@ -3761,6 +3764,7 @@ const StaffApp = {
         <div class="employee-profile-card__main">
           <h2 class="section-title">${this.escapeHtml(employee.fullName)}</h2>
           <p class="section-subtitle">${this.escapeHtml(employee.centerName || employee.center)} • ${this.escapeHtml(employee.managementName || employee.management)} • ${this.escapeHtml(employee.department)} • ${this.escapeHtml(employee.position)}</p>
+          <p class="section-subtitle">Устроен в: ${this.escapeHtml(employee.employmentType || '—')}</p>
         </div>
         <span class="badge badge--accent">${this.escapeHtml(employee.status)}</span>
       </section>
