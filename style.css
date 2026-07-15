@@ -776,8 +776,9 @@ button, input, select { font: inherit; }
 .employees-table th, .employees-table td { padding: 10px 9px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .employees-table th { color: var(--muted); font-weight: 600; font-size: 13px; }
 .employees-table td { font-size: 14px; }
-.employee-name-cell { display: flex; flex-direction: column; gap: 2px; min-width: 210px; }
+.employee-name-cell { display: flex; flex-direction: column; gap: 2px; min-width: 210px; max-width: 240px; }
 .employee-name-cell strong { color: var(--text); font-size: 15px; line-height: 1.25; }
+.employee-name-cell .card__subtitle { overflow-wrap: break-word; white-space: normal; }
 @media (max-width: 1024px) {
   .employees-toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .employees-reset { width: 100%; }

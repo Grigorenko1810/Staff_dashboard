@@ -2,7 +2,7 @@ window.mockData = {
   centers: [
     {
       id: 'alpha',
-      name: 'Центр “Альфа”',
+      name: 'Центр центробежных насосов, центробежных компрессоров и роторных машин',
       shortName: 'Альфа',
       color: '#ff682c',
       dynamicLoad: {
@@ -13,7 +13,7 @@ window.mockData = {
     },
     {
       id: 'vector',
-      name: 'Центр “Вектор”',
+      name: 'Центр испытаний электрических машин, трансформаторов и силовых агрегатов',
       shortName: 'Вектор',
       color: '#816729',
       dynamicLoad: {
@@ -24,7 +24,7 @@ window.mockData = {
     },
     {
       id: 'orbita',
-      name: 'Центр “Орбита”',
+      name: 'Центр разработки турбокомпрессорного и насосно-силового оборудования',
       shortName: 'Орбита',
       color: '#202020',
       dynamicLoad: {
@@ -35,7 +35,7 @@ window.mockData = {
     },
     {
       id: 'impulse',
-      name: 'Центр “Импульс”',
+      name: 'Центр диагностики роторного оборудования и вибрационного контроля машин',
       shortName: 'Импульс',
       color: '#4d4d4d',
       dynamicLoad: {
@@ -46,7 +46,7 @@ window.mockData = {
     },
     {
       id: 'sphere',
-      name: 'Центр “Сфера”',
+      name: 'Центр проектирования теплообменного и компрессорного оборудования заводов',
       shortName: 'Сфера',
       color: '#816729',
       dynamicLoad: {
@@ -57,7 +57,7 @@ window.mockData = {
     },
     {
       id: 'granit',
-      name: 'Центр “Гранит”',
+      name: 'Центр эксплуатации газоперекачивающих агрегатов и насосных станций',
       shortName: 'Гранит',
       color: '#4d4d4d',
       dynamicLoad: {
@@ -68,7 +68,7 @@ window.mockData = {
     },
     {
       id: 'pulsar',
-      name: 'Центр “Пульсар”',
+      name: 'Центр технического обслуживания турбинного и генераторного оборудования',
       shortName: 'Пульсар',
       color: '#ff682c',
       dynamicLoad: {
@@ -79,7 +79,7 @@ window.mockData = {
     },
     {
       id: 'kontur',
-      name: 'Центр “Контур”',
+      name: 'Центр сертификации промышленных насосов, компрессоров и приводных машин',
       shortName: 'Контур',
       color: '#202020',
       dynamicLoad: {
@@ -110,8 +110,8 @@ window.mockData = {
       fullName: 'Иванова Алина Сергеевна',
       shortName: 'А. Иванова',
       centerId: 'alpha',
-      centerName: 'Центр “Альфа”',
-      center: 'Центр “Альфа”',
+      centerName: 'Центр центробежных насосов, центробежных компрессоров и роторных машин',
+      center: 'Центр центробежных насосов, центробежных компрессоров и роторных машин',
       managementId: 'management-1',
       managementName: 'Управление данных',
       management: 'Управление данных',
@@ -151,8 +151,8 @@ window.mockData = {
       fullName: 'Петров Максим Игоревич',
       shortName: 'М. Петров',
       centerId: 'vector',
-      centerName: 'Центр “Вектор”',
-      center: 'Центр “Вектор”',
+      centerName: 'Центр испытаний электрических машин, трансформаторов и силовых агрегатов',
+      center: 'Центр испытаний электрических машин, трансформаторов и силовых агрегатов',
       managementId: 'management-2',
       managementName: 'Управление продуктов',
       management: 'Управление продуктов',
@@ -192,8 +192,8 @@ window.mockData = {
       fullName: 'Смирнова Ольга Дмитриевна',
       shortName: 'О. Смирнова',
       centerId: 'orbita',
-      centerName: 'Центр “Орбита”',
-      center: 'Центр “Орбита”',
+      centerName: 'Центр разработки турбокомпрессорного и насосно-силового оборудования',
+      center: 'Центр разработки турбокомпрессорного и насосно-силового оборудования',
       managementId: 'management-3',
       managementName: 'Управление операций',
       management: 'Управление операций',
@@ -233,8 +233,8 @@ window.mockData = {
       fullName: 'Кузнецов Илья Артёмович',
       shortName: 'И. Кузнецов',
       centerId: 'impulse',
-      centerName: 'Центр “Импульс”',
-      center: 'Центр “Импульс”',
+      centerName: 'Центр диагностики роторного оборудования и вибрационного контроля машин',
+      center: 'Центр диагностики роторного оборудования и вибрационного контроля машин',
       managementId: 'management-4',
       managementName: 'Управление качеством',
       management: 'Управление качеством',
@@ -274,8 +274,8 @@ window.mockData = {
       fullName: 'Лебедева Мария Андреевна',
       shortName: 'М. Лебедева',
       centerId: 'sphere',
-      centerName: 'Центр “Сфера”',
-      center: 'Центр “Сфера”',
+      centerName: 'Центр проектирования теплообменного и компрессорного оборудования заводов',
+      center: 'Центр проектирования теплообменного и компрессорного оборудования заводов',
       managementId: 'management-5',
       managementName: 'Управление платформ',
       management: 'Управление платформ',
@@ -315,8 +315,8 @@ window.mockData = {
       fullName: 'Морозов Дмитрий Павлович',
       shortName: 'Д. Морозов',
       centerId: 'granit',
-      centerName: 'Центр “Гранит”',
-      center: 'Центр “Гранит”',
+      centerName: 'Центр эксплуатации газоперекачивающих агрегатов и насосных станций',
+      center: 'Центр эксплуатации газоперекачивающих агрегатов и насосных станций',
       managementId: 'management-6',
       managementName: 'Управление инфраструктуры',
       management: 'Управление инфраструктуры',
@@ -356,8 +356,8 @@ window.mockData = {
       fullName: 'Фёдорова Елена Викторовна',
       shortName: 'Е. Фёдорова',
       centerId: 'pulsar',
-      centerName: 'Центр “Пульсар”',
-      center: 'Центр “Пульсар”',
+      centerName: 'Центр технического обслуживания турбинного и генераторного оборудования',
+      center: 'Центр технического обслуживания турбинного и генераторного оборудования',
       managementId: 'management-7',
       managementName: 'Управление исследований',
       management: 'Управление исследований',
@@ -397,8 +397,8 @@ window.mockData = {
       fullName: 'Соколов Артём Николаевич',
       shortName: 'А. Соколов',
       centerId: 'kontur',
-      centerName: 'Центр “Контур”',
-      center: 'Центр “Контур”',
+      centerName: 'Центр сертификации промышленных насосов, компрессоров и приводных машин',
+      center: 'Центр сертификации промышленных насосов, компрессоров и приводных машин',
       managementId: 'management-8',
       managementName: 'Управление сопровождения',
       management: 'Управление сопровождения',
@@ -630,11 +630,11 @@ window.mockData = {
     { quarter: 'IV', value: 17 }
   ],
   periodCards: [
-    { title: 'Текущий день', subtitle: 'Понедельник, 6 июля 2026', percent: 72, fact: 14, plan: 20, idle: 2, missing: 1, types: [{ label: 'Коммерческий проект', value: 40, color: '#ff682c' }, { label: 'Инвестиционный проект', value: 25, color: '#816729' }, { label: 'Предпродажная подготовка', value: 15, color: '#4d4d4d' }, { label: 'РИД', value: 10, color: '#202020' }, { label: 'Административные работы', value: 10, color: '#c9c2b8' }], centers: [{ label: 'Центр “Альфа”', value: 44, color: '#ff682c' }, { label: 'Центр “Импульс”', value: 28, color: '#816729' }] },
-    { title: 'Нарастающий итог по неделям', subtitle: 'с 29 июня по 5 июля', percent: 81, fact: 43, plan: 52, idle: 4, missing: 5, types: [{ label: 'Коммерческий проект', value: 35, color: '#ff682c' }, { label: 'Инвестиционный проект', value: 20, color: '#816729' }, { label: 'Предпродажная подготовка', value: 20, color: '#4d4d4d' }, { label: 'РИД', value: 15, color: '#202020' }, { label: 'Административные работы', value: 10, color: '#c9c2b8' }], centers: [{ label: 'Центр “Вектор”', value: 36, color: '#816729' }, { label: 'Центр “Орбита”', value: 29, color: '#202020' }] },
-    { title: 'Текущий месяц', subtitle: 'Июль 2026', percent: 66, fact: 92, plan: 140, idle: 7, missing: 3, types: [{ label: 'Коммерческий проект', value: 42, color: '#ff682c' }, { label: 'Инвестиционный проект', value: 24, color: '#816729' }, { label: 'Предпродажная подготовка', value: 14, color: '#4d4d4d' }, { label: 'РИД', value: 10, color: '#202020' }, { label: 'Административные работы', value: 10, color: '#c9c2b8' }], centers: [{ label: 'Центр “Альфа”', value: 41, color: '#ff682c' }, { label: 'Центр “Импульс”', value: 25, color: '#816729' }] },
-    { title: 'Прошлый месяц', subtitle: 'Июнь 2026', percent: 20, fact: 30, plan: 152, idle: 122, missing: 2, types: [{ label: 'Коммерческий проект', value: 36, color: '#ff682c' }, { label: 'Инвестиционный проект', value: 22, color: '#816729' }, { label: 'Предпродажная подготовка', value: 16, color: '#4d4d4d' }, { label: 'РИД', value: 12, color: '#202020' }, { label: 'Административные работы', value: 14, color: '#c9c2b8' }], centers: [{ label: 'Центр “Орбита”', value: 33, color: '#202020' }, { label: 'Центр “Вектор”', value: 27, color: '#816729' }] },
-    { title: 'Следующий месяц', subtitle: 'Август 2026', percent: 75, fact: 120, plan: 160, idle: 5, missing: 4, types: [{ label: 'Коммерческий проект', value: 40, color: '#ff682c' }, { label: 'Инвестиционный проект', value: 21, color: '#816729' }, { label: 'Предпродажная подготовка', value: 18, color: '#4d4d4d' }, { label: 'РИД', value: 11, color: '#202020' }, { label: 'Административные работы', value: 10, color: '#c9c2b8' }], centers: [{ label: 'Центр “Альфа”', value: 39, color: '#ff682c' }, { label: 'Центр “Импульс”', value: 24, color: '#816729' }] }
+    { title: 'Текущий день', subtitle: 'Понедельник, 6 июля 2026', percent: 72, fact: 14, plan: 20, idle: 2, missing: 1, types: [{ label: 'Коммерческий проект', value: 40, color: '#ff682c' }, { label: 'Инвестиционный проект', value: 25, color: '#816729' }, { label: 'Предпродажная подготовка', value: 15, color: '#4d4d4d' }, { label: 'РИД', value: 10, color: '#202020' }, { label: 'Административные работы', value: 10, color: '#c9c2b8' }], centers: [{ label: 'Центр центробежных насосов, центробежных компрессоров и роторных машин', value: 44, color: '#ff682c' }, { label: 'Центр диагностики роторного оборудования и вибрационного контроля машин', value: 28, color: '#816729' }] },
+    { title: 'Нарастающий итог по неделям', subtitle: 'с 29 июня по 5 июля', percent: 81, fact: 43, plan: 52, idle: 4, missing: 5, types: [{ label: 'Коммерческий проект', value: 35, color: '#ff682c' }, { label: 'Инвестиционный проект', value: 20, color: '#816729' }, { label: 'Предпродажная подготовка', value: 20, color: '#4d4d4d' }, { label: 'РИД', value: 15, color: '#202020' }, { label: 'Административные работы', value: 10, color: '#c9c2b8' }], centers: [{ label: 'Центр испытаний электрических машин, трансформаторов и силовых агрегатов', value: 36, color: '#816729' }, { label: 'Центр разработки турбокомпрессорного и насосно-силового оборудования', value: 29, color: '#202020' }] },
+    { title: 'Текущий месяц', subtitle: 'Июль 2026', percent: 66, fact: 92, plan: 140, idle: 7, missing: 3, types: [{ label: 'Коммерческий проект', value: 42, color: '#ff682c' }, { label: 'Инвестиционный проект', value: 24, color: '#816729' }, { label: 'Предпродажная подготовка', value: 14, color: '#4d4d4d' }, { label: 'РИД', value: 10, color: '#202020' }, { label: 'Административные работы', value: 10, color: '#c9c2b8' }], centers: [{ label: 'Центр центробежных насосов, центробежных компрессоров и роторных машин', value: 41, color: '#ff682c' }, { label: 'Центр диагностики роторного оборудования и вибрационного контроля машин', value: 25, color: '#816729' }] },
+    { title: 'Прошлый месяц', subtitle: 'Июнь 2026', percent: 20, fact: 30, plan: 152, idle: 122, missing: 2, types: [{ label: 'Коммерческий проект', value: 36, color: '#ff682c' }, { label: 'Инвестиционный проект', value: 22, color: '#816729' }, { label: 'Предпродажная подготовка', value: 16, color: '#4d4d4d' }, { label: 'РИД', value: 12, color: '#202020' }, { label: 'Административные работы', value: 14, color: '#c9c2b8' }], centers: [{ label: 'Центр разработки турбокомпрессорного и насосно-силового оборудования', value: 33, color: '#202020' }, { label: 'Центр испытаний электрических машин, трансформаторов и силовых агрегатов', value: 27, color: '#816729' }] },
+    { title: 'Следующий месяц', subtitle: 'Август 2026', percent: 75, fact: 120, plan: 160, idle: 5, missing: 4, types: [{ label: 'Коммерческий проект', value: 40, color: '#ff682c' }, { label: 'Инвестиционный проект', value: 21, color: '#816729' }, { label: 'Предпродажная подготовка', value: 18, color: '#4d4d4d' }, { label: 'РИД', value: 11, color: '#202020' }, { label: 'Административные работы', value: 10, color: '#c9c2b8' }], centers: [{ label: 'Центр центробежных насосов, центробежных компрессоров и роторных машин', value: 39, color: '#ff682c' }, { label: 'Центр диагностики роторного оборудования и вибрационного контроля машин', value: 24, color: '#816729' }] }
   ]
 };
 
