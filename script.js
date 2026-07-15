@@ -1015,7 +1015,6 @@ const StaffApp = {
                 ${centers.map((center) => `
                   <a class="sidebar__dropdown-item ${currentCenterId === center.id ? 'is-active' : ''}" href="${this.buildPageHref('dashboard', center.id)}" data-sidebar-center-id="${this.escapeHtml(center.id)}">
                     <span>${this.escapeHtml(this.getCenterAbbreviation(center.name))}</span>
-                    <span class="sidebar__dropdown-item__hint">${this.escapeHtml(center.shortName || center.name)}</span>
                   </a>
                 `).join('')}
               </div>
@@ -2298,21 +2297,24 @@ const StaffApp = {
     });
   },
   renderCenterSummaryCard(summary) {
+    const isTechBlock = !summary?.centerId;
     return `
-      <section class="wide-card center-summary-card">
-        <div class="wide-card__head">
-          <div>
-            <h3>Общая сводка</h3>
-            <p class="card__subtitle">${this.escapeHtml(summary?.title || 'Технический блок')}</p>
+      ${isTechBlock ? '' : `
+        <section class="wide-card center-summary-card">
+          <div class="wide-card__head">
+            <div>
+              <h3>Общая сводка</h3>
+              <p class="card__subtitle">${this.escapeHtml(summary?.title || 'Технический блок')}</p>
+            </div>
           </div>
-        </div>
-        <div class="center-summary-kpis">
-          <div class="center-summary-kpi"><span>Задач всего</span><strong>${this.renderMetricValueMarkup(summary?.totalProjects || 0, 'всего')}</strong></div>
-          <div class="center-summary-kpi"><span>Сотрудников всего</span><strong>${this.renderMetricValueMarkup(summary?.totalEmployees || 0, 'сотрудников')}</strong></div>
-          <div class="center-summary-kpi"><span>Задачи в срок</span><strong>${this.renderMetricValueMarkup(summary?.projectsOnTime || 0, 'в срок')}</strong></div>
-          <div class="center-summary-kpi center-summary-kpi--late"><span>Проектов не в срок</span><strong>${this.renderMetricValueMarkup(summary?.projectsLate || 0, 'не в срок')}</strong></div>
-        </div>
-      </section>
+          <div class="center-summary-kpis">
+            <div class="center-summary-kpi"><span>Задач всего</span><strong>${this.renderMetricValueMarkup(summary?.totalProjects || 0, 'всего')}</strong></div>
+            <div class="center-summary-kpi"><span>Сотрудников всего</span><strong>${this.renderMetricValueMarkup(summary?.totalEmployees || 0, 'сотрудников')}</strong></div>
+            <div class="center-summary-kpi"><span>Задачи в срок</span><strong>${this.renderMetricValueMarkup(summary?.projectsOnTime || 0, 'в срок')}</strong></div>
+            <div class="center-summary-kpi center-summary-kpi--late"><span>Проектов не в срок</span><strong>${this.renderMetricValueMarkup(summary?.projectsLate || 0, 'не в срок')}</strong></div>
+          </div>
+        </section>
+      `}
       <section class="wide-card projects-matrix-card">
         <div class="wide-card__head">
           <div>
@@ -3315,7 +3317,7 @@ const StaffApp = {
               <td>
                 <div class="employee-name-cell">
                   <strong>${this.escapeHtml(employee.fullName)}</strong>
-                  <div class="card__subtitle">${this.escapeHtml(employee.centerName || employee.center || 'Без центра')}</div>
+                  <div class="card__subtitle">${this.escapeHtml(this.getCenterById(employee.centerId)?.shortName || employee.centerName || employee.center || 'Без центра')}</div>
                 </div>
               </td>
               <td>${this.escapeHtml(employee.position)}</td>

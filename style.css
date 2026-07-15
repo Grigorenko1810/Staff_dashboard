@@ -164,7 +164,6 @@ button, input, select { font: inherit; }
   transition: background 180ms ease, color 180ms ease;
 }
 .sidebar__dropdown-item:hover { background: var(--surface-soft); color: var(--primary); }
-.sidebar__dropdown-item__hint { color: var(--muted); font-size: 12px; }
 .sidebar__footer { margin-top: auto; }
 .center-page-shell { display: flex; flex-direction: column; gap: 16px; }
 .center-tabs-card {
@@ -419,11 +418,11 @@ button, input, select { font: inherit; }
 .projects-matrix-card { gap: 16px; }
 
 .projects-matrix-legend {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 10px 16px;
-  padding: 12px 14px;
+  padding: 12px 20px;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--surface-soft);
@@ -450,6 +449,7 @@ button, input, select { font: inherit; }
   flex-wrap: wrap;
   gap: 10px 16px;
   align-items: center;
+  justify-content: flex-end;
   margin: 14px 0;
 }
 
