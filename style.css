@@ -6048,11 +6048,11 @@ body.is-modal-dragging {
    ============================================================ */
 .kpi-card__icon {
   position: absolute;
-  top: 14px;
-  right: 14px;
+  top: 12px;
+  right: 12px;
   z-index: 2;
-  width: 18px;
-  height: 18px;
+  width: 34px;
+  height: 34px;
   color: var(--muted);
 }
 
@@ -6063,16 +6063,16 @@ body.is-modal-dragging {
 
 .kpi-card__label,
 .metric-card__label {
-  padding-right: 24px;
+  padding-right: 42px;
 }
 
 .employees-compact-kpis .kpi-card__icon,
 .metrics-panel--employee .kpi-card__icon,
 .preview-metric-card .kpi-card__icon {
-  top: 12px;
-  right: 12px;
-  width: 15px;
-  height: 15px;
+  top: 10px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
 }
 
 .preview-metric-card {
@@ -6080,7 +6080,7 @@ body.is-modal-dragging {
 }
 
 .preview-metric-card__label {
-  padding-right: 20px;
+  padding-right: 32px;
 }
 
 /* ============================================================
