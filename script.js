@@ -2008,6 +2008,7 @@ const StaffApp = {
       projects.set(projectName, current);
     });
     return Array.from(projects.values()).map((project) => ({
+      id: project.tasks[0]?.id ?? '',
       project: project.project,
       hours: project.hours,
       deadlineStatus: this.getProjectDeadlineStatus(project.tasks),
@@ -2054,6 +2055,7 @@ const StaffApp = {
             <table class="center-summary-table">
               <thead>
                 <tr>
+                  <th>ID</th>
                   <th>Проект</th>
                   <th>Суммарные часы</th>
                   <th>Статус сроков</th>
@@ -2062,6 +2064,7 @@ const StaffApp = {
               <tbody>
                 ${projects.map((project) => `
                   <tr>
+                    <td>${this.escapeHtml(String(project.id))}</td>
                     <td>${this.escapeHtml(project.project)}</td>
                     <td>${this.escapeHtml(this.formatHours(project.hours))}</td>
                     <td><span class="status-pill ${project.isLate ? 'status-pill--delay' : project.isOnTime ? 'status-pill--done' : 'status-pill--neutral'}">${this.escapeHtml(project.deadlineStatus)}</span></td>
@@ -3837,7 +3840,7 @@ const StaffApp = {
           <table class="employee-load-table">
             <thead>
               <tr>
-                ${this.state.showProjects ? '<th>Проект</th>' : ''}
+                ${this.state.showProjects ? '<th>ID</th><th>Проект</th>' : ''}
                 <th>Название задачи</th>
                 <th>Вид работы</th>
                 <th>Срок выполнения задачи</th>
@@ -3850,7 +3853,7 @@ const StaffApp = {
               ${tasks.map((task) => {
                 return `
                   <tr class="task-row" data-task-id="${task.id}">
-                    ${this.state.showProjects ? `<td>${this.escapeHtml(task.project)}</td>` : ''}
+                    ${this.state.showProjects ? `<td>${this.escapeHtml(String(task.id))}</td><td>${this.escapeHtml(task.project)}</td>` : ''}
                     <td>
                       <button class="employee-load-table__task-link" type="button" data-task-id="${task.id}">
                         ${this.escapeHtml(task.taskName)}
