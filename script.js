@@ -573,6 +573,12 @@ const StaffApp = {
   getCentersList() {
     return Array.isArray(this.mockData.centers) ? this.mockData.centers : [];
   },
+  getCenterAbbreviation(name) {
+    return String(name || '')
+      .split(/\s+/)
+      .map((word) => (word.match(/[A-Za-zА-Яа-яЁё]/) || [''])[0].toUpperCase())
+      .join('');
+  },
   getManagementsList() {
     return Array.isArray(this.mockData.managements) ? this.mockData.managements.map((management) => ({
       id: String(management.id || management.name),
@@ -1015,7 +1021,7 @@ const StaffApp = {
               <div class="sidebar__dropdown">
                 ${centers.map((center) => `
                   <a class="sidebar__dropdown-item ${currentCenterId === center.id ? 'is-active' : ''}" href="${this.buildPageHref('dashboard', center.id)}" data-sidebar-center-id="${this.escapeHtml(center.id)}">
-                    <span>${this.escapeHtml(center.name)}</span>
+                    <span>${this.escapeHtml(this.getCenterAbbreviation(center.name))}</span>
                     <span class="sidebar__dropdown-item__hint">${this.escapeHtml(center.shortName || center.name)}</span>
                   </a>
                 `).join('')}
