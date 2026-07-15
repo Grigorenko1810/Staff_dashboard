@@ -4852,6 +4852,42 @@ body.is-modal-dragging {
   height: 300px;
 }
 
+.bar-chart-split {
+  display: flex;
+  gap: 20px;
+  align-items: stretch;
+}
+
+.bar-chart-split__field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.bar-chart-split__field--periods {
+  flex: 2.2 1 0%;
+}
+
+.bar-chart-split__field--total {
+  flex: 1 1 0%;
+}
+
+.bar-chart-split__title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+@media (max-width: 720px) {
+  .bar-chart-split {
+    flex-direction: column;
+  }
+}
+
 @media (min-width: 1025px) {
   .employee-charts-grid {
     grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);

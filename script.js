@@ -90,23 +90,13 @@ const StaffCharts = {
       colors: compactEntries.map((entry, index) => entry.color || palette[index % palette.length])
     };
   },
-  prepareBarData(labels = [], planned = [], actual = []) {
-    const planValues = planned.map((value) => Number(value) || 0);
-    const factValues = actual.map((value) => Number(value) || 0);
-    const hasTotal = labels.some((label) => String(label).toLowerCase() === 'итого');
-    if (hasTotal) {
-      return {
-        labels,
-        planned: planValues,
-        actual: factValues,
-        totalIndex: labels.findIndex((label) => String(label).toLowerCase() === 'итого')
-      };
-    }
+  getAxisTitle(text) {
     return {
-      labels: [...labels, '', 'Итого'],
-      planned: [...planValues, null, Math.round(planValues.reduce((sum, value) => sum + value, 0))],
-      actual: [...factValues, null, Math.round(factValues.reduce((sum, value) => sum + value, 0))],
-      totalIndex: labels.length + 1
+      display: true,
+      text,
+      color: this.palette.slate,
+      font: { family: this.theme.font.body, size: 12, weight: '500' },
+      padding: { top: 8 }
     };
   },
   createDoughnut(canvas, labels, values, colors, options = {}) {
@@ -169,37 +159,35 @@ const StaffCharts = {
     this.charts.push(chart);
     return chart;
   },
-  createBar(canvas, labels, planned, actual) {
+  createBar(canvas, labels, planned, actual, options = {}) {
     this.destroyChart(canvas);
     if (typeof Chart === 'undefined') {
       this.renderFallback(canvas, 'Диаграмма');
       return null;
     }
-    const prepared = this.prepareBarData(labels, planned, actual);
+    const planValues = planned.map((value) => Number(value) || 0);
+    const factValues = actual.map((value) => Number(value) || 0);
+    const barThickness = options.barThickness || 22;
     const chart = new Chart(canvas, {
       type: 'bar',
       data: {
-        labels: prepared.labels,
+        labels,
         datasets: [
           {
             label: 'План',
-            data: prepared.planned,
-            backgroundColor: (context) => context.dataIndex === prepared.totalIndex ? this.palette.graphite : this.palette.mist,
-            borderColor: (context) => context.dataIndex === prepared.totalIndex ? this.palette.graphite : 'transparent',
-            borderWidth: (context) => context.dataIndex === prepared.totalIndex ? 1.5 : 0,
+            data: planValues,
+            backgroundColor: this.palette.graphite,
             borderRadius: 3,
-            barThickness: 22,
+            barThickness,
             categoryPercentage: 0.65,
             barPercentage: 0.8
           },
           {
             label: 'Факт',
-            data: prepared.actual,
-            backgroundColor: (context) => context.dataIndex === prepared.totalIndex ? this.palette.ember : this.palette.brass,
-            borderColor: (context) => context.dataIndex === prepared.totalIndex ? this.palette.ember : 'transparent',
-            borderWidth: (context) => context.dataIndex === prepared.totalIndex ? 1.5 : 0,
+            data: factValues,
+            backgroundColor: this.palette.ember,
             borderRadius: 3,
-            barThickness: 22,
+            barThickness,
             categoryPercentage: 0.65,
             barPercentage: 0.8
           }
@@ -220,7 +208,6 @@ const StaffCharts = {
           legend: { display: false },
           tooltip: {
             ...this.getTooltipOptions(),
-            filter: (context) => context.label !== '' && context.parsed.y !== null,
             callbacks: {
               title: (items) => (items && items.length ? (items[0].label || '') : ''),
               label: (context) => {
@@ -245,7 +232,8 @@ const StaffCharts = {
           x: {
             grid: { display: false },
             ticks: this.getAxisTicks(8),
-            border: { display: false }
+            border: { display: false },
+            title: options.xTitle ? this.getAxisTitle(options.xTitle) : undefined
           },
           y: {
             beginAtZero: true,
@@ -256,7 +244,8 @@ const StaffCharts = {
               borderDash: [2, 4]
             },
             ticks: this.getAxisTicks(6),
-            border: { display: false }
+            border: { display: false },
+            title: options.yTitle ? this.getAxisTitle(options.yTitle) : undefined
           }
         }
       }
@@ -1777,11 +1766,9 @@ const StaffApp = {
     return `
       <div class="bar-chart-footer">
         ${this.renderChartLegend([
-          { label: 'План', value: 1, color: REFERENCE_CHART_THEME.colors.mist },
-          { label: 'Факт', value: 1, color: REFERENCE_CHART_THEME.colors.brass },
-          { label: 'Итого', value: 1, color: REFERENCE_CHART_THEME.colors.ember }
-        ], { suffix: '', maxItems: 3, hideValues: true })}
-        <div class="bar-chart-total-note">Последняя группа показывает сумму за выбранный период.</div>
+          { label: 'План', value: 1, color: REFERENCE_CHART_THEME.colors.graphite },
+          { label: 'Факт', value: 1, color: REFERENCE_CHART_THEME.colors.ember }
+        ], { suffix: '', maxItems: 2, hideValues: true })}
       </div>
     `;
   },
@@ -3807,8 +3794,19 @@ const StaffApp = {
             </div>
             ${this.renderDataVizMetric(this.formatHours(employee.actualHours), 'факт за период')}
           </div>
-          <div class="data-viz-card__body chart-frame chart-frame--bar">
-            <div class="chart-wrap employee-chart-wrap chart-wide-horizontal"><canvas id="barChart"></canvas></div>
+          <div class="bar-chart-split">
+            <div class="bar-chart-split__field bar-chart-split__field--periods">
+              <h4 class="bar-chart-split__title">По периодам</h4>
+              <div class="data-viz-card__body chart-frame chart-frame--bar">
+                <div class="chart-wrap employee-chart-wrap chart-wide-horizontal"><canvas id="barChartPeriods"></canvas></div>
+              </div>
+            </div>
+            <div class="bar-chart-split__field bar-chart-split__field--total">
+              <h4 class="bar-chart-split__title">Суммарно</h4>
+              <div class="data-viz-card__body chart-frame chart-frame--bar">
+                <div class="chart-wrap employee-chart-wrap"><canvas id="barChartTotal"></canvas></div>
+              </div>
+            </div>
           </div>
           <div class="data-viz-card__footer">
             ${this.renderBarChartFooter()}
@@ -4042,11 +4040,21 @@ const StaffApp = {
     return ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'][dayIndex] || '';
   },
   updateEmployeeCharts(employee, root = document) {
-    const barCanvas = root.querySelector?.('#barChart') || document.getElementById('barChart');
-    if (barCanvas) {
+    const periodsCanvas = root.querySelector?.('#barChartPeriods') || document.getElementById('barChartPeriods');
+    if (periodsCanvas) {
       const planned = [0.22, 0.26, 0.25, 0.27].map((part) => Math.round(employee.plannedHours * part));
       const actual = [0.2, 0.24, 0.27, 0.29].map((part) => Math.round(employee.actualHours * part));
-      StaffCharts.createBar(barCanvas, ['Неделя 1', 'Неделя 2', 'Неделя 3', 'Неделя 4'], planned, actual);
+      StaffCharts.createBar(periodsCanvas, ['Неделя 1', 'Неделя 2', 'Неделя 3', 'Неделя 4'], planned, actual, {
+        xTitle: 'Период',
+        yTitle: 'Часы'
+      });
+    }
+    const totalCanvas = root.querySelector?.('#barChartTotal') || document.getElementById('barChartTotal');
+    if (totalCanvas) {
+      StaffCharts.createBar(totalCanvas, ['Итого'], [Math.round(employee.plannedHours)], [Math.round(employee.actualHours)], {
+        yTitle: 'Часы',
+        barThickness: 44
+      });
     }
     const donutCanvas = root.querySelector?.('#donutChart') || document.getElementById('donutChart');
     if (donutCanvas) {
