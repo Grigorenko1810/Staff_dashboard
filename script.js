@@ -1971,6 +1971,29 @@ const StaffApp = {
   pluralizeHours(count) {
     return this.pluralizeRu(count, 'час', 'часа', 'часов');
   },
+  pluralizeDays(count) {
+    return this.pluralizeRu(count, 'день', 'дня', 'дней');
+  },
+  getOverdueDaysLabel(dueDate, indicator) {
+    if (!/не\s*в\s*срок/i.test(String(indicator || ''))) return '';
+    const due = new Date(`${dueDate}T00:00:00`);
+    if (isNaN(due.getTime())) return '';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const overdueDays = Math.max(1, Math.round((today - due) / 86400000));
+    return `Просрочено на ${overdueDays} ${this.pluralizeDays(overdueDays)}`;
+  },
+  getEmployeeWorkTypeBreakdown(tasks) {
+    const byType = new Map();
+    (tasks || []).forEach((task) => {
+      const type = task.workType || 'Без типа';
+      const hours = this.parseWorkHours(task.workTime);
+      byType.set(type, (byType.get(type) || 0) + hours);
+    });
+    return Array.from(byType.entries())
+      .map(([label, hours]) => ({ label, hours }))
+      .sort((a, b) => b.hours - a.hours);
+  },
   formatHours(value) {
     const numericValue = Number(value);
     if (!Number.isFinite(numericValue)) {
@@ -3539,7 +3562,9 @@ const StaffApp = {
     const previewPeriodRange = { startDate: previewPeriodSettings.startDate, endDate: previewPeriodSettings.endDate };
     const previewTasks = this.getTasksForEmployees([employee], previewPeriodRange);
     const previewAverageLoad = this.getAverageLoadForRange(employee, previewPeriodRange.startDate, previewPeriodRange.endDate);
-    const previewMetrics = this.getEmployeeCoreMetrics([employee], previewTasks, previewPeriodRange, previewAverageLoad);
+    const previewCoreMetricKeys = new Set(['plannedHours', 'actualHours']);
+    const previewMetrics = this.getEmployeeCoreMetrics([employee], previewTasks, previewPeriodRange, previewAverageLoad)
+      .filter((metric) => previewCoreMetricKeys.has(metric.key));
     document.querySelectorAll('.employee-row.is-selected').forEach((row) => row.classList.remove('is-selected'));
     document.querySelector(`.employee-row[data-employee-id="${employee.id}"]`)?.classList.add('is-selected');
     const html = `
@@ -3986,7 +4011,12 @@ const StaffApp = {
                         <td class="date-cell">${this.escapeHtml(subtask.dueDate || '—')}</td>
                         <td class="hours-cell">${this.escapeHtml(this.formatHours(this.parseWorkHours(subtask.workTime)))}</td>
                         <td class="status-cell"><span class="status-pill task-status ${this.getStatusClass(subtask.status)}">${this.escapeHtml(subtask.status || '—')}</span></td>
-                        <td class="indicator-cell"><span class="status-pill task-indicator ${this.getStatusClass(subtask.indicator)}">${this.escapeHtml(subtask.indicator || '—')}</span></td>
+                        <td class="indicator-cell">
+                          <span class="indicator-inline">
+                            <span class="status-pill task-indicator ${this.getStatusClass(subtask.indicator)}">${this.escapeHtml(subtask.indicator || '—')}</span>
+                            ${this.getOverdueDaysLabel(subtask.dueDate, subtask.indicator) ? `<span class="overdue-note">${this.escapeHtml(this.getOverdueDaysLabel(subtask.dueDate, subtask.indicator))}</span>` : ''}
+                          </span>
+                        </td>
                         <td class="participants-cell">
                           <div class="participant-list">
                             ${participants.length ? participants.map((participant) => this.renderParticipantLink(participant)).join('') : '<span class="participant-name">—</span>'}
@@ -4055,6 +4085,7 @@ const StaffApp = {
       : null;
     const taskDistributionItems = Object.entries(employee.taskDistribution || {}).map(([label, value]) => ({ label, value }));
     const taskDistributionTotal = taskDistributionItems.reduce((sum, item) => sum + Number(item.value || 0), 0) || employee.tasksTotal || 0;
+    const workTypeBreakdown = this.getEmployeeWorkTypeBreakdown(tasks);
     const planFactSubtitle = this.formatEmployeePlanFactSubtitle();
 
     container.innerHTML = `
@@ -4139,6 +4170,22 @@ const StaffApp = {
               ${this.renderChartLegend(taskDistributionItems, { suffix: '', maxItems: 5 })}
             </div>
           </div>
+          <div class="employee-worktype-breakdown">
+            <div class="analytics-list-title">Часы по видам работ</div>
+            <div class="card__list">
+              ${workTypeBreakdown.length ? workTypeBreakdown.map((item) => `
+                <div class="list-item">
+                  <span class="list-item__label">${this.escapeHtml(item.label)}</span>
+                  <span class="badge">${this.escapeHtml(this.formatHours(item.hours))}</span>
+                </div>
+              `).join('') : `
+                <div class="list-item">
+                  <span class="list-item__label">Нет данных</span>
+                  <span class="badge">—</span>
+                </div>
+              `}
+            </div>
+          </div>
         </article>
       </section>
       <section class="table-card employee-load-card">
@@ -4175,7 +4222,12 @@ const StaffApp = {
                     <td>${this.escapeHtml(task.dueDate)}</td>
                     <td>${this.escapeHtml(this.formatHours(this.parseWorkHours(task.workTime)))}</td>
                     <td><span class="status-pill ${this.getStatusClass(task.status)}">${this.escapeHtml(task.status)}</span></td>
-                    <td><span class="status-pill ${this.getStatusClass(task.indicator)}">${this.escapeHtml(task.indicator)}</span></td>
+                    <td>
+                      <span class="indicator-inline">
+                        <span class="status-pill ${this.getStatusClass(task.indicator)}">${this.escapeHtml(task.indicator)}</span>
+                        ${this.getOverdueDaysLabel(task.dueDate, task.indicator) ? `<span class="overdue-note">${this.escapeHtml(this.getOverdueDaysLabel(task.dueDate, task.indicator))}</span>` : ''}
+                      </span>
+                    </td>
                   </tr>
                 `;
               }).join('')}

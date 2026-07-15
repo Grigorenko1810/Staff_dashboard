@@ -281,6 +281,26 @@ button, input, select { font: inherit; }
 .list-item__label { font-size: 14px; }
 .list-item__value { color: var(--primary); font-weight: 600; }
 
+.employee-worktype-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.indicator-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.overdue-note {
+  color: var(--red);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .wide-card { padding: 20px; }
 .wide-card__head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 14px; }
 .wide-card__head h3 { margin: 0; font-size: 1.1rem; }
