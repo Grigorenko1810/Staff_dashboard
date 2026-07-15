@@ -2543,6 +2543,10 @@ body.sidebar-collapsed .sidebar__chevron {
   height: 100% !important;
 }
 
+.chart-frame--donut__canvas--shadowed {
+  filter: drop-shadow(0 6px 12px rgba(32, 32, 32, 0.18));
+}
+
 .donut-layout {
   display: grid;
   grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1fr);

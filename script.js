@@ -130,8 +130,7 @@ const StaffCharts = {
       chartColors = [...chartColors, this.palette.fog];
     }
     const hoverOffset = trackIndex >= 0 ? chartValues.map((value, index) => index === trackIndex ? 0 : 3) : 3;
-    const borderWidth = trackIndex >= 0 ? chartValues.map((value, index) => index === trackIndex ? 1.5 : 0) : 0;
-    const borderColor = trackIndex >= 0 ? chartValues.map((value, index) => index === trackIndex ? this.palette.slate : 'transparent') : 'transparent';
+    canvas.classList.toggle('chart-frame--donut__canvas--shadowed', trackIndex >= 0);
     const chart = new Chart(canvas, {
       type: 'doughnut',
       data: {
@@ -139,8 +138,7 @@ const StaffCharts = {
         datasets: [{
           data: chartValues,
           backgroundColor: chartColors,
-          borderWidth,
-          borderColor,
+          borderWidth: 0,
           borderRadius: 3,
           spacing: 1,
           hoverOffset
