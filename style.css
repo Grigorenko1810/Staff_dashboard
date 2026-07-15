@@ -183,6 +183,7 @@ button, input, select { font: inherit; }
   color: var(--muted);
   border-radius: 200px;
   padding: 8px 12px;
+  font-size: 15px;
   cursor: pointer;
   transition: all 180ms ease;
 }
@@ -286,6 +287,14 @@ button, input, select { font: inherit; }
   flex-direction: column;
   gap: 10px;
   margin-top: 18px;
+}
+
+.employee-worktype-chart-frame {
+  padding: 16px 18px 10px;
+}
+
+.employee-worktype-breakdown .employee-worktype-chart-wrap {
+  height: 78px;
 }
 
 .indicator-inline {
@@ -3822,11 +3831,12 @@ body.sidebar-collapsed .sidebar__chevron {
 .metrics-group__title {
   color: var(--text-secondary, #4d4d4d);
   font-family: var(--font-body, Inter, system-ui, sans-serif);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 1.2;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  margin-left: 18px;
 }
 
 .metrics-grid {
@@ -3858,7 +3868,7 @@ body.sidebar-collapsed .sidebar__chevron {
 
 .metric-card__label {
   max-width: 18ch;
-  color: var(--muted, #828282);
+  color: var(--text-secondary, #4d4d4d);
   font-size: 12px;
   font-weight: 500;
   line-height: 1.25;

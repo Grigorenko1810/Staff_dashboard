@@ -253,6 +253,69 @@ const StaffCharts = {
     this.charts.push(chart);
     return chart;
   },
+  createSingleBar(canvas, labels, values, options = {}) {
+    this.destroyChart(canvas);
+    if (typeof Chart === 'undefined') {
+      this.renderFallback(canvas, 'Диаграмма');
+      return null;
+    }
+    const dataValues = values.map((value) => Number(value) || 0);
+    const horizontal = Boolean(options.horizontal);
+    const chart = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          data: dataValues,
+          backgroundColor: this.palette.ember,
+          borderRadius: 3,
+          maxBarThickness: options.barThickness || 20,
+          categoryPercentage: 0.7,
+          barPercentage: 0.8
+        }]
+      },
+      options: {
+        indexAxis: horizontal ? 'y' : 'x',
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {
+          duration: 450,
+          easing: 'easeOutQuart'
+        },
+        layout: {
+          padding: { top: 4, right: 8, bottom: 0, left: 0 }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            ...this.getTooltipOptions(),
+            callbacks: {
+              label: (context) => {
+                const value = Math.round(horizontal ? context.parsed.x : context.parsed.y) || 0;
+                return `${value} ${this.pluralizeHours(value)}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            beginAtZero: horizontal ? true : undefined,
+            grid: { display: horizontal, color: this.palette.mist, lineWidth: 1, drawBorder: false, borderDash: [2, 4] },
+            ticks: { ...this.getAxisTicks(6), autoSkip: horizontal },
+            border: { display: false }
+          },
+          y: {
+            beginAtZero: horizontal ? undefined : true,
+            grid: { display: !horizontal, color: this.palette.mist, lineWidth: 1, drawBorder: false, borderDash: [2, 4] },
+            ticks: { ...this.getAxisTicks(8), autoSkip: !horizontal },
+            border: { display: false }
+          }
+        }
+      }
+    });
+    this.charts.push(chart);
+    return chart;
+  },
   createLine(canvas, labels, values, label) {
     this.destroyChart(canvas);
     if (typeof Chart === 'undefined') {
@@ -4172,19 +4235,11 @@ const StaffApp = {
           </div>
           <div class="employee-worktype-breakdown">
             <div class="analytics-list-title">Часы по видам работ</div>
-            <div class="card__list">
-              ${workTypeBreakdown.length ? workTypeBreakdown.map((item) => `
-                <div class="list-item">
-                  <span class="list-item__label">${this.escapeHtml(item.label)}</span>
-                  <span class="badge">${this.escapeHtml(this.formatHours(item.hours))}</span>
-                </div>
-              `).join('') : `
-                <div class="list-item">
-                  <span class="list-item__label">Нет данных</span>
-                  <span class="badge">—</span>
-                </div>
-              `}
-            </div>
+            ${workTypeBreakdown.length ? `
+              <div class="chart-frame chart-frame--bar employee-worktype-chart-frame">
+                <div class="chart-wrap employee-worktype-chart-wrap"><canvas id="workTypeChart"></canvas></div>
+              </div>
+            ` : '<div class="empty-state">Нет данных за период.</div>'}
           </div>
         </article>
       </section>
@@ -4469,6 +4524,29 @@ const StaffApp = {
       const values = Object.values(employee.taskDistribution || {});
       const colors = this.getChartPaletteSequence();
       StaffCharts.createDoughnut(donutCanvas, labels, values, colors);
+    }
+    const workTypeCanvas = root.querySelector?.('#workTypeChart') || document.getElementById('workTypeChart');
+    if (workTypeCanvas) {
+      const periodRange = { startDate: this.state.employeeStartDate, endDate: this.state.employeeEndDate };
+      const workTypeTasks = this.getTasksForEmployees([employee], periodRange);
+      const breakdown = this.getEmployeeWorkTypeBreakdown(workTypeTasks);
+      const wrap = workTypeCanvas.closest('.employee-worktype-chart-wrap');
+      if (wrap) {
+        const leftCard = (root.querySelector?.('.employee-chart-card.data-viz-card--wide')) || document.querySelector('.employee-chart-card.data-viz-card--wide');
+        const rightCard = workTypeCanvas.closest('.employee-chart-card');
+        const rowHeight = 34;
+        const desiredHeight = Math.max(60, breakdown.length * rowHeight + 24);
+        let finalHeight = desiredHeight;
+        if (leftCard && rightCard) {
+          const usedHeight = rightCard.getBoundingClientRect().height - wrap.getBoundingClientRect().height;
+          const maxAvailable = leftCard.getBoundingClientRect().height - usedHeight;
+          if (Number.isFinite(maxAvailable) && maxAvailable > 0) {
+            finalHeight = Math.max(50, Math.min(desiredHeight, maxAvailable));
+          }
+        }
+        wrap.style.height = `${finalHeight}px`;
+      }
+      StaffCharts.createSingleBar(workTypeCanvas, breakdown.map((item) => item.label), breakdown.map((item) => item.hours), { horizontal: true, barThickness: 14 });
     }
     const historyCanvas = root.querySelector?.('#historyChart') || document.getElementById('historyChart');
     if (historyCanvas) {
