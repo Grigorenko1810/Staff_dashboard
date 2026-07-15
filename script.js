@@ -3358,7 +3358,7 @@ const StaffApp = {
   },
   getCenterFilterOptions() {
     const centers = this.getCentersList();
-    return [{ value: '', label: 'Все центры' }, ...centers.map((center) => ({ value: center.id, label: center.name }))];
+    return [{ value: '', label: 'Все центры' }, ...centers.map((center) => ({ value: center.id, label: center.shortName || center.name }))];
   },
   getManagementFilterOptions() {
     const centerId = String(this.state.filters.centerId || '');
@@ -4106,6 +4106,7 @@ const StaffApp = {
             </div>
             ${this.renderDataVizMetric(this.formatHours(employee.actualHours), 'факт за период')}
           </div>
+          ${this.renderBarChartFooter()}
           <div class="bar-chart-split">
             <div class="bar-chart-split__field bar-chart-split__field--periods">
               <h4 class="bar-chart-split__title">По периодам</h4>
@@ -4116,12 +4117,9 @@ const StaffApp = {
             <div class="bar-chart-split__field bar-chart-split__field--total">
               <h4 class="bar-chart-split__title">Суммарно</h4>
               <div class="data-viz-card__body chart-frame chart-frame--bar">
-                <div class="chart-wrap employee-chart-wrap"><canvas id="barChartTotal"></canvas></div>
+                <div class="chart-wrap employee-chart-wrap chart-wide-horizontal"><canvas id="barChartTotal"></canvas></div>
               </div>
             </div>
-          </div>
-          <div class="data-viz-card__footer">
-            ${this.renderBarChartFooter()}
           </div>
         </article>
         <article class="card employee-chart-card data-viz-card">
@@ -4351,13 +4349,58 @@ const StaffApp = {
   getDayName(dayIndex) {
     return ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'][dayIndex] || '';
   },
+  getEmployeeBarChartBreakdown(periodPreset, startDate, endDate) {
+    const start = startDate ? new Date(`${startDate}T00:00:00`) : null;
+    const end = endDate ? new Date(`${endDate}T00:00:00`) : null;
+    const validRange = start && end && !isNaN(start.getTime()) && !isNaN(end.getTime()) && start <= end;
+    if (periodPreset === 'week') {
+      const labels = [];
+      if (validRange) {
+        const cursor = new Date(start);
+        while (cursor <= end && labels.length < 7) {
+          labels.push(this.getDayName(cursor.getDay()));
+          cursor.setDate(cursor.getDate() + 1);
+        }
+      }
+      return { labels: labels.length ? labels : ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'], xTitle: 'День' };
+    }
+    if (periodPreset === 'quarter') {
+      const labels = [];
+      if (validRange) {
+        const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+        while (cursor <= end && labels.length < 3) {
+          labels.push(this.getMonthLabel(cursor.getMonth()));
+          cursor.setMonth(cursor.getMonth() + 1);
+        }
+      }
+      return { labels: labels.length ? labels : [this.getMonthLabel(0), this.getMonthLabel(1), this.getMonthLabel(2)], xTitle: 'Месяц' };
+    }
+    if (periodPreset === 'year') {
+      return { labels: [this.getQuarterLabel(0), this.getQuarterLabel(1), this.getQuarterLabel(2), this.getQuarterLabel(3)], xTitle: 'Квартал' };
+    }
+    return { labels: ['Неделя 1', 'Неделя 2', 'Неделя 3', 'Неделя 4'], xTitle: 'Неделя' };
+  },
+  buildVaryingHourRatios(count, variant = 'planned') {
+    if (count <= 0) return [];
+    const bases = {
+      planned: [0.22, 0.26, 0.25, 0.27, 0.24, 0.28, 0.23, 0.26, 0.25, 0.27, 0.24, 0.26],
+      actual: [0.2, 0.24, 0.27, 0.29, 0.22, 0.3, 0.21, 0.25, 0.23, 0.28, 0.22, 0.25]
+    };
+    const base = bases[variant] || bases.planned;
+    const picked = Array.from({ length: count }, (_, index) => base[index % base.length]);
+    const sum = picked.reduce((total, value) => total + value, 0);
+    return picked.map((value) => value / sum);
+  },
   updateEmployeeCharts(employee, root = document) {
     const periodsCanvas = root.querySelector?.('#barChartPeriods') || document.getElementById('barChartPeriods');
     if (periodsCanvas) {
-      const planned = [0.22, 0.26, 0.25, 0.27].map((part) => Math.round(employee.plannedHours * part));
-      const actual = [0.2, 0.24, 0.27, 0.29].map((part) => Math.round(employee.actualHours * part));
-      StaffCharts.createBar(periodsCanvas, ['Неделя 1', 'Неделя 2', 'Неделя 3', 'Неделя 4'], planned, actual, {
-        xTitle: 'Период',
+      const breakdown = this.getEmployeeBarChartBreakdown(this.state.employeePeriod, this.state.employeeStartDate, this.state.employeeEndDate);
+      const plannedRatios = this.buildVaryingHourRatios(breakdown.labels.length, 'planned');
+      const actualRatios = this.buildVaryingHourRatios(breakdown.labels.length, 'actual');
+      const planned = plannedRatios.map((ratio) => Math.round(employee.plannedHours * ratio));
+      const actual = actualRatios.map((ratio) => Math.round(employee.actualHours * ratio));
+      StaffCharts.createBar(periodsCanvas, breakdown.labels, planned, actual, {
+        xTitle: breakdown.xTitle,
         yTitle: 'Часы'
       });
     }

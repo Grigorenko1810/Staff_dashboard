@@ -2940,6 +2940,7 @@ body.sidebar-collapsed .sidebar__chevron {
   gap: 20px;
   color: var(--muted);
   font-size: 13px;
+  margin: 14px 0 18px;
 }
 
 .bar-chart-footer .chart-legend--vertical {
