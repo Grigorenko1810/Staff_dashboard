@@ -6117,12 +6117,12 @@ body.is-modal-dragging {
   background: rgba(52, 98, 199, 0.1);
 }
 
-/* Past/future cards read as dimmer than the present set: a touch
-   lighter than the page background but duller than the present
-   cards' bright white, so the eye lands on "now" first. */
+/* Past/future cards read as dimmer than the present set: close to
+   the page background itself rather than the present cards' bright
+   white, so the eye lands on "now" first. */
 .data-viz-card--period-past,
 .data-viz-card--period-future {
-  background: var(--surface-soft);
+  background: var(--surface);
 }
 
 .data-viz-card--period .data-viz-card__header-text {
