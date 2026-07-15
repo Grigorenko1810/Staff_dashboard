@@ -416,6 +416,192 @@ button, input, select { font: inherit; }
 }
 .center-summary-table td { font-size: 14px; }
 
+.projects-matrix-card { gap: 16px; }
+
+.projects-matrix-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-soft);
+  font-size: 13px;
+}
+
+.projects-matrix-legend__label {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.projects-matrix-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.projects-matrix-legend__text {
+  color: var(--muted);
+}
+
+.projects-matrix-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+  margin: 14px 0;
+}
+
+.projects-matrix-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.projects-matrix {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  min-width: 640px;
+}
+
+.projects-matrix__row {
+  display: flex;
+}
+
+.projects-matrix__row:not(:last-child) {
+  border-bottom: 1px solid var(--border);
+}
+
+.projects-matrix__row--header {
+  background: var(--surface-soft);
+}
+
+.projects-matrix__cell {
+  flex: 1 1 0;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 14px;
+}
+
+.projects-matrix__row--header .projects-matrix__cell {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.projects-matrix__cell--title {
+  flex: 0 0 240px;
+  justify-content: flex-start;
+  text-align: left;
+  font-weight: 600;
+}
+
+.projects-matrix__count-cell {
+  gap: 6px;
+  position: relative;
+}
+
+.projects-matrix__count-cell.clickable {
+  cursor: pointer;
+}
+
+.projects-matrix__count-cell.clickable:hover {
+  background: var(--surface-soft);
+}
+
+.projects-matrix__count-cell--critical {
+  background: #f3e8e3;
+}
+
+.projects-matrix__count-cell--critical.clickable:hover {
+  background: #eeded7;
+}
+
+.projects-matrix__count-cell.is-expanded {
+  background: var(--surface-muted);
+}
+
+.projects-matrix__count-value {
+  font-weight: 600;
+}
+
+.projects-matrix__toggle-icon {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.projects-matrix-details {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-soft);
+}
+
+.projects-matrix-details__title {
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.projects-matrix-group:not(:last-child) {
+  margin-bottom: 16px;
+}
+
+.projects-matrix-group__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.projects-matrix-detail-grid {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface-card);
+}
+
+.projects-matrix-detail-grid__row {
+  display: grid;
+  grid-template-columns: minmax(70px, 0.6fr) minmax(140px, 2fr) minmax(100px, 0.8fr) minmax(120px, 1fr) minmax(110px, 1fr) minmax(110px, 1fr);
+}
+
+.projects-matrix-detail-grid--with-context .projects-matrix-detail-grid__row {
+  grid-template-columns: minmax(120px, 1fr) minmax(70px, 0.6fr) minmax(140px, 2fr) minmax(100px, 0.8fr) minmax(120px, 1fr) minmax(110px, 1fr) minmax(110px, 1fr);
+}
+
+.projects-matrix-detail-grid__row:not(:last-child) {
+  border-bottom: 1px solid var(--border);
+}
+
+.projects-matrix-detail-grid__row--head {
+  background: var(--surface-soft);
+}
+
+.projects-matrix-detail-grid__row--head .projects-matrix-detail-grid__cell {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.projects-matrix-detail-grid__cell {
+  padding: 10px 12px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+}
+
+@media (max-width: 900px) {
+  .projects-matrix-legend { font-size: 12px; }
+  .projects-matrix__cell--title { flex-basis: 160px; }
+}
+
 .filter-card, .staff-filter-card { padding: 18px; display: flex; flex-wrap: wrap; gap: 14px; align-items: end; }
 .field, .staff-field, .employees-search, .employees-filter { display: flex; flex-direction: column; gap: 7px; min-width: 180px; flex: 1; }
 .field label, .staff-field label, .employees-search label, .employees-filter label { font-size: 13px; color: var(--muted); }

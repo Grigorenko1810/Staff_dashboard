@@ -390,6 +390,10 @@ const StaffApp = {
     },
     showActiveParticipants: true,
     showProjects: false,
+    projectsGroupedByTask: false,
+    projectsOverdueFilter: 'all',
+    projectMatrixExpandedKey: null,
+    projectMatrixExpandedScope: null,
     expandedTasks: new Set(),
     selectedTaskId: null,
     showTaskModal: false,
@@ -2021,8 +2025,279 @@ const StaffApp = {
       projects
     };
   },
+  getProjectMatrixStatusOrder() {
+    return ['В работе', 'На паузе', 'В очереди', 'Завершена'];
+  },
+  getProjectMatrixTypeOrder() {
+    return ['Коммерческий проект', 'Инвестиционный проект', 'Предпроектная подготовка', 'Другие проекты'];
+  },
+  getProjectMatrixHoursTone(hasPlan, remainingHours) {
+    if (!hasPlan) return 'neutral';
+    if (remainingHours < 0) return 'delay';
+    if (remainingHours < 24.5) return 'warning';
+    return 'done';
+  },
+  getProjectsForMatrix(centerId = '') {
+    const employees = this.getNormalizedEmployees();
+    const center = centerId ? this.getCenterById(centerId) : null;
+    const scopedEmployees = centerId
+      ? employees.filter((employee) => employee.centerId === centerId || employee.centerName === center?.name)
+      : employees;
+    const tasks = this.getTasksForEmployees(scopedEmployees);
+    return tasks.map((task) => {
+      const employee = scopedEmployees.find((item) => Number(item.id) === Number(task.employeeId));
+      const actualHours = this.parseWorkHours(task.workTime);
+      const hasPlan = Number.isFinite(task.projectPlanHours) && task.projectPlanHours > 0;
+      const planHours = hasPlan ? Number(task.projectPlanHours) : 0;
+      const remainingHours = hasPlan ? planHours - actualHours : null;
+      const isLate = this.isLateProjectTask(task);
+      return {
+        id: task.id,
+        name: task.project,
+        type: task.projectType || 'Другие проекты',
+        status: task.projectStatus || 'В работе',
+        centerName: employee?.centerName || employee?.center || '',
+        management: employee?.managementName || employee?.management || 'Без управления',
+        planHours,
+        actualHours,
+        hasPlan,
+        remainingHours,
+        hoursTone: this.getProjectMatrixHoursTone(hasPlan, remainingHours),
+        dueDate: task.dueDate,
+        dateTone: isLate ? 'delay' : 'done',
+        dateLabel: task.indicator || (isLate ? 'Не в срок' : 'В срок')
+      };
+    });
+  },
+  filterProjectMatrixByOverdue(projects, filter) {
+    if (!filter || filter === 'all') return projects;
+    return projects.filter((project) => {
+      if (filter === 'date') return project.dateTone === 'delay';
+      if (filter === 'hours') return project.hoursTone === 'delay';
+      if (filter === 'date-hours') return project.dateTone === 'delay' || project.hoursTone === 'delay';
+      if (filter === 'no-date') return !project.dueDate;
+      if (filter === 'no-hours') return !project.hasPlan;
+      return true;
+    });
+  },
+  getProjectMatrixGroups(centerId = '') {
+    const filtered = this.filterProjectMatrixByOverdue(this.getProjectsForMatrix(centerId), this.state.projectsOverdueFilter);
+    const byKey = {};
+    filtered.forEach((project) => {
+      const key = `${project.status}||${project.type}`;
+      if (!byKey[key]) byKey[key] = [];
+      byKey[key].push(project);
+    });
+    return {
+      byKey,
+      statuses: this.getProjectMatrixStatusOrder().filter((status) => filtered.some((project) => project.status === status)),
+      types: this.getProjectMatrixTypeOrder().filter((type) => filtered.some((project) => project.type === type))
+    };
+  },
+  renderProjectsMatrixLegend() {
+    const items = [
+      { tone: 'done', name: '25-100%', description: 'запас часов / резерв' },
+      { tone: 'warning', name: '0-24%', description: 'приближение к лимиту' },
+      { tone: 'delay', name: '<0%', description: 'перерасход' },
+      { tone: 'neutral', name: 'нет данных', description: 'нет плановых часов' }
+    ];
+    return `
+      <div class="projects-matrix-legend">
+        <span class="projects-matrix-legend__label">Легенда индикаторов</span>
+        ${items.map((item) => `
+          <span class="projects-matrix-legend__item">
+            <span class="status-pill status-pill--${item.tone}">${this.escapeHtml(item.name)}</span>
+            <span class="projects-matrix-legend__text">${this.escapeHtml(item.description)}</span>
+          </span>
+        `).join('')}
+      </div>
+    `;
+  },
+  renderProjectsMatrixControls(centerId) {
+    const groupLabel = centerId ? 'По управлениям' : 'По центрам';
+    const groupedByTask = this.state.projectsGroupedByTask;
+    const overdueOptions = [
+      { value: 'all', label: 'Все' },
+      { value: 'date', label: 'Просрочка даты' },
+      { value: 'hours', label: 'Просрочка часов' },
+      { value: 'date-hours', label: 'Дата или часы' },
+      { value: 'no-date', label: 'Без даты завершения' },
+      { value: 'no-hours', label: 'Без плановых часов' }
+    ];
+    return `
+      <div class="projects-matrix-controls">
+        <div class="period-switcher">
+          <button type="button" class="period-btn ${groupedByTask ? '' : 'is-active'}" data-projects-group-mode="management">${this.escapeHtml(groupLabel)}</button>
+          <button type="button" class="period-btn ${groupedByTask ? 'is-active' : ''}" data-projects-group-mode="task">По задачам</button>
+        </div>
+        <div class="period-switcher">
+          ${overdueOptions.map((option) => `
+            <button type="button" class="period-btn ${this.state.projectsOverdueFilter === option.value ? 'is-active' : ''}" data-projects-overdue-filter="${this.escapeHtml(option.value)}">${this.escapeHtml(option.label)}</button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  },
+  renderProjectMatrixDetailRow(project, options = {}) {
+    const contextValue = options.isTechBlock ? (project.centerName || 'Без центра') : (project.management || 'Без управления');
+    const planFormatted = Math.round(project.planHours).toLocaleString('ru-RU');
+    const factFormatted = Math.round(project.actualHours).toLocaleString('ru-RU');
+    const hoursDisplay = project.hasPlan ? `${planFormatted} / ${factFormatted}` : `— / ${factFormatted}`;
+    const isMatched = project.hasPlan && Math.round(project.planHours) === Math.round(project.actualHours);
+    const hoursBadgeTone = isMatched ? 'process' : project.hoursTone;
+    const hoursBadgeLabel = isMatched
+      ? 'Выполнен'
+      : project.hasPlan
+        ? `${project.remainingHours > 0 ? '+' : ''}${Math.round(project.remainingHours)}`
+        : '—';
+    return `
+      <div class="projects-matrix-detail-grid__row">
+        ${options.showContextColumn ? `<div class="projects-matrix-detail-grid__cell">${this.escapeHtml(contextValue)}</div>` : ''}
+        <div class="projects-matrix-detail-grid__cell">${this.escapeHtml(String(project.id))}</div>
+        <div class="projects-matrix-detail-grid__cell">${this.escapeHtml(project.name || '—')}</div>
+        <div class="projects-matrix-detail-grid__cell">${this.escapeHtml(project.dueDate || '—')}</div>
+        <div class="projects-matrix-detail-grid__cell"><span class="status-pill status-pill--${project.dateTone}">${this.escapeHtml(project.dateLabel)}</span></div>
+        <div class="projects-matrix-detail-grid__cell">${this.escapeHtml(hoursDisplay)}</div>
+        <div class="projects-matrix-detail-grid__cell"><span class="status-pill status-pill--${hoursBadgeTone}">${this.escapeHtml(hoursBadgeLabel)}</span></div>
+      </div>
+    `;
+  },
+  renderProjectMatrixDetails(projects, status, type, centerId) {
+    if (!projects.length) return '';
+    const isTechBlock = !centerId;
+    const groupedByTask = this.state.projectsGroupedByTask;
+    const showContextColumn = groupedByTask;
+    const contextLabel = isTechBlock ? 'Центр' : 'Управление';
+    let groups = [{ title: '', items: projects }];
+    if (!groupedByTask) {
+      if (isTechBlock) {
+        const byCenterName = new Map();
+        projects.forEach((project) => {
+          const label = project.centerName || 'Без центра';
+          if (!byCenterName.has(label)) byCenterName.set(label, []);
+          byCenterName.get(label).push(project);
+        });
+        groups = Array.from(byCenterName.entries()).map(([title, items]) => ({ title, items }));
+      } else {
+        groups = [{ title: projects[0]?.management || 'Без управления', items: projects }];
+      }
+    }
+    const groupsHtml = groups.map((group) => `
+      <div class="projects-matrix-group">
+        ${group.title ? `<div class="projects-matrix-group__title">${this.escapeHtml(group.title)}</div>` : ''}
+        <div class="projects-matrix-detail-grid${showContextColumn ? ' projects-matrix-detail-grid--with-context' : ''}">
+          <div class="projects-matrix-detail-grid__row projects-matrix-detail-grid__row--head">
+            ${showContextColumn ? `<div class="projects-matrix-detail-grid__cell">${this.escapeHtml(contextLabel)}</div>` : ''}
+            <div class="projects-matrix-detail-grid__cell">ID</div>
+            <div class="projects-matrix-detail-grid__cell">Название</div>
+            <div class="projects-matrix-detail-grid__cell">Срок выполнения</div>
+            <div class="projects-matrix-detail-grid__cell">Индикатор по дате</div>
+            <div class="projects-matrix-detail-grid__cell">План / факт часы</div>
+            <div class="projects-matrix-detail-grid__cell">Остаток по часам</div>
+          </div>
+          ${group.items.map((project) => this.renderProjectMatrixDetailRow(project, { showContextColumn, isTechBlock })).join('')}
+        </div>
+      </div>
+    `).join('');
+    return `
+      <div class="projects-matrix-details">
+        <div class="projects-matrix-details__title">Проекты: ${this.escapeHtml(type)} / ${this.escapeHtml(status)}</div>
+        ${groupsHtml}
+      </div>
+    `;
+  },
+  renderProjectsMatrixGrid(centerId) {
+    const scope = centerId || 'techBlock';
+    if (this.state.projectMatrixExpandedScope !== scope) {
+      this.state.projectMatrixExpandedScope = scope;
+      this.state.projectMatrixExpandedKey = null;
+    }
+    const { byKey, statuses, types } = this.getProjectMatrixGroups(centerId);
+    if (!statuses.length || !types.length) {
+      return '<div class="empty-state">По выбранному центру пока нет проектов.</div>';
+    }
+    const rows = statuses.map((status) => {
+      const cells = types.map((type) => {
+        const key = `${status}||${type}`;
+        const projects = byKey[key] || [];
+        const count = projects.length;
+        const isCritical = status === 'В работе' && projects.some((project) => project.hoursTone === 'delay' || project.dateTone === 'delay');
+        const isExpanded = this.state.projectMatrixExpandedKey === key;
+        return `
+          <div class="projects-matrix__cell projects-matrix__count-cell${count ? ' clickable' : ''}${isCritical ? ' projects-matrix__count-cell--critical' : ''}${isExpanded ? ' is-expanded' : ''}"
+               ${count ? `data-projects-matrix-key="${this.escapeHtml(key)}"` : ''}>
+            <span class="projects-matrix__count-value">${count}</span>
+            ${count ? `<span class="projects-matrix__toggle-icon">${isExpanded ? '▲' : '▼'}</span>` : ''}
+          </div>
+        `;
+      }).join('');
+      const expandedType = types.find((type) => this.state.projectMatrixExpandedKey === `${status}||${type}`);
+      const detailsHtml = expandedType
+        ? this.renderProjectMatrixDetails(byKey[`${status}||${expandedType}`] || [], status, expandedType, centerId)
+        : '';
+      return `
+        <div class="projects-matrix__row">
+          <div class="projects-matrix__cell projects-matrix__cell--title">${this.escapeHtml(status)}</div>
+          ${cells}
+        </div>
+        ${detailsHtml}
+      `;
+    }).join('');
+    return `
+      <div class="projects-matrix">
+        <div class="projects-matrix__row projects-matrix__row--header">
+          <div class="projects-matrix__cell projects-matrix__cell--title">Статус / Вид проекта</div>
+          ${types.map((type) => `<div class="projects-matrix__cell">${this.escapeHtml(type)}</div>`).join('')}
+        </div>
+        ${rows}
+      </div>
+    `;
+  },
+  renderProjectsMatrixBlock(centerId) {
+    return `
+      <div class="projects-matrix-block" id="projectsMatrixBlock">
+        ${this.renderProjectsMatrixLegend()}
+        <div class="projects-matrix-controls-slot">${this.renderProjectsMatrixControls(centerId)}</div>
+        <div class="projects-matrix-wrap" id="projectsMatrixGrid">${this.renderProjectsMatrixGrid(centerId)}</div>
+      </div>
+    `;
+  },
+  attachProjectsMatrixHandlers(root, centerId) {
+    const block = root.querySelector('#projectsMatrixBlock');
+    if (!block) return;
+    const rerender = () => {
+      const controlsSlot = block.querySelector('.projects-matrix-controls-slot');
+      if (controlsSlot) controlsSlot.innerHTML = this.renderProjectsMatrixControls(centerId);
+      const gridContainer = block.querySelector('#projectsMatrixGrid');
+      if (gridContainer) gridContainer.innerHTML = this.renderProjectsMatrixGrid(centerId);
+      this.attachProjectsMatrixHandlers(root, centerId);
+    };
+    block.querySelectorAll('[data-projects-group-mode]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const next = button.dataset.projectsGroupMode === 'task';
+        if (this.state.projectsGroupedByTask === next) return;
+        this.state.projectsGroupedByTask = next;
+        rerender();
+      });
+    });
+    block.querySelectorAll('[data-projects-overdue-filter]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const next = button.dataset.projectsOverdueFilter;
+        if (this.state.projectsOverdueFilter === next) return;
+        this.state.projectsOverdueFilter = next;
+        this.state.projectMatrixExpandedKey = null;
+        rerender();
+      });
+    });
+    block.querySelectorAll('[data-projects-matrix-key]').forEach((cell) => {
+      cell.addEventListener('click', () => {
+        const key = cell.dataset.projectsMatrixKey;
+        this.state.projectMatrixExpandedKey = this.state.projectMatrixExpandedKey === key ? null : key;
+        rerender();
+      });
+    });
+  },
   renderCenterSummaryCard(summary) {
-    const projects = summary?.projects || [];
     return `
       <section class="wide-card center-summary-card">
         <div class="wide-card__head">
@@ -2037,30 +2312,14 @@ const StaffApp = {
           <div class="center-summary-kpi"><span>Задачи в срок</span><strong>${this.renderMetricValueMarkup(summary?.projectsOnTime || 0, 'в срок')}</strong></div>
           <div class="center-summary-kpi center-summary-kpi--late"><span>Проектов не в срок</span><strong>${this.renderMetricValueMarkup(summary?.projectsLate || 0, 'не в срок')}</strong></div>
         </div>
-        <div class="center-summary-table-wrap">
-          ${projects.length ? `
-            <table class="center-summary-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Проект</th>
-                  <th>Суммарные часы</th>
-                  <th>Статус сроков</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${projects.map((project) => `
-                  <tr>
-                    <td>${this.escapeHtml(String(project.id))}</td>
-                    <td>${this.escapeHtml(project.project)}</td>
-                    <td>${this.escapeHtml(this.formatHours(project.hours))}</td>
-                    <td><span class="status-pill ${project.isLate ? 'status-pill--delay' : project.isOnTime ? 'status-pill--done' : 'status-pill--neutral'}">${this.escapeHtml(project.deadlineStatus)}</span></td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          ` : '<div class="empty-state">По выбранному центру пока нет задач.</div>'}
+      </section>
+      <section class="wide-card projects-matrix-card">
+        <div class="wide-card__head">
+          <div>
+            <h3>Проекты</h3>
+          </div>
         </div>
+        ${this.renderProjectsMatrixBlock(summary?.centerId || '')}
       </section>
     `;
   },
@@ -2819,6 +3078,7 @@ const StaffApp = {
     });
     this.attachOverviewPeriodListeners(overviewLevel, container, () => this.renderAnalyticsPage(summary, this.resolveLiveViewLayer(container), options));
     this.attachDynamicControlsListeners(dynamicLevel, container, summary, 'dynamicLoadChart');
+    this.attachProjectsMatrixHandlers(container, summary.projectSummary?.centerId || '');
     const cards = container.querySelectorAll('[data-chart="doughnut"]');
     const periodsById = new Map((summary.periods || []).map((item) => [String(item.id), item]));
     cards.forEach((canvas) => {
