@@ -730,6 +730,22 @@ button, input, select { font: inherit; }
 .period-btn { border: 1px solid var(--border); background: var(--surface); border-radius: 200px; padding: 8px 12px; cursor: pointer; color: var(--muted); }
 .period-btn.is-active { background: var(--primary); color: white; border-color: var(--primary); }
 
+/* Fixes the period switcher to a constant position regardless of
+   preset: the unit-select slot always reserves its widest possible
+   width, even when empty (week/custom presets render no select), so
+   the switcher never shifts left/right depending on what's selected. */
+.period-switcher-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.period-switcher-group__unit {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 170px;
+}
+
 .date-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: end; margin-top: 16px; }
 .date-row .field { margin-bottom: 0; }
 .date-row input[type="date"] { width: 100%; }

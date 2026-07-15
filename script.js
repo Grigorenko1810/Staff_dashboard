@@ -3761,10 +3761,14 @@ const StaffApp = {
             <h3>Отчётный период</h3>
             <p class="card__subtitle">Сравнение загрузки по выбранному диапазону</p>
           </div>
-          <div class="period-switcher">
-            ${periodButtons.map((button) => `<button class="period-btn ${this.state.employeePeriod === button.key ? 'is-active' : ''}" data-period="${button.key}">${this.escapeHtml(button.label)}</button>`).join('')}
+          <div class="period-switcher-group">
+            <div class="period-switcher">
+              ${periodButtons.map((button) => `<button class="period-btn ${this.state.employeePeriod === button.key ? 'is-active' : ''}" data-period="${button.key}">${this.escapeHtml(button.label)}</button>`).join('')}
+            </div>
+            <div class="period-switcher-group__unit">
+              ${this.renderEmployeePeriodUnitSelector()}
+            </div>
           </div>
-          ${this.renderEmployeePeriodUnitSelector()}
         </div>
         <div class="date-row">
           <div class="field field--date">
