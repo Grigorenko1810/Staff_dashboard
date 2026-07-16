@@ -540,7 +540,52 @@ const StaffApp = {
     });
     document.addEventListener('pointerdown', (event) => {
       if (event.target.closest('.custom-select')) return;
+      // A period-unit panel may be portaled to #floatingPanelsRoot (see
+      // positionPeriodUnitPanel) and so is no longer a `.custom-select`
+      // descendant - without this check, this handler would close (and
+      // reparent) it out from under an in-progress click on one of its
+      // options before that click's own handler runs.
+      if (event.target.closest('.custom-select__panel--period-unit')) return;
       document.querySelectorAll('.custom-select.is-open').forEach((select) => this.closeCustomSelect(select));
+    });
+    document.addEventListener('click', (event) => {
+      const trigger = event.target.closest('.custom-select--period-unit .custom-select__trigger');
+      if (trigger) {
+        const wrap = trigger.closest('.custom-select--period-unit');
+        const wasOpen = wrap.classList.contains('is-open');
+        document.querySelectorAll('.custom-select.is-open').forEach((openSelect) => this.closeCustomSelect(openSelect));
+        if (!wasOpen) {
+          this.openCustomSelect(wrap);
+          this.positionPeriodUnitPanel(wrap);
+        }
+        return;
+      }
+      const option = event.target.closest('.custom-select--period-unit .custom-select__option, .custom-select__panel--period-unit .custom-select__option');
+      if (option) {
+        // The panel may have been portaled to #floatingPanelsRoot (see
+        // positionPeriodUnitPanel), so it's no longer necessarily a
+        // descendant of its `.custom-select--period-unit` wrapper - look it
+        // up via the shared id set on both when that happens.
+        const panelEl = option.closest('.custom-select__panel--period-unit');
+        const panelId = panelEl?.dataset.periodUnitPanelId;
+        const wrap = (panelId && document.querySelector(`.custom-select--period-unit[data-period-unit-panel-id="${panelId}"]`))
+          || option.closest('.custom-select--period-unit');
+        const select = wrap.querySelector('select.period-unit-select');
+        if (select) {
+          select.value = option.dataset.value;
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        // A native <select> updates its own displayed text automatically
+        // when `.value` changes; this custom trigger needs the same done by
+        // hand, since some change listeners (e.g. dynamics-chart updates)
+        // only refresh the chart, not the whole control markup.
+        const valueEl = wrap.querySelector('.custom-select__value');
+        if (valueEl) valueEl.textContent = option.textContent.trim();
+        (panelEl || wrap).querySelectorAll('.custom-select__option').forEach((o) => {
+          o.classList.toggle('is-selected', o === option);
+        });
+        this.closeCustomSelect(wrap);
+      }
     });
     document.getElementById('importBtn')?.addEventListener('click', () => {
       document.getElementById('excelInput')?.click();
@@ -1442,20 +1487,47 @@ const StaffApp = {
     }
     return today.getMonth();
   },
-  getPeriodUnitOptionsMarkup(periodPreset, selectedUnit) {
+  getPeriodUnitOptionsList(periodPreset) {
     const year = new Date().getFullYear();
     if (periodPreset === 'month') {
       const months = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
-      return months.map((name, index) => `<option value="${index}" ${selectedUnit === index ? 'selected' : ''}>${this.escapeHtml(name)} ${year}</option>`).join('');
+      return months.map((name, index) => ({ value: index, label: `${name} ${year}` }));
     }
     if (periodPreset === 'quarter') {
       const quarters = ['I квартал', 'II квартал', 'III квартал', 'IV квартал'];
-      return quarters.map((name, index) => `<option value="${index}" ${selectedUnit === index ? 'selected' : ''}>${this.escapeHtml(name)} ${year}</option>`).join('');
+      return quarters.map((name, index) => ({ value: index, label: `${name} ${year}` }));
     }
     if (periodPreset === 'year') {
-      return `<option value="0" selected>${year}</option>`;
+      return [{ value: 0, label: `${year}` }];
     }
-    return '';
+    return [];
+  },
+  getPeriodUnitOptionsMarkup(periodPreset, selectedUnit) {
+    return this.getPeriodUnitOptionsList(periodPreset)
+      .map((option) => `<option value="${option.value}" ${(periodPreset === 'year' || selectedUnit === option.value) ? 'selected' : ''}>${this.escapeHtml(option.label)}</option>`)
+      .join('');
+  },
+  wrapPeriodUnitSelect(selectMarkup, periodPreset, selectedUnit) {
+    const list = this.getPeriodUnitOptionsList(periodPreset);
+    if (!list.length) {
+      return selectMarkup;
+    }
+    const selected = list.find((option) => periodPreset === 'year' || option.value === selectedUnit) || list[0];
+    const panelMarkup = list.map((option) => `
+      <button type="button" class="custom-select__option${(periodPreset === 'year' || selectedUnit === option.value) ? ' is-selected' : ''}" role="option" data-value="${option.value}">${this.escapeHtml(option.label)}</button>
+    `).join('');
+    return `
+      <div class="custom-select custom-select--period-unit">
+        <button type="button" class="custom-select__trigger custom-select__trigger--period-unit" aria-haspopup="listbox" aria-expanded="false">
+          <span class="custom-select__value">${this.escapeHtml(selected.label)}</span>
+          <svg class="custom-select__trigger-icon" viewBox="0 0 10 6" aria-hidden="true" focusable="false">
+            <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div class="custom-select__panel custom-select__panel--period-unit" role="listbox" hidden>${panelMarkup}</div>
+        ${selectMarkup}
+      </div>
+    `;
   },
   getAveragePeriodLabel(settings) {
     const year = new Date().getFullYear();
@@ -1618,11 +1690,11 @@ const StaffApp = {
     ];
     const isCustom = settings.periodPreset === 'custom';
     const unitOptionsMarkup = this.getPeriodUnitOptionsMarkup(settings.periodPreset, settings.periodUnit);
-    const unitSelector = unitOptionsMarkup ? `
+    const unitSelector = unitOptionsMarkup ? this.wrapPeriodUnitSelect(`
       <select class="period-unit-select" data-overview-level="${this.escapeHtml(level)}" data-overview-period-unit-select>
         ${unitOptionsMarkup}
       </select>
-    ` : '';
+    `, settings.periodPreset, settings.periodUnit) : '';
     const customDateFields = `
       <div class="custom-period-fields custom-period-fields--inline">
         <label>
@@ -2750,11 +2822,11 @@ const StaffApp = {
     if (!optionsMarkup) {
       return '';
     }
-    return `
+    return this.wrapPeriodUnitSelect(`
       <select class="period-unit-select" data-dynamic-level="${this.escapeHtml(level)}" data-period-unit-select>
         ${optionsMarkup}
       </select>
-    `;
+    `, settings.periodPreset, settings.periodUnit);
   },
   renderDynamicControls(level) {
     const settings = this.getDynamicSettings(level);
@@ -3474,9 +3546,40 @@ const StaffApp = {
     if (!select) return;
     select.classList.remove('is-open');
     const trigger = select.querySelector('.custom-select__trigger');
-    const panel = select.querySelector('.custom-select__panel');
+    let panel = select.querySelector('.custom-select__panel');
+    if (!panel && select.dataset.periodUnitPanelId) {
+      // The panel was portaled out to #floatingPanelsRoot (see
+      // positionPeriodUnitPanel) to escape a clipping/transformed ancestor;
+      // move it back so future renders find it in its expected place.
+      panel = document.querySelector(`.custom-select__panel--period-unit[data-period-unit-panel-id="${select.dataset.periodUnitPanelId}"]`);
+      if (panel) select.appendChild(panel);
+    }
     if (trigger) trigger.setAttribute('aria-expanded', 'false');
     if (panel) panel.hidden = true;
+  },
+  positionPeriodUnitPanel(wrap) {
+    // The period-unit panel sits inside a `.dynamic-controls__panel` with
+    // both `overflow: hidden` (clips its rounded corner) and a `transform`
+    // (nudges it into place) - the transform makes that ancestor the
+    // containing block for a fixed-position descendant too, so it still gets
+    // clipped even as `position: fixed`. Portal the panel out to the
+    // viewport-level #floatingPanelsRoot to escape both.
+    const trigger = wrap.querySelector('.custom-select__trigger');
+    const panel = wrap.querySelector('.custom-select__panel');
+    if (!trigger || !panel) return;
+    const id = wrap.dataset.periodUnitPanelId || `period-unit-${Math.random().toString(36).slice(2)}`;
+    wrap.dataset.periodUnitPanelId = id;
+    panel.dataset.periodUnitPanelId = id;
+    this.ensureFloatingPanelsRoot().appendChild(panel);
+    const rect = trigger.getBoundingClientRect();
+    panel.style.top = `${rect.bottom + 6}px`;
+    panel.style.right = `${window.innerWidth - rect.right}px`;
+    panel.style.minWidth = `${rect.width}px`;
+    const closeOnScroll = () => {
+      this.closeCustomSelect(wrap);
+      window.removeEventListener('scroll', closeOnScroll, true);
+    };
+    window.addEventListener('scroll', closeOnScroll, true);
   },
   ensureFloatingPanelsRoot() {
     let root = document.getElementById('floatingPanelsRoot');
@@ -4425,26 +4528,26 @@ const StaffApp = {
     const period = this.state.employeePeriod;
     if (period === 'month') {
       const index = Number.isInteger(this.state.employeePeriodMonth) ? this.state.employeePeriodMonth : new Date().getMonth();
-      return `
+      return this.wrapPeriodUnitSelect(`
         <select class="period-unit-select" id="employeePeriodMonthSelect">
           ${this.getPeriodUnitOptionsMarkup('month', index)}
         </select>
-      `;
+      `, 'month', index);
     }
     if (period === 'quarter') {
       const index = Number.isInteger(this.state.employeePeriodQuarter) ? this.state.employeePeriodQuarter : Math.floor(new Date().getMonth() / 3);
-      return `
+      return this.wrapPeriodUnitSelect(`
         <select class="period-unit-select" id="employeePeriodQuarterSelect">
           ${this.getPeriodUnitOptionsMarkup('quarter', index)}
         </select>
-      `;
+      `, 'quarter', index);
     }
     if (period === 'year') {
-      return `
+      return this.wrapPeriodUnitSelect(`
         <select class="period-unit-select" id="employeePeriodYearSelect">
           ${this.getPeriodUnitOptionsMarkup('year', 0)}
         </select>
-      `;
+      `, 'year', 0);
     }
     return '';
   },

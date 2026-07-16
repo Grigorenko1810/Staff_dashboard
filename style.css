@@ -6762,3 +6762,51 @@ body[data-page="employee"] .employee-period-card .period-switcher-group,
     transform: none;
   }
 }
+
+/* ============================================================
+   Period-unit dropdown (month/quarter/year picker) converted to
+   the same custom-styled trigger+panel language as .custom-select,
+   so opening it never shows the browser's unstyled native list.
+   ============================================================ */
+.custom-select--period-unit {
+  width: max-content;
+  flex-shrink: 0;
+}
+
+.custom-select--period-unit select.period-unit-select {
+  position: absolute;
+  width: 0;
+  height: 0;
+  padding: 0;
+  border: none;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.custom-select__trigger--period-unit {
+  height: 45px;
+  border-radius: 200px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--surface-card);
+  border-color: var(--border);
+}
+
+.custom-select__trigger--period-unit:hover {
+  border-color: var(--accent);
+}
+
+.custom-select--period-unit .custom-select__trigger-icon {
+  width: 10px;
+  height: 6px;
+}
+
+.custom-select__panel--period-unit {
+  position: fixed;
+  left: auto;
+  top: auto;
+  width: max-content;
+  pointer-events: auto;
+}
