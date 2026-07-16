@@ -3566,6 +3566,10 @@ const StaffApp = {
     }
     if (trigger) trigger.setAttribute('aria-expanded', 'false');
     if (panel) panel.hidden = true;
+    if (select._periodUnitScrollHandler) {
+      window.removeEventListener('scroll', select._periodUnitScrollHandler, true);
+      select._periodUnitScrollHandler = null;
+    }
   },
   positionPeriodUnitPanel(wrap) {
     // The period-unit panel sits inside a `.dynamic-controls__panel` with
@@ -3588,10 +3592,19 @@ const StaffApp = {
     const clampedLeft = Math.min(Math.max(centeredLeft, margin), window.innerWidth - panelWidth - margin);
     panel.style.top = `${rect.bottom + 6}px`;
     panel.style.left = `${clampedLeft}px`;
-    const closeOnScroll = () => {
+    if (wrap._periodUnitScrollHandler) {
+      window.removeEventListener('scroll', wrap._periodUnitScrollHandler, true);
+    }
+    const closeOnScroll = (event) => {
+      // Scroll events don't bubble, but a capture-phase window listener still
+      // sees them for any scrollable descendant - including the option list
+      // scrolling inside itself. Only treat this as "the page moved under
+      // the panel" (which should close it) when the scroll didn't originate
+      // from the panel's own option list.
+      if (panel.contains(event.target)) return;
       this.closeCustomSelect(wrap);
-      window.removeEventListener('scroll', closeOnScroll, true);
     };
+    wrap._periodUnitScrollHandler = closeOnScroll;
     window.addEventListener('scroll', closeOnScroll, true);
   },
   ensureFloatingPanelsRoot() {
