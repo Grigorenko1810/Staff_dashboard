@@ -2428,12 +2428,22 @@ const StaffApp = {
   attachProjectsMatrixHandlers(root, centerId) {
     const block = root.querySelector('#projectsMatrixBlock');
     if (!block) return;
+    this.bindProjectsMatrixHandlers(block, centerId);
+  },
+  bindProjectsMatrixHandlers(block, centerId) {
+    // Rebind against `block` itself (not by re-querying from the original
+    // `root`/container): once a page transition commits, the container
+    // passed in initially can be the now-emptied '.view-layer--next' (its
+    // children, including this block, get moved into '.view-layer--current'
+    // rather than recreated) - re-querying from it would silently find
+    // nothing and stop rebinding after the very next action. `block` is a
+    // direct node reference, so it stays valid through that move.
     const rerender = () => {
       const controlsSlot = block.querySelector('.projects-matrix-controls-slot');
       if (controlsSlot) controlsSlot.innerHTML = this.renderProjectsMatrixControls(centerId);
       const gridContainer = block.querySelector('#projectsMatrixGrid');
       if (gridContainer) gridContainer.innerHTML = this.renderProjectsMatrixGrid(centerId);
-      this.attachProjectsMatrixHandlers(root, centerId);
+      this.bindProjectsMatrixHandlers(block, centerId);
     };
     block.querySelectorAll('[data-projects-group-mode]').forEach((button) => {
       button.addEventListener('click', () => {
