@@ -6808,7 +6808,7 @@ body[data-page="employee"] .employee-period-card .period-switcher-group,
   left: auto;
   right: auto;
   top: auto;
-  width: 200px;
+  width: 160px;
   pointer-events: auto;
   /* Above .floating-panel/.employee-preview--floating (z-index: 101), since
      this panel can be opened from a period-unit picker inside either. */
