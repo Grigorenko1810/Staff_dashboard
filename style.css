@@ -6806,7 +6806,8 @@ body[data-page="employee"] .employee-period-card .period-switcher-group,
 .custom-select__panel--period-unit {
   position: fixed;
   left: auto;
+  right: auto;
   top: auto;
-  width: max-content;
+  width: 200px;
   pointer-events: auto;
 }

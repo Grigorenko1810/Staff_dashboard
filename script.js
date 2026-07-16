@@ -3572,9 +3572,12 @@ const StaffApp = {
     panel.dataset.periodUnitPanelId = id;
     this.ensureFloatingPanelsRoot().appendChild(panel);
     const rect = trigger.getBoundingClientRect();
+    const panelWidth = panel.getBoundingClientRect().width || rect.width;
+    const margin = 8;
+    const centeredLeft = rect.left + rect.width / 2 - panelWidth / 2;
+    const clampedLeft = Math.min(Math.max(centeredLeft, margin), window.innerWidth - panelWidth - margin);
     panel.style.top = `${rect.bottom + 6}px`;
-    panel.style.right = `${window.innerWidth - rect.right}px`;
-    panel.style.minWidth = `${rect.width}px`;
+    panel.style.left = `${clampedLeft}px`;
     const closeOnScroll = () => {
       this.closeCustomSelect(wrap);
       window.removeEventListener('scroll', closeOnScroll, true);
