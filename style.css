@@ -7343,6 +7343,21 @@ body[data-page="employee"] .employee-period-card .period-switcher-group,
 /* Target indicator: period switcher, large tech-block metrics, footer */
 .target-indicator-period-switcher {
   margin-bottom: 2px;
+  flex-wrap: nowrap;
+  gap: 4px;
+  padding: 3px;
+}
+
+.target-indicator-period-switcher .period-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 7px 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .target-indicator-metrics--large .target-indicator-metric {
