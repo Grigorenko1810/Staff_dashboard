@@ -7402,24 +7402,67 @@ body[data-page="employee"] .employee-period-card .period-switcher-group,
   padding-top: 10px;
 }
 
-.target-indicator-footer .target-indicator-task-ids {
+.target-indicator-footer .target-indicator-task-ids,
+.target-indicator-footer .target-indicator-comments {
   border-top: 0;
   padding-top: 0;
 }
 
-.target-indicator-comments-count {
+.target-indicator-comments summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  color: var(--text);
   font-size: 12px;
   font-weight: 600;
-  color: var(--text);
+  cursor: pointer;
+  user-select: none;
 }
 
-.target-indicator-comments-count span {
+.target-indicator-comments summary span {
   color: var(--muted);
   font-weight: 600;
+}
+
+.target-indicator-comments__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.target-indicator-comment {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-soft);
+}
+
+.target-indicator-comment__id {
+  display: inline-block;
+  padding: 2px 8px;
+  margin-bottom: 6px;
+  border-radius: 200px;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.target-indicator-comment__text {
+  margin: 0;
+  color: var(--text-secondary, var(--muted));
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.target-indicator-comments__empty {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 /* Comment flag next to project ID in the Проекты table */

@@ -2667,7 +2667,7 @@ const StaffApp = {
       inHoursPercent: completed.length ? Math.round((inHours.length / completed.length) * 100) : null,
       overrunHours: Math.round(overrunHours),
       taskIds: completed.map((project) => project.id),
-      commentCount: completed.filter((project) => project.hasComment).length
+      comments: completed.filter((project) => project.hasComment).map((project) => ({ id: project.id, text: project.comment }))
     };
   },
   renderTargetIndicatorMetric(label, percent, note, extra) {
@@ -2720,9 +2720,17 @@ const StaffApp = {
                 ${row.taskIds.map((id) => `<span class="target-indicator-task-id">${this.escapeHtml(String(id))}</span>`).join('')}
               </div>
             </details>
-            <div class="target-indicator-comments-count">
-              <span>Комментарии</span><strong>${row.commentCount}</strong>
-            </div>
+            <details class="target-indicator-comments">
+              <summary>Комментарии <span>${row.comments.length}</span></summary>
+              <div class="target-indicator-comments__list">
+                ${row.comments.length ? row.comments.map((comment) => `
+                  <div class="target-indicator-comment">
+                    <span class="target-indicator-comment__id">${this.escapeHtml(String(comment.id))}</span>
+                    <p class="target-indicator-comment__text">${this.escapeHtml(comment.text)}</p>
+                  </div>
+                `).join('') : '<div class="target-indicator-comments__empty">Нет комментариев к задачам.</div>'}
+              </div>
+            </details>
           </div>
         ` : ''}
       </section>
