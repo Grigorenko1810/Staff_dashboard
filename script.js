@@ -3539,7 +3539,6 @@ const StaffApp = {
           </section>
           ${this.renderDashboardSidePanel(isTechBlock ? '' : summary.id, isTechBlock)}
         </section>
-        ${this.renderCenterSummaryCard(summary.projectSummary)}
         <section class="wide-card data-viz-card data-viz-card--wide">
           <div class="data-viz-card__header">
             <div>
@@ -3553,6 +3552,7 @@ const StaffApp = {
             <div class="chart-large"><canvas id="dynamicLoadChart"></canvas></div>
           </div>
         </section>
+        ${this.renderCenterSummaryCard(summary.projectSummary)}
       </section>
     `;
 
