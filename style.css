@@ -7365,7 +7365,8 @@ body[data-page="employee"] .employee-period-card .period-switcher-group,
 }
 
 .target-indicator-metrics--large .target-indicator-metric__label {
-  font-size: 12px;
+  font-size: 10.5px;
+  white-space: nowrap;
 }
 
 .target-indicator-metrics--large .target-indicator-metric__value {
@@ -7374,11 +7375,15 @@ body[data-page="employee"] .employee-period-card .period-switcher-group,
 }
 
 .target-indicator-metrics--large .target-indicator-metric__note {
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .target-indicator-metrics--large .target-indicator-metric__extra {
-  font-size: 12px;
+  font-size: 11px;
+}
+
+.target-indicator-summary--large .target-indicator-summary__label {
+  font-size: 10px;
 }
 
 .target-indicator-footer {

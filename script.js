@@ -2696,7 +2696,7 @@ const StaffApp = {
       : this.getDefaultTargetIndicatorPeriodKey();
     const row = this.getTargetIndicatorRow(centerId, periodKey);
     const bodyHtml = row.total ? `
-      <div class="target-indicator-summary">
+      <div class="target-indicator-summary${isTechBlock ? ' target-indicator-summary--large' : ''}">
         <div><span class="target-indicator-summary__label">Начато</span><strong>${row.total}</strong></div>
         <div><span class="target-indicator-summary__label">Завершено</span><strong>${row.completed}</strong></div>
       </div>
