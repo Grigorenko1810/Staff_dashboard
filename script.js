@@ -529,7 +529,7 @@ const StaffApp = {
         } else {
           this.closeEmployeePreview();
         }
-        document.querySelectorAll('.custom-select.is-open').forEach((select) => this.closeCustomSelect(select));
+        document.querySelectorAll('.custom-select.is-open, .custom-date-field.is-open').forEach((el) => this.closeFloatingDropdown(el));
       }
     });
     document.addEventListener('pointerdown', (event) => {
@@ -540,20 +540,23 @@ const StaffApp = {
     });
     document.addEventListener('pointerdown', (event) => {
       if (event.target.closest('.custom-select')) return;
-      // A period-unit panel may be portaled to #floatingPanelsRoot (see
-      // positionPeriodUnitPanel) and so is no longer a `.custom-select`
-      // descendant - without this check, this handler would close (and
+      if (event.target.closest('.custom-date-field')) return;
+      // A period-unit or date-field panel may be portaled to
+      // #floatingPanelsRoot (see positionPeriodUnitPanel /
+      // positionDateFieldPanel) and so is no longer a descendant of its
+      // wrapper - without this check, this handler would close (and
       // reparent) it out from under an in-progress click on one of its
-      // options before that click's own handler runs.
+      // options/days before that click's own handler runs.
       if (event.target.closest('.custom-select__panel--period-unit')) return;
-      document.querySelectorAll('.custom-select.is-open').forEach((select) => this.closeCustomSelect(select));
+      if (event.target.closest('.custom-date-field__panel')) return;
+      document.querySelectorAll('.custom-select.is-open, .custom-date-field.is-open').forEach((el) => this.closeFloatingDropdown(el));
     });
     document.addEventListener('click', (event) => {
       const trigger = event.target.closest('.custom-select--period-unit .custom-select__trigger');
       if (trigger) {
         const wrap = trigger.closest('.custom-select--period-unit');
         const wasOpen = wrap.classList.contains('is-open');
-        document.querySelectorAll('.custom-select.is-open').forEach((openSelect) => this.closeCustomSelect(openSelect));
+        document.querySelectorAll('.custom-select.is-open, .custom-date-field.is-open').forEach((el) => this.closeFloatingDropdown(el));
         if (!wasOpen) {
           this.openCustomSelect(wrap);
           this.positionPeriodUnitPanel(wrap);
@@ -585,6 +588,33 @@ const StaffApp = {
           o.classList.toggle('is-selected', o === option);
         });
         this.closeCustomSelect(wrap);
+        return;
+      }
+      const dateTrigger = event.target.closest('.custom-date-field__trigger');
+      if (dateTrigger) {
+        if (dateTrigger.disabled) return;
+        const wrap = dateTrigger.closest('.custom-date-field');
+        const wasOpen = wrap.classList.contains('is-open');
+        document.querySelectorAll('.custom-select.is-open, .custom-date-field.is-open').forEach((el) => this.closeFloatingDropdown(el));
+        if (!wasOpen) this.openDateFieldPanel(wrap);
+        return;
+      }
+      const navBtn = event.target.closest('.custom-date-field__nav');
+      if (navBtn) {
+        const panelEl = navBtn.closest('.custom-date-field__panel');
+        const panelId = panelEl?.dataset.calendarPanelId;
+        const wrap = (panelId && document.querySelector(`.custom-date-field[data-calendar-panel-id="${panelId}"]`))
+          || navBtn.closest('.custom-date-field');
+        if (wrap) this.navigateCalendarPanel(wrap, navBtn.dataset.calendarNav === 'next' ? 1 : -1);
+        return;
+      }
+      const dayBtn = event.target.closest('.custom-date-field__day');
+      if (dayBtn) {
+        const panelEl = dayBtn.closest('.custom-date-field__panel');
+        const panelId = panelEl?.dataset.calendarPanelId;
+        const wrap = (panelId && document.querySelector(`.custom-date-field[data-calendar-panel-id="${panelId}"]`))
+          || dayBtn.closest('.custom-date-field');
+        if (wrap) this.selectCalendarDate(wrap, dayBtn.dataset.date);
       }
     });
     document.getElementById('importBtn')?.addEventListener('click', () => {
@@ -1699,11 +1729,11 @@ const StaffApp = {
       <div class="custom-period-fields custom-period-fields--inline">
         <label>
           <span>Дата начала</span>
-          <input class="date-fit" type="date" value="${this.escapeHtml(settings.startDate)}" data-overview-level="${this.escapeHtml(level)}" data-overview-period-start>
+          ${this.wrapDateField(`<input class="date-fit" type="date" value="${this.escapeHtml(settings.startDate)}" data-overview-level="${this.escapeHtml(level)}" data-overview-period-start hidden>`, settings.startDate, { ariaLabel: 'Дата начала' })}
         </label>
         <label>
           <span>Дата окончания</span>
-          <input class="date-fit" type="date" value="${this.escapeHtml(settings.endDate)}" data-overview-level="${this.escapeHtml(level)}" data-overview-period-end>
+          ${this.wrapDateField(`<input class="date-fit" type="date" value="${this.escapeHtml(settings.endDate)}" data-overview-level="${this.escapeHtml(level)}" data-overview-period-end hidden>`, settings.endDate, { ariaLabel: 'Дата окончания' })}
         </label>
       </div>
     `;
@@ -1813,6 +1843,81 @@ const StaffApp = {
     }
     const pad = (item) => String(item).padStart(2, '0');
     return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()}`;
+  },
+  formatDateISO(date) {
+    const pad = (item) => String(item).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  },
+  getCalendarWeekdayLabels() {
+    return ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+  },
+  getCalendarMonthNames() {
+    return ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+  },
+  getCalendarMonthCells(year, month) {
+    const pad = (item) => String(item).padStart(2, '0');
+    const firstOfMonth = new Date(year, month, 1);
+    const startOffset = (firstOfMonth.getDay() + 6) % 7; // Monday-first week
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const cells = [];
+    for (let idx = 0; idx < startOffset; idx++) {
+      const cellDate = new Date(year, month, idx - startOffset + 1);
+      cells.push({ day: cellDate.getDate(), inMonth: false, iso: this.formatDateISO(cellDate) });
+    }
+    for (let day = 1; day <= daysInMonth; day++) {
+      cells.push({ day, inMonth: true, iso: `${year}-${pad(month + 1)}-${pad(day)}` });
+    }
+    let trailing = 1;
+    while (cells.length < 42) {
+      const cellDate = new Date(year, month + 1, trailing);
+      cells.push({ day: cellDate.getDate(), inMonth: false, iso: this.formatDateISO(cellDate) });
+      trailing++;
+    }
+    return cells;
+  },
+  renderCalendarPanelMarkup(year, month, selectedIso) {
+    const monthNames = this.getCalendarMonthNames();
+    const weekdays = this.getCalendarWeekdayLabels();
+    const cells = this.getCalendarMonthCells(year, month);
+    const todayIso = this.formatDateISO(new Date());
+    return `
+      <div class="custom-date-field__header">
+        <button type="button" class="custom-date-field__nav" data-calendar-nav="prev" aria-label="Предыдущий месяц">
+          <svg viewBox="0 0 8 12" aria-hidden="true" focusable="false"><path d="M7 1 2 6l5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span class="custom-date-field__month-label">${this.escapeHtml(monthNames[month])} ${year}</span>
+        <button type="button" class="custom-date-field__nav" data-calendar-nav="next" aria-label="Следующий месяц">
+          <svg viewBox="0 0 8 12" aria-hidden="true" focusable="false"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div class="custom-date-field__weekdays">
+        ${weekdays.map((label) => `<span>${this.escapeHtml(label)}</span>`).join('')}
+      </div>
+      <div class="custom-date-field__days">
+        ${cells.map((cell) => `
+          <button type="button" class="custom-date-field__day${cell.inMonth ? '' : ' is-outside'}${cell.iso === selectedIso ? ' is-selected' : ''}${cell.iso === todayIso ? ' is-today' : ''}" data-date="${cell.iso}">${cell.day}</button>
+        `).join('')}
+      </div>
+    `;
+  },
+  wrapDateField(inputMarkup, value, options = {}) {
+    const disabled = Boolean(options.disabled);
+    const label = options.ariaLabel || '';
+    const displayValue = value ? this.formatDateForDisplay(value) : '';
+    return `
+      <div class="custom-date-field">
+        <button type="button" class="custom-select__trigger custom-date-field__trigger date-fit" aria-haspopup="dialog" aria-expanded="false"${label ? ` aria-label="${this.escapeHtml(label)}"` : ''}${disabled ? ' disabled' : ''}>
+          <span class="custom-select__value">${this.escapeHtml(displayValue)}</span>
+          <svg class="custom-date-field__icon" viewBox="0 0 14 14" aria-hidden="true" focusable="false">
+            <rect x="1.5" y="2.5" width="11" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/>
+            <path d="M1.5 5.5h11" stroke="currentColor" stroke-width="1.2"/>
+            <path d="M4 1.2v2M10 1.2v2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <div class="custom-date-field__panel" role="dialog" hidden></div>
+        ${inputMarkup}
+      </div>
+    `;
   },
   formatDynamicSubtitle(settings) {
     const granularityLabels = {
@@ -2846,11 +2951,11 @@ const StaffApp = {
       <div class="custom-period-fields custom-period-fields--inline">
         <label>
           <span>Дата начала</span>
-          <input class="date-fit" type="date" value="${this.escapeHtml(settings.startDate)}" data-dynamic-level="${this.escapeHtml(level)}" data-custom-period-start>
+          ${this.wrapDateField(`<input class="date-fit" type="date" value="${this.escapeHtml(settings.startDate)}" data-dynamic-level="${this.escapeHtml(level)}" data-custom-period-start hidden>`, settings.startDate, { ariaLabel: 'Дата начала' })}
         </label>
         <label>
           <span>Дата окончания</span>
-          <input class="date-fit" type="date" value="${this.escapeHtml(settings.endDate)}" data-dynamic-level="${this.escapeHtml(level)}" data-custom-period-end>
+          ${this.wrapDateField(`<input class="date-fit" type="date" value="${this.escapeHtml(settings.endDate)}" data-dynamic-level="${this.escapeHtml(level)}" data-custom-period-end hidden>`, settings.endDate, { ariaLabel: 'Дата окончания' })}
         </label>
       </div>
     `;
@@ -3607,6 +3712,98 @@ const StaffApp = {
     wrap._periodUnitScrollHandler = closeOnScroll;
     window.addEventListener('scroll', closeOnScroll, true);
   },
+  closeFloatingDropdown(el) {
+    if (el.classList.contains('custom-date-field')) {
+      this.closeDateFieldPanel(el);
+    } else {
+      this.closeCustomSelect(el);
+    }
+  },
+  openDateFieldPanel(wrap) {
+    const trigger = wrap.querySelector('.custom-date-field__trigger');
+    const panel = wrap.querySelector('.custom-date-field__panel');
+    const input = wrap.querySelector('input[type="date"]');
+    if (!trigger || !panel || !input || trigger.disabled) return;
+    const base = this.parseInputDate(input.value) || new Date();
+    wrap.dataset.calendarViewYear = base.getFullYear();
+    wrap.dataset.calendarViewMonth = base.getMonth();
+    panel.innerHTML = this.renderCalendarPanelMarkup(base.getFullYear(), base.getMonth(), input.value || '');
+    wrap.classList.add('is-open');
+    trigger.setAttribute('aria-expanded', 'true');
+    panel.hidden = false;
+    this.positionDateFieldPanel(wrap);
+  },
+  closeDateFieldPanel(wrap) {
+    if (!wrap) return;
+    wrap.classList.remove('is-open');
+    const trigger = wrap.querySelector('.custom-date-field__trigger');
+    let panel = wrap.querySelector('.custom-date-field__panel');
+    if (!panel && wrap.dataset.calendarPanelId) {
+      // Portaled out to #floatingPanelsRoot (see positionDateFieldPanel) to
+      // escape a clipping/transformed ancestor - move it back so future
+      // renders find it in its expected place.
+      panel = document.querySelector(`.custom-date-field__panel[data-calendar-panel-id="${wrap.dataset.calendarPanelId}"]`);
+      if (panel) wrap.appendChild(panel);
+    }
+    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+    if (panel) panel.hidden = true;
+    if (wrap._calendarScrollHandler) {
+      window.removeEventListener('scroll', wrap._calendarScrollHandler, true);
+      wrap._calendarScrollHandler = null;
+    }
+  },
+  positionDateFieldPanel(wrap) {
+    // Same reasoning as positionPeriodUnitPanel: the field can sit inside a
+    // container with overflow:hidden and/or a transform (both would clip or
+    // mis-position a plain absolute/fixed panel), so it's portaled to the
+    // viewport-level #floatingPanelsRoot and positioned in true viewport
+    // coordinates, centered under the trigger and clamped to stay on-screen.
+    const trigger = wrap.querySelector('.custom-date-field__trigger');
+    const panel = wrap.querySelector('.custom-date-field__panel');
+    if (!trigger || !panel) return;
+    const id = wrap.dataset.calendarPanelId || `calendar-${Math.random().toString(36).slice(2)}`;
+    wrap.dataset.calendarPanelId = id;
+    panel.dataset.calendarPanelId = id;
+    this.ensureFloatingPanelsRoot().appendChild(panel);
+    const rect = trigger.getBoundingClientRect();
+    const panelWidth = panel.getBoundingClientRect().width || rect.width;
+    const margin = 8;
+    const centeredLeft = rect.left + rect.width / 2 - panelWidth / 2;
+    const clampedLeft = Math.min(Math.max(centeredLeft, margin), window.innerWidth - panelWidth - margin);
+    panel.style.top = `${rect.bottom + 6}px`;
+    panel.style.left = `${clampedLeft}px`;
+    if (wrap._calendarScrollHandler) {
+      window.removeEventListener('scroll', wrap._calendarScrollHandler, true);
+    }
+    const closeOnScroll = (event) => {
+      if (panel.contains(event.target)) return;
+      this.closeDateFieldPanel(wrap);
+    };
+    wrap._calendarScrollHandler = closeOnScroll;
+    window.addEventListener('scroll', closeOnScroll, true);
+  },
+  navigateCalendarPanel(wrap, direction) {
+    const panel = wrap.querySelector('.custom-date-field__panel')
+      || document.querySelector(`.custom-date-field__panel[data-calendar-panel-id="${wrap.dataset.calendarPanelId}"]`);
+    const input = wrap.querySelector('input[type="date"]');
+    if (!panel || !input) return;
+    let year = Number(wrap.dataset.calendarViewYear);
+    let month = Number(wrap.dataset.calendarViewMonth) + direction;
+    if (month < 0) { month = 11; year -= 1; }
+    if (month > 11) { month = 0; year += 1; }
+    wrap.dataset.calendarViewYear = year;
+    wrap.dataset.calendarViewMonth = month;
+    panel.innerHTML = this.renderCalendarPanelMarkup(year, month, input.value || '');
+  },
+  selectCalendarDate(wrap, iso) {
+    const input = wrap.querySelector('input[type="date"]');
+    if (!input || !iso) return;
+    input.value = iso;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    const valueEl = wrap.querySelector('.custom-date-field__trigger .custom-select__value');
+    if (valueEl) valueEl.textContent = this.formatDateForDisplay(iso);
+    this.closeDateFieldPanel(wrap);
+  },
   ensureFloatingPanelsRoot() {
     let root = document.getElementById('floatingPanelsRoot');
     if (!root) {
@@ -4303,11 +4500,11 @@ const StaffApp = {
         <div class="date-row">
           <div class="field field--date">
             <label for="employeeStartDate">Дата начала</label>
-            <input id="employeeStartDate" class="date-fit" type="date" value="${this.state.employeeStartDate}" ${dateDisabled ? 'disabled' : ''}>
+            ${this.wrapDateField(`<input id="employeeStartDate" class="date-fit" type="date" value="${this.state.employeeStartDate}" hidden>`, this.state.employeeStartDate, { ariaLabel: 'Дата начала', disabled: dateDisabled })}
           </div>
           <div class="field field--date">
             <label for="employeeEndDate">Дата окончания</label>
-            <input id="employeeEndDate" class="date-fit" type="date" value="${this.state.employeeEndDate}" ${dateDisabled ? 'disabled' : ''}>
+            ${this.wrapDateField(`<input id="employeeEndDate" class="date-fit" type="date" value="${this.state.employeeEndDate}" hidden>`, this.state.employeeEndDate, { ariaLabel: 'Дата окончания', disabled: dateDisabled })}
           </div>
           <div class="field" style="flex:1; display:flex; flex-direction:column; justify-content:flex-end;">
             <span class="card__subtitle ${this.state.employeePeriod === 'custom' ? 'employee-period-meta-label--custom' : ''}">${this.escapeHtml(periodMeta.label)}</span>

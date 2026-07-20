@@ -6826,3 +6826,143 @@ body[data-page="employee"] .employee-period-card .period-switcher-group,
      this panel can be opened from a period-unit picker inside either. */
   z-index: 150;
 }
+
+/* ============================================================
+   Custom date field (replaces native <input type="date">, whose
+   browser-native calendar popup can't be styled). Same trigger +
+   portaled-panel pattern as the period-unit dropdown: the real
+   <input type="date"> stays in the DOM (hidden) so existing
+   change-based wiring keeps working unchanged.
+   ============================================================ */
+.custom-date-field {
+  position: relative;
+  width: max-content;
+  flex-shrink: 0;
+}
+
+.custom-date-field__trigger:disabled {
+  color: var(--muted);
+  background: var(--surface-soft);
+  cursor: not-allowed;
+  border-color: var(--input-border);
+}
+
+.custom-date-field__icon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  color: var(--muted);
+}
+
+.custom-date-field__panel {
+  position: fixed;
+  left: auto;
+  top: auto;
+  width: 236px;
+  z-index: 150;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 16px 32px rgba(32, 32, 32, 0.14);
+}
+
+.custom-date-field__panel[hidden] {
+  display: none;
+}
+
+.custom-date-field__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 2px;
+}
+
+.custom-date-field__month-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.custom-date-field__nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.custom-date-field__nav:hover {
+  background: var(--surface-soft);
+  color: var(--text);
+}
+
+.custom-date-field__weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  padding: 0 2px;
+}
+
+.custom-date-field__weekdays span {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.custom-date-field__days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.custom-date-field__day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.custom-date-field__day:hover {
+  background: var(--surface-soft);
+}
+
+.custom-date-field__day.is-outside {
+  color: var(--muted);
+  opacity: 0.55;
+}
+
+.custom-date-field__day.is-today {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.custom-date-field__day.is-selected {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.custom-date-field__day.is-selected.is-today {
+  color: #fff;
+}
