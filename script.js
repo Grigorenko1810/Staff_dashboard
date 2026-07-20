@@ -2859,7 +2859,7 @@ const StaffApp = {
           ? Math.round(centerEmployees.reduce((sum, employee) => sum + Number(employee.loadPercent || 0), 0) / centerEmployees.length)
           : 0;
         return {
-          name: center.shortName || center.name,
+          name: this.getCenterAbbreviation(center.name) || center.shortName || center.name,
           percent,
           workingToday: this.getEmployeesWorkingToday(centerEmployees).length,
           total: centerEmployees.length
@@ -3944,7 +3944,7 @@ const StaffApp = {
   },
   getCenterFilterOptions() {
     const centers = this.getCentersList();
-    return [{ value: '', label: 'Все центры' }, ...centers.map((center) => ({ value: center.id, label: center.shortName || center.name }))];
+    return [{ value: '', label: 'Все центры' }, ...centers.map((center) => ({ value: center.id, label: this.getCenterAbbreviation(center.name) || center.shortName || center.name }))];
   },
   getManagementFilterOptions() {
     const centerId = String(this.state.filters.centerId || '');
