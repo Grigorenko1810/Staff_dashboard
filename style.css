@@ -6524,6 +6524,18 @@ body[data-page="employee"] .view-layer {
   gap: 32px;
 }
 
+/* .view-layer--next is `position: absolute; inset: 0`, sized to match
+   .view-layer--current's height while both are visible during a page
+   transition. As a flex column, its direct children would otherwise be
+   free to flex-shrink to fit that (possibly shorter) forced height -
+   compressing sections like .employee-period-card well below their
+   natural size for the whole transition, then snapping back once the
+   layer is promoted to current and the height constraint lifts. Locking
+   flex-shrink to 0 keeps every section at its natural height throughout. */
+.view-layer > * {
+  flex-shrink: 0;
+}
+
 /* KPI labels and large values begin where the percentage starts,
    after its trend arrow. Moving only the value visually upward keeps
    the delta row fixed while increasing the space between both rows. */
