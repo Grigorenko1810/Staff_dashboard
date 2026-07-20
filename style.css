@@ -7078,24 +7078,6 @@ body[data-page="employee"] .employee-period-card .period-switcher-group,
   font-weight: 600;
 }
 
-.target-indicator-groups {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.target-indicator-group-row {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.target-indicator-group-row__title {
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 600;
-}
-
 .target-indicator-metrics {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -7356,4 +7338,145 @@ body[data-page="employee"] .employee-period-card .period-switcher-group,
     flex: 1 1 auto;
     min-width: 0;
   }
+}
+
+/* Target indicator: period switcher, large tech-block metrics, footer */
+.target-indicator-period-switcher {
+  margin-bottom: 2px;
+}
+
+.target-indicator-metrics--large .target-indicator-metric {
+  padding: 14px 16px;
+}
+
+.target-indicator-metrics--large .target-indicator-metric__label {
+  font-size: 12px;
+}
+
+.target-indicator-metrics--large .target-indicator-metric__value {
+  margin: 6px 0 4px;
+  font-size: 32px;
+}
+
+.target-indicator-metrics--large .target-indicator-metric__note {
+  font-size: 12px;
+}
+
+.target-indicator-metrics--large .target-indicator-metric__extra {
+  font-size: 12px;
+}
+
+.target-indicator-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.target-indicator-footer .target-indicator-task-ids {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.target-indicator-comments-count {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.target-indicator-comments-count span {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+/* Comment flag next to project ID in the Проекты table */
+.projects-matrix-detail-grid__cell--id {
+  gap: 6px;
+}
+
+.project-comment-flag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--yellow);
+  background: var(--surface-muted);
+  color: var(--yellow);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+  padding: 0;
+}
+
+/* Project notifications card */
+.project-notifications-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+}
+
+.project-notifications-summary__label {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.project-notifications-summary__badge {
+  min-width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border-radius: 50%;
+  background: var(--surface-card);
+  border: 1px solid var(--yellow);
+  color: var(--yellow);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.project-notifications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.project-notifications-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.project-notifications-row__label {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.project-notifications-row__value {
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-align: right;
 }

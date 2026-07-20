@@ -621,6 +621,20 @@ const StaffApp = {
       if (timesheetToggle) {
         timesheetToggle.closest('.timesheet-row')?.classList.toggle('is-open');
       }
+      const targetIndicatorPeriodBtn = event.target.closest('[data-target-indicator-period]');
+      if (targetIndicatorPeriodBtn) {
+        const next = targetIndicatorPeriodBtn.dataset.targetIndicatorPeriod;
+        if (this.state.targetIndicatorPeriodKey !== next) {
+          this.state.targetIndicatorPeriodKey = next;
+          const card = targetIndicatorPeriodBtn.closest('.target-indicator-card');
+          if (card) {
+            const centerId = card.dataset.centerId || '';
+            const isTechBlock = card.dataset.isTechBlock === 'true';
+            card.outerHTML = this.renderTargetIndicatorCard(centerId, isTechBlock);
+          }
+        }
+        return;
+      }
     });
     document.getElementById('importBtn')?.addEventListener('click', () => {
       document.getElementById('excelInput')?.click();
@@ -2310,6 +2324,22 @@ const StaffApp = {
     if (remainingHours < 24.5) return 'warning';
     return 'done';
   },
+  getProjectCommentPool() {
+    return [
+      'Уточнить сроки поставки материалов у смежного отдела.',
+      'Требуется согласование объёма работ с заказчиком.',
+      'Ожидаем обновлённые исходные данные от техотдела.',
+      'Пересмотреть плановые часы после уточнения ТЗ.',
+      'Заказчик запросил промежуточный статус по этапу.',
+      'Нужна повторная проверка расчётов перед сдачей.'
+    ];
+  },
+  getProjectComment(taskId) {
+    const numericId = Math.abs(Math.round(Number(taskId))) || 0;
+    if (numericId % 4 !== 0) return '';
+    const pool = this.getProjectCommentPool();
+    return pool[numericId % pool.length];
+  },
   getProjectsForMatrix(centerId = '') {
     const employees = this.getNormalizedEmployees();
     const center = centerId ? this.getCenterById(centerId) : null;
@@ -2324,6 +2354,7 @@ const StaffApp = {
       const planHours = hasPlan ? Number(task.projectPlanHours) : 0;
       const remainingHours = hasPlan ? planHours - actualHours : null;
       const isLate = this.isLateProjectTask(task);
+      const comment = this.getProjectComment(task.id);
       return {
         id: task.id,
         name: task.project,
@@ -2338,7 +2369,9 @@ const StaffApp = {
         hoursTone: this.getProjectMatrixHoursTone(hasPlan, remainingHours),
         dueDate: task.dueDate,
         dateTone: isLate ? 'delay' : 'done',
-        dateLabel: task.indicator || (isLate ? 'Не в срок' : 'В срок')
+        dateLabel: task.indicator || (isLate ? 'Не в срок' : 'В срок'),
+        comment,
+        hasComment: Boolean(comment)
       };
     });
   },
@@ -2423,10 +2456,13 @@ const StaffApp = {
       : project.hasPlan
         ? `${project.remainingHours > 0 ? '+' : ''}${Math.round(project.remainingHours)}`
         : '—';
+    const commentFlagHtml = project.hasComment
+      ? `<button type="button" class="project-comment-flag" title="${this.escapeHtml(project.comment)}" aria-label="Показать комментарий">!</button>`
+      : '';
     return `
       <div class="projects-matrix-detail-grid__row">
         ${options.showContextColumn ? `<div class="projects-matrix-detail-grid__cell">${this.escapeHtml(contextValue)}</div>` : ''}
-        <div class="projects-matrix-detail-grid__cell">${this.escapeHtml(String(project.id))}</div>
+        <div class="projects-matrix-detail-grid__cell projects-matrix-detail-grid__cell--id">${this.escapeHtml(String(project.id))}${commentFlagHtml}</div>
         <div class="projects-matrix-detail-grid__cell">${this.escapeHtml(project.name || '—')}</div>
         <div class="projects-matrix-detail-grid__cell">${this.escapeHtml(project.dueDate || '—')}</div>
         <div class="projects-matrix-detail-grid__cell"><span class="status-pill status-pill--${project.dateTone}">${this.escapeHtml(project.dateLabel)}</span></div>
@@ -2595,9 +2631,24 @@ const StaffApp = {
   getTargetIndicatorTypes() {
     return ['Коммерческий проект', 'Инвестиционный проект'];
   },
-  getTargetIndicatorRow(centerId) {
+  getTargetIndicatorPeriods() {
+    const year = 2026;
+    return [
+      { key: `${year}-H1`, label: `I полугодие ${year}`, start: `${year}-01-01`, end: `${year}-06-30` },
+      { key: `${year}-H2`, label: `II полугодие ${year}`, start: `${year}-07-01`, end: `${year}-12-31` }
+    ];
+  },
+  getDefaultTargetIndicatorPeriodKey() {
+    const periods = this.getTargetIndicatorPeriods();
+    const todayIso = this.formatDateISO(new Date());
+    const match = periods.find((period) => todayIso >= period.start && todayIso <= period.end);
+    return (match || periods[periods.length - 1]).key;
+  },
+  getTargetIndicatorRow(centerId, periodKey) {
+    const period = this.getTargetIndicatorPeriods().find((item) => item.key === periodKey) || this.getTargetIndicatorPeriods()[0];
     const types = this.getTargetIndicatorTypes();
-    const projects = this.getProjectsForMatrix(centerId).filter((project) => types.includes(project.type));
+    const projects = this.getProjectsForMatrix(centerId).filter((project) => types.includes(project.type)
+      && project.dueDate && project.dueDate >= period.start && project.dueDate <= period.end);
     const completed = projects.filter((project) => project.status === 'Завершена');
     const onTime = completed.filter((project) => project.dateTone !== 'delay');
     const inHours = completed.filter((project) => !project.hasPlan || project.actualHours <= project.planHours + 0.5);
@@ -2615,7 +2666,8 @@ const StaffApp = {
       onTimePercent: completed.length ? Math.round((onTime.length / completed.length) * 100) : null,
       inHoursPercent: completed.length ? Math.round((inHours.length / completed.length) * 100) : null,
       overrunHours: Math.round(overrunHours),
-      taskIds: completed.map((project) => project.id)
+      taskIds: completed.map((project) => project.id),
+      commentCount: completed.filter((project) => project.hasComment).length
     };
   },
   renderTargetIndicatorMetric(label, percent, note, extra) {
@@ -2637,47 +2689,90 @@ const StaffApp = {
     `;
   },
   renderTargetIndicatorCard(centerId, isTechBlock) {
-    let bodyHtml;
-    let taskIds = [];
-    if (isTechBlock) {
-      const rows = this.getCentersList()
-        .map((center) => ({ center, row: this.getTargetIndicatorRow(center.id) }))
-        .filter(({ row }) => row.total > 0);
-      taskIds = rows.flatMap(({ row }) => row.taskIds);
-      bodyHtml = rows.length ? `
-        <div class="target-indicator-groups">
-          ${rows.map(({ center, row }) => `
-            <div class="target-indicator-group-row">
-              <span class="target-indicator-group-row__title">${this.escapeHtml(center.shortName || center.name)}</span>
-              ${this.renderTargetIndicatorMetrics(row, 'target-indicator-metrics--grouped')}
+    const periods = this.getTargetIndicatorPeriods();
+    this.state.targetIndicatorPeriodKey = this.state.targetIndicatorPeriodKey || this.getDefaultTargetIndicatorPeriodKey();
+    const periodKey = periods.some((period) => period.key === this.state.targetIndicatorPeriodKey)
+      ? this.state.targetIndicatorPeriodKey
+      : this.getDefaultTargetIndicatorPeriodKey();
+    const row = this.getTargetIndicatorRow(centerId, periodKey);
+    const bodyHtml = row.total ? `
+      <div class="target-indicator-summary">
+        <div><span class="target-indicator-summary__label">Начато</span><strong>${row.total}</strong></div>
+        <div><span class="target-indicator-summary__label">Завершено</span><strong>${row.completed}</strong></div>
+      </div>
+      ${this.renderTargetIndicatorMetrics(row, isTechBlock ? 'target-indicator-metrics--large' : '')}
+    ` : '';
+    return `
+      <section class="card side-panel-card target-indicator-card" id="targetIndicatorCard" data-center-id="${this.escapeHtml(centerId || '')}" data-is-tech-block="${isTechBlock ? 'true' : 'false'}">
+        <div class="wide-card__head"><div><h3>Целевой показатель</h3></div></div>
+        <div class="period-switcher target-indicator-period-switcher">
+          ${periods.map((period) => `
+            <button type="button" class="period-btn ${period.key === periodKey ? 'is-active' : ''}" data-target-indicator-period="${this.escapeHtml(period.key)}">${this.escapeHtml(period.label)}</button>
+          `).join('')}
+        </div>
+        <p class="target-indicator-subtitle">Коммерческие и инвестиционные проекты: доля завершённых в срок и в пределах плановых часов</p>
+        ${bodyHtml || '<div class="empty-state">Нет коммерческих или инвестиционных проектов за выбранный период.</div>'}
+        ${row.total ? `
+          <div class="target-indicator-footer">
+            <details class="target-indicator-task-ids">
+              <summary>ID задач в расчёте <span>${row.taskIds.length}</span></summary>
+              <div class="target-indicator-task-ids__chips">
+                ${row.taskIds.map((id) => `<span class="target-indicator-task-id">${this.escapeHtml(String(id))}</span>`).join('')}
+              </div>
+            </details>
+            <div class="target-indicator-comments-count">
+              <span>Комментарии</span><strong>${row.commentCount}</strong>
+            </div>
+          </div>
+        ` : ''}
+      </section>
+    `;
+  },
+  getProjectNotifications(centerId) {
+    const projects = this.getProjectsForMatrix(centerId).filter((project) => project.status !== 'Завершена');
+    const overdueProjects = projects.filter((project) => project.dateTone === 'delay');
+    const overHoursProjects = projects.filter((project) => project.hoursTone === 'delay');
+    const overHoursTotal = overHoursProjects.reduce((sum, project) => sum + Math.max(0, -project.remainingHours), 0);
+    const noPlanProjects = projects.filter((project) => !project.hasPlan);
+    const entries = [];
+    if (overdueProjects.length) {
+      entries.push({
+        label: 'Вышли за сроки',
+        value: `${overdueProjects.length} ${this.pluralizeRu(overdueProjects.length, 'проект', 'проекта', 'проектов')}`
+      });
+    }
+    if (overHoursProjects.length) {
+      entries.push({
+        label: 'Вышли по часам',
+        value: `${overHoursProjects.length} ${this.pluralizeRu(overHoursProjects.length, 'проект', 'проекта', 'проектов')} / ${Math.round(overHoursTotal)} ч.`
+      });
+    }
+    if (noPlanProjects.length) {
+      entries.push({
+        label: 'Не указаны плановые часы',
+        value: `${noPlanProjects.length} ${this.pluralizeRu(noPlanProjects.length, 'проект', 'проекта', 'проектов')}`
+      });
+    }
+    return { entries, count: entries.length };
+  },
+  renderProjectNotificationsCard(centerId) {
+    const data = this.getProjectNotifications(centerId);
+    if (!data.entries.length) return '';
+    return `
+      <section class="card side-panel-card project-notifications-card">
+        <div class="wide-card__head"><div><h3>Уведомления по проектам</h3></div></div>
+        <div class="project-notifications-summary">
+          <span class="project-notifications-summary__label">Контрольные показатели по проектам</span>
+          <span class="project-notifications-summary__badge">${data.count}</span>
+        </div>
+        <div class="project-notifications-list">
+          ${data.entries.map((entry) => `
+            <div class="project-notifications-row">
+              <span class="project-notifications-row__label">${this.escapeHtml(entry.label)}</span>
+              <span class="project-notifications-row__value">${this.escapeHtml(entry.value)}</span>
             </div>
           `).join('')}
         </div>
-      ` : '';
-    } else {
-      const row = this.getTargetIndicatorRow(centerId);
-      taskIds = row.taskIds;
-      bodyHtml = row.total ? `
-        <div class="target-indicator-summary">
-          <div><span class="target-indicator-summary__label">Начато</span><strong>${row.total}</strong></div>
-          <div><span class="target-indicator-summary__label">Завершено</span><strong>${row.completed}</strong></div>
-        </div>
-        ${this.renderTargetIndicatorMetrics(row)}
-      ` : '';
-    }
-    return `
-      <section class="card side-panel-card target-indicator-card">
-        <div class="wide-card__head"><div><h3>Целевой показатель</h3></div></div>
-        <p class="target-indicator-subtitle">Коммерческие и инвестиционные проекты: доля завершённых в срок и в пределах плановых часов</p>
-        ${bodyHtml || '<div class="empty-state">Нет коммерческих или инвестиционных проектов.</div>'}
-        ${taskIds.length ? `
-          <details class="target-indicator-task-ids">
-            <summary>ID задач в расчёте <span>${taskIds.length}</span></summary>
-            <div class="target-indicator-task-ids__chips">
-              ${taskIds.map((id) => `<span class="target-indicator-task-id">${this.escapeHtml(String(id))}</span>`).join('')}
-            </div>
-          </details>
-        ` : ''}
       </section>
     `;
   },
@@ -2798,6 +2893,7 @@ const StaffApp = {
     return `
       <aside class="dashboard-side-panel">
         ${this.renderTargetIndicatorCard(centerId, isTechBlock)}
+        ${this.renderProjectNotificationsCard(centerId)}
         ${this.renderAbsencesCard(centerId)}
         ${this.renderResourceLoadCard(centerId, isTechBlock)}
       </aside>
