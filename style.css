@@ -2489,25 +2489,10 @@ body.sidebar-collapsed .sidebar__chevron {
   transition: opacity 180ms ease, width 220ms ease, color 180ms ease, background 180ms ease, transform 180ms ease;
 }
 
-.topbar::before {
-  content: "Staff Analytics";
-  display: block;
-  margin-bottom: 8px;
-  color: var(--accent-secondary);
-  font-family: var(--font-heading);
-  font-size: 13px;
-  line-height: 1;
-  letter-spacing: -0.02em;
-}
-
 .topbar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   column-gap: 24px;
-}
-
-.topbar::before {
-  grid-column: 1 / -1;
 }
 
 .topbar__actions {
