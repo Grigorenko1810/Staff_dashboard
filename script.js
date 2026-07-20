@@ -2847,6 +2847,9 @@ const StaffApp = {
       </section>
     `;
   },
+  getEmployeesWorkingToday(groupEmployees) {
+    return (groupEmployees || []).filter((employee) => !this.getAbsenceCategoryForStatus(employee.status));
+  },
   getResourceLoadRows(centerId, isTechBlock) {
     const employees = this.getNormalizedEmployees();
     if (isTechBlock) {
@@ -2855,7 +2858,12 @@ const StaffApp = {
         const percent = centerEmployees.length
           ? Math.round(centerEmployees.reduce((sum, employee) => sum + Number(employee.loadPercent || 0), 0) / centerEmployees.length)
           : 0;
-        return { name: center.shortName || center.name, percent };
+        return {
+          name: center.shortName || center.name,
+          percent,
+          workingToday: this.getEmployeesWorkingToday(centerEmployees).length,
+          total: centerEmployees.length
+        };
       });
     }
     return this.getManagementsList()
@@ -2865,7 +2873,12 @@ const StaffApp = {
         const percent = managementEmployees.length
           ? Math.round(managementEmployees.reduce((sum, employee) => sum + Number(employee.loadPercent || 0), 0) / managementEmployees.length)
           : 0;
-        return { name: management.name, percent };
+        return {
+          name: management.name,
+          percent,
+          workingToday: this.getEmployeesWorkingToday(managementEmployees).length,
+          total: managementEmployees.length
+        };
       });
   },
   renderResourceLoadCard(centerId, isTechBlock) {
@@ -2878,6 +2891,7 @@ const StaffApp = {
             <div class="resource-load-row">
               <div class="resource-load-row__header">
                 <span class="resource-load-row__label">${this.escapeHtml(row.name)}</span>
+                <span class="resource-load-row__count" title="Работают сегодня">${row.workingToday} сегодня</span>
                 <span class="resource-load-row__value ${this.getLoadLevelClass(row.percent)}">${row.percent}%</span>
               </div>
               <div class="resource-load-row__track">

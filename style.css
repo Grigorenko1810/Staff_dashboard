@@ -7282,6 +7282,14 @@ body[data-page="employee"] .employee-period-card .period-switcher-group,
   font-size: 13px;
 }
 
+.resource-load-row__count {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 .resource-load-row__value {
   flex-shrink: 0;
   font-size: 13px;
