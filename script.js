@@ -615,6 +615,11 @@ const StaffApp = {
         const wrap = (panelId && document.querySelector(`.custom-date-field[data-calendar-panel-id="${panelId}"]`))
           || dayBtn.closest('.custom-date-field');
         if (wrap) this.selectCalendarDate(wrap, dayBtn.dataset.date);
+        return;
+      }
+      const timesheetToggle = event.target.closest('[data-timesheet-toggle]');
+      if (timesheetToggle) {
+        timesheetToggle.closest('.timesheet-row')?.classList.toggle('is-open');
       }
     });
     document.getElementById('importBtn')?.addEventListener('click', () => {
@@ -2587,6 +2592,217 @@ const StaffApp = {
       </section>
     `;
   },
+  getTargetIndicatorTypes() {
+    return ['Коммерческий проект', 'Инвестиционный проект'];
+  },
+  getTargetIndicatorRow(centerId) {
+    const types = this.getTargetIndicatorTypes();
+    const projects = this.getProjectsForMatrix(centerId).filter((project) => types.includes(project.type));
+    const completed = projects.filter((project) => project.status === 'Завершена');
+    const onTime = completed.filter((project) => project.dateTone !== 'delay');
+    const inHours = completed.filter((project) => !project.hasPlan || project.actualHours <= project.planHours + 0.5);
+    const overrunHours = completed.reduce((sum, project) => {
+      if (project.hasPlan && project.actualHours > project.planHours) {
+        return sum + (project.actualHours - project.planHours);
+      }
+      return sum;
+    }, 0);
+    return {
+      total: projects.length,
+      completed: completed.length,
+      onTime: onTime.length,
+      inHours: inHours.length,
+      onTimePercent: completed.length ? Math.round((onTime.length / completed.length) * 100) : null,
+      inHoursPercent: completed.length ? Math.round((inHours.length / completed.length) * 100) : null,
+      overrunHours: Math.round(overrunHours),
+      taskIds: completed.map((project) => project.id)
+    };
+  },
+  renderTargetIndicatorMetric(label, percent, note, extra) {
+    return `
+      <div class="target-indicator-metric">
+        <span class="target-indicator-metric__label">${this.escapeHtml(label)}</span>
+        <span class="target-indicator-metric__value">${percent === null ? '—' : `${percent}%`}</span>
+        <span class="target-indicator-metric__note">${this.escapeHtml(note)}</span>
+        ${extra ? `<span class="target-indicator-metric__extra">${this.escapeHtml(extra)}</span>` : ''}
+      </div>
+    `;
+  },
+  renderTargetIndicatorMetrics(row, extraClass = '') {
+    return `
+      <div class="target-indicator-metrics${extraClass ? ` ${extraClass}` : ''}">
+        ${this.renderTargetIndicatorMetric('В срок', row.onTimePercent, `${row.onTime} из ${row.completed}`)}
+        ${this.renderTargetIndicatorMetric('В норме часов', row.inHoursPercent, `${row.inHours} из ${row.completed}`, row.overrunHours > 0 ? `превышение: ${row.overrunHours} ч` : '')}
+      </div>
+    `;
+  },
+  renderTargetIndicatorCard(centerId, isTechBlock) {
+    let bodyHtml;
+    let taskIds = [];
+    if (isTechBlock) {
+      const rows = this.getCentersList()
+        .map((center) => ({ center, row: this.getTargetIndicatorRow(center.id) }))
+        .filter(({ row }) => row.total > 0);
+      taskIds = rows.flatMap(({ row }) => row.taskIds);
+      bodyHtml = rows.length ? `
+        <div class="target-indicator-groups">
+          ${rows.map(({ center, row }) => `
+            <div class="target-indicator-group-row">
+              <span class="target-indicator-group-row__title">${this.escapeHtml(center.shortName || center.name)}</span>
+              ${this.renderTargetIndicatorMetrics(row, 'target-indicator-metrics--grouped')}
+            </div>
+          `).join('')}
+        </div>
+      ` : '';
+    } else {
+      const row = this.getTargetIndicatorRow(centerId);
+      taskIds = row.taskIds;
+      bodyHtml = row.total ? `
+        <div class="target-indicator-summary">
+          <div><span class="target-indicator-summary__label">Начато</span><strong>${row.total}</strong></div>
+          <div><span class="target-indicator-summary__label">Завершено</span><strong>${row.completed}</strong></div>
+        </div>
+        ${this.renderTargetIndicatorMetrics(row)}
+      ` : '';
+    }
+    return `
+      <section class="card side-panel-card target-indicator-card">
+        <div class="wide-card__head"><div><h3>Целевой показатель</h3></div></div>
+        <p class="target-indicator-subtitle">Коммерческие и инвестиционные проекты: доля завершённых в срок и в пределах плановых часов</p>
+        ${bodyHtml || '<div class="empty-state">Нет коммерческих или инвестиционных проектов.</div>'}
+        ${taskIds.length ? `
+          <details class="target-indicator-task-ids">
+            <summary>ID задач в расчёте <span>${taskIds.length}</span></summary>
+            <div class="target-indicator-task-ids__chips">
+              ${taskIds.map((id) => `<span class="target-indicator-task-id">${this.escapeHtml(String(id))}</span>`).join('')}
+            </div>
+          </details>
+        ` : ''}
+      </section>
+    `;
+  },
+  getAbsenceCategories() {
+    return [
+      { key: 'businessTrip', label: 'Командировка' },
+      { key: 'vacation', label: 'Отпуск' },
+      { key: 'sickLeave', label: 'Больничный' },
+      { key: 'unpaidVacation', label: 'Без сохранения' },
+      { key: 'maternityLeave', label: 'Декрет' },
+      { key: 'dayOff', label: 'Отгул' }
+    ];
+  },
+  getAbsenceCategoryForStatus(status) {
+    const map = {
+      'Командировка': 'businessTrip',
+      'В отпуске': 'vacation',
+      'Отпуск': 'vacation',
+      'Больничный': 'sickLeave',
+      'Без сохранения': 'unpaidVacation',
+      'Отпуск без сохранения': 'unpaidVacation',
+      'Декрет': 'maternityLeave',
+      'Отгул': 'dayOff'
+    };
+    return map[status] || null;
+  },
+  getAbsenceData(centerId) {
+    const employees = this.getNormalizedEmployees().filter((employee) => !centerId || employee.centerId === centerId);
+    const byCategory = {};
+    this.getAbsenceCategories().forEach((category) => { byCategory[category.key] = []; });
+    employees.forEach((employee) => {
+      const category = this.getAbsenceCategoryForStatus(employee.status);
+      if (category && byCategory[category]) {
+        byCategory[category].push(employee.fullName || employee.shortName || '—');
+      }
+    });
+    const categories = this.getAbsenceCategories().map((category) => ({
+      ...category,
+      employees: byCategory[category.key].sort((a, b) => a.localeCompare(b, 'ru'))
+    }));
+    const total = categories.reduce((sum, category) => sum + category.employees.length, 0);
+    return { categories, total };
+  },
+  renderAbsencesCard(centerId) {
+    const data = this.getAbsenceData(centerId);
+    const todayLabel = this.formatDateForDisplay(this.formatDateISO(new Date()));
+    return `
+      <section class="card side-panel-card timesheet-card">
+        <div class="wide-card__head"><div><h3>Табель</h3></div><span class="timesheet-card__date">${this.escapeHtml(todayLabel)}</span></div>
+        <div class="timesheet-list">
+          ${data.categories.map((category) => `
+            <div class="timesheet-row${category.employees.length ? ' is-expandable' : ''}">
+              <div class="timesheet-row__header"${category.employees.length ? ' data-timesheet-toggle' : ''}>
+                <span class="timesheet-row__label">${this.escapeHtml(category.label)}</span>
+                <span class="timesheet-row__value">${category.employees.length}</span>
+                ${category.employees.length ? '<span class="timesheet-row__toggle-icon">▾</span>' : ''}
+              </div>
+              ${category.employees.length ? `
+                <div class="timesheet-row__list">
+                  ${category.employees.map((name) => `<div class="timesheet-row__employee">${this.escapeHtml(name)}</div>`).join('')}
+                </div>
+              ` : ''}
+            </div>
+          `).join('')}
+          <div class="timesheet-row timesheet-row--total">
+            <div class="timesheet-row__header">
+              <span class="timesheet-row__label">Всего отсутствий</span>
+              <span class="timesheet-row__value">${data.total}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    `;
+  },
+  getResourceLoadRows(centerId, isTechBlock) {
+    const employees = this.getNormalizedEmployees();
+    if (isTechBlock) {
+      return this.getCentersList().map((center) => {
+        const centerEmployees = employees.filter((employee) => employee.centerId === center.id);
+        const percent = centerEmployees.length
+          ? Math.round(centerEmployees.reduce((sum, employee) => sum + Number(employee.loadPercent || 0), 0) / centerEmployees.length)
+          : 0;
+        return { name: center.shortName || center.name, percent };
+      });
+    }
+    return this.getManagementsList()
+      .filter((management) => management.centerId === centerId)
+      .map((management) => {
+        const managementEmployees = employees.filter((employee) => employee.managementId === management.id);
+        const percent = managementEmployees.length
+          ? Math.round(managementEmployees.reduce((sum, employee) => sum + Number(employee.loadPercent || 0), 0) / managementEmployees.length)
+          : 0;
+        return { name: management.name, percent };
+      });
+  },
+  renderResourceLoadCard(centerId, isTechBlock) {
+    const rows = this.getResourceLoadRows(centerId, isTechBlock);
+    return `
+      <section class="card side-panel-card resource-load-card">
+        <div class="wide-card__head"><div><h3>Загрузка ресурсов</h3></div></div>
+        <div class="resource-load-list">
+          ${rows.length ? rows.map((row) => `
+            <div class="resource-load-row">
+              <div class="resource-load-row__header">
+                <span class="resource-load-row__label">${this.escapeHtml(row.name)}</span>
+                <span class="resource-load-row__value ${this.getLoadLevelClass(row.percent)}">${row.percent}%</span>
+              </div>
+              <div class="resource-load-row__track">
+                <div class="resource-load-row__fill ${this.getLoadLevelClass(row.percent)}" style="width:${Math.min(100, Math.max(0, row.percent))}%"></div>
+              </div>
+            </div>
+          `).join('') : '<div class="empty-state">Нет данных по загрузке.</div>'}
+        </div>
+      </section>
+    `;
+  },
+  renderDashboardSidePanel(centerId, isTechBlock) {
+    return `
+      <aside class="dashboard-side-panel">
+        ${this.renderTargetIndicatorCard(centerId, isTechBlock)}
+        ${this.renderAbsencesCard(centerId)}
+        ${this.renderResourceLoadCard(centerId, isTechBlock)}
+      </aside>
+    `;
+  },
   buildDynamicKpis(employees, tasks = this.getTasksForEmployees(employees), periodRange = null, averageLoadOverride = null) {
     const employeeList = employees || [];
     const taskList = tasks || [];
@@ -3317,8 +3533,11 @@ const StaffApp = {
         </div>` : ''}
         ${this.renderOverviewPeriodBar(overviewLevel)}
         ${this.renderMetricsPanel(analyticsKpis, { compareCaption: this.getComparisonCaption(overviewSettings.periodPreset), inlineCompare: true })}
-        <section class="hero-grid dashboard-periods-grid">
-          ${cardsMarkup}
+        <section class="dashboard-periods-row">
+          <section class="hero-grid dashboard-periods-grid dashboard-periods-grid--compact">
+            ${cardsMarkup}
+          </section>
+          ${this.renderDashboardSidePanel(isTechBlock ? '' : summary.id, isTechBlock)}
         </section>
         ${this.renderCenterSummaryCard(summary.projectSummary)}
         <section class="wide-card data-viz-card data-viz-card--wide">
