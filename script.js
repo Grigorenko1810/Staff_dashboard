@@ -47,6 +47,15 @@ const StaffCharts = {
   getPaletteSequence() {
     return [this.palette.ember, this.palette.brass, this.palette.graphite, this.palette.slate, this.palette.mist];
   },
+  pluralizeHours(count) {
+    const n = Math.abs(Math.round(Number(count) || 0));
+    const lastTwo = n % 100;
+    const last = n % 10;
+    if (lastTwo >= 11 && lastTwo <= 14) return 'часов';
+    if (last === 1) return 'час';
+    if (last >= 2 && last <= 4) return 'часа';
+    return 'часов';
+  },
   prepareDoughnutData(labels = [], values = [], colors = []) {
     const palette = this.getPaletteSequence();
     const entries = labels.map((label, index) => ({
@@ -81,43 +90,48 @@ const StaffCharts = {
       colors: compactEntries.map((entry, index) => entry.color || palette[index % palette.length])
     };
   },
-  prepareBarData(labels = [], planned = [], actual = []) {
-    const planValues = planned.map((value) => Number(value) || 0);
-    const factValues = actual.map((value) => Number(value) || 0);
-    const hasTotal = labels.some((label) => String(label).toLowerCase() === 'итого');
-    if (hasTotal) {
-      return {
-        labels,
-        planned: planValues,
-        actual: factValues,
-        totalIndex: labels.findIndex((label) => String(label).toLowerCase() === 'итого')
-      };
-    }
+  getAxisTitle(text, paddingTop = 8, paddingBottom = 0) {
     return {
-      labels: [...labels, '', 'Итого'],
-      planned: [...planValues, null, Math.round(planValues.reduce((sum, value) => sum + value, 0))],
-      actual: [...factValues, null, Math.round(factValues.reduce((sum, value) => sum + value, 0))],
-      totalIndex: labels.length + 1
+      display: true,
+      text,
+      color: this.palette.slate,
+      font: { family: this.theme.font.body, size: 12, weight: '500' },
+      padding: { top: paddingTop, bottom: paddingBottom }
     };
   },
-  createDoughnut(canvas, labels, values, colors) {
+  createDoughnut(canvas, labels, values, colors, options = {}) {
     this.destroyChart(canvas);
     if (typeof Chart === 'undefined') {
       this.renderFallback(canvas, 'Диаграмма');
       return null;
     }
     const prepared = this.prepareDoughnutData(labels, values, colors);
+    const fillPercent = Number.isFinite(options.fillPercent) ? Math.max(0, Math.min(100, options.fillPercent)) : null;
+    let chartLabels = prepared.labels;
+    let chartValues = prepared.values;
+    let chartColors = prepared.colors;
+    let trackIndex = -1;
+    if (fillPercent !== null) {
+      const total = chartValues.reduce((sum, value) => sum + value, 0) || 1;
+      chartValues = chartValues.map((value) => (value / total) * fillPercent);
+      trackIndex = chartValues.length;
+      chartLabels = [...chartLabels, 'Свободно'];
+      chartValues = [...chartValues, Math.max(0, 100 - fillPercent)];
+      chartColors = [...chartColors, this.palette.fog];
+    }
+    const hoverOffset = trackIndex >= 0 ? chartValues.map((value, index) => index === trackIndex ? 0 : 3) : 3;
+    canvas.classList.toggle('chart-frame--donut__canvas--shadowed', trackIndex >= 0);
     const chart = new Chart(canvas, {
       type: 'doughnut',
       data: {
-        labels: prepared.labels,
+        labels: chartLabels,
         datasets: [{
-          data: prepared.values,
-          backgroundColor: prepared.colors,
+          data: chartValues,
+          backgroundColor: chartColors,
           borderWidth: 0,
           borderRadius: 3,
           spacing: 1,
-          hoverOffset: 3
+          hoverOffset
         }]
       },
       options: {
@@ -125,14 +139,17 @@ const StaffCharts = {
         maintainAspectRatio: false,
         cutout: '74%',
         radius: '88%',
-        rotation: -90,
+        rotation: 0,
         animation: {
           duration: 450,
           easing: 'easeOutQuart'
         },
         plugins: {
           legend: { display: false },
-          tooltip: this.getTooltipOptions()
+          tooltip: {
+            ...this.getTooltipOptions(),
+            filter: trackIndex >= 0 ? (item) => item.dataIndex !== trackIndex : undefined
+          }
         },
         elements: {
           arc: { borderWidth: 0 }
@@ -142,33 +159,35 @@ const StaffCharts = {
     this.charts.push(chart);
     return chart;
   },
-  createBar(canvas, labels, planned, actual) {
+  createBar(canvas, labels, planned, actual, options = {}) {
     this.destroyChart(canvas);
     if (typeof Chart === 'undefined') {
       this.renderFallback(canvas, 'Диаграмма');
       return null;
     }
-    const prepared = this.prepareBarData(labels, planned, actual);
+    const planValues = planned.map((value) => Number(value) || 0);
+    const factValues = actual.map((value) => Number(value) || 0);
+    const barThickness = options.barThickness || 22;
     const chart = new Chart(canvas, {
       type: 'bar',
       data: {
-        labels: prepared.labels,
+        labels,
         datasets: [
           {
             label: 'План',
-            data: prepared.planned,
-            backgroundColor: (context) => context.dataIndex === prepared.totalIndex ? this.palette.ash : this.palette.mist,
+            data: planValues,
+            backgroundColor: this.palette.graphite,
             borderRadius: 3,
-            barThickness: 22,
+            barThickness,
             categoryPercentage: 0.65,
             barPercentage: 0.8
           },
           {
             label: 'Факт',
-            data: prepared.actual,
-            backgroundColor: (context) => context.dataIndex === prepared.totalIndex ? this.palette.graphite : this.palette.brass,
+            data: factValues,
+            backgroundColor: this.palette.ember,
             borderRadius: 3,
-            barThickness: 22,
+            barThickness,
             categoryPercentage: 0.65,
             barPercentage: 0.8
           }
@@ -184,13 +203,28 @@ const StaffCharts = {
         layout: {
           padding: { top: 4, right: 8, bottom: 0, left: 0 }
         },
+        interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
           tooltip: {
             ...this.getTooltipOptions(),
-            filter: (context) => context.label !== '',
             callbacks: {
-              label: (context) => `${context.dataset.label}: ${Math.round(context.parsed.y || 0)} ч`
+              title: (items) => (items && items.length ? (items[0].label || '') : ''),
+              label: (context) => {
+                const value = Math.round(context.parsed.y || 0);
+                const name = context.dataset.label === 'План' ? 'Плановые часы' : 'Фактические часы';
+                return `${name}: ${value} ${this.pluralizeHours(value)}`;
+              },
+              afterBody: (items) => {
+                if (!items || !items.length) return '';
+                const index = items[0].dataIndex;
+                const datasets = items[0].chart.data.datasets;
+                const plan = Math.round(Number(datasets[0]?.data?.[index]) || 0);
+                const fact = Math.round(Number(datasets[1]?.data?.[index]) || 0);
+                const diff = fact - plan;
+                const percent = plan > 0 ? Math.round((fact / plan) * 100) : 0;
+                return [`Разница: ${diff > 0 ? '+' : ''}${diff} ${this.pluralizeHours(diff)}`, `Процент выполнения: ${percent}%`];
+              }
             }
           }
         },
@@ -198,7 +232,8 @@ const StaffCharts = {
           x: {
             grid: { display: false },
             ticks: this.getAxisTicks(8),
-            border: { display: false }
+            border: { display: false },
+            title: options.xTitle ? this.getAxisTitle(options.xTitle, options.xTitlePadding, options.xTitlePaddingBottom) : undefined
           },
           y: {
             beginAtZero: true,
@@ -209,6 +244,71 @@ const StaffCharts = {
               borderDash: [2, 4]
             },
             ticks: this.getAxisTicks(6),
+            border: { display: false },
+            title: options.yTitle ? this.getAxisTitle(options.yTitle, options.yTitlePadding, options.yTitlePaddingBottom) : undefined
+          }
+        }
+      }
+    });
+    this.charts.push(chart);
+    return chart;
+  },
+  createSingleBar(canvas, labels, values, options = {}) {
+    this.destroyChart(canvas);
+    if (typeof Chart === 'undefined') {
+      this.renderFallback(canvas, 'Диаграмма');
+      return null;
+    }
+    const dataValues = values.map((value) => Number(value) || 0);
+    const horizontal = Boolean(options.horizontal);
+    const chart = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          data: dataValues,
+          backgroundColor: this.palette.ember,
+          borderRadius: 3,
+          maxBarThickness: options.barThickness || 20,
+          categoryPercentage: 0.7,
+          barPercentage: 0.8
+        }]
+      },
+      options: {
+        indexAxis: horizontal ? 'y' : 'x',
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {
+          duration: 450,
+          easing: 'easeOutQuart'
+        },
+        layout: {
+          padding: { top: 4, right: 8, bottom: 0, left: 0 }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            ...this.getTooltipOptions(),
+            callbacks: {
+              label: (context) => {
+                const value = Math.round(horizontal ? context.parsed.x : context.parsed.y) || 0;
+                return `${value} ${this.pluralizeHours(value)}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            beginAtZero: horizontal ? true : undefined,
+            grid: { display: horizontal, color: this.palette.mist, lineWidth: 1, drawBorder: false, borderDash: [2, 4] },
+            ticks: { ...this.getAxisTicks(6), autoSkip: horizontal },
+            border: { display: false },
+            title: options.xTitle ? this.getAxisTitle(options.xTitle, options.xTitlePadding, options.xTitlePaddingBottom) : undefined
+          },
+          y: {
+            beginAtZero: horizontal ? undefined : true,
+            grid: { display: !horizontal, color: this.palette.mist, lineWidth: 1, drawBorder: false, borderDash: [2, 4] },
+            ticks: { ...this.getAxisTicks(8), autoSkip: !horizontal },
             border: { display: false }
           }
         }
@@ -354,6 +454,10 @@ const StaffApp = {
     },
     showActiveParticipants: true,
     showProjects: false,
+    projectsGroupedByTask: false,
+    projectsOverdueFilter: 'all',
+    projectMatrixExpandedKey: null,
+    projectMatrixExpandedScope: null,
     expandedTasks: new Set(),
     selectedTaskId: null,
     showTaskModal: false,
@@ -425,6 +529,111 @@ const StaffApp = {
         } else {
           this.closeEmployeePreview();
         }
+        document.querySelectorAll('.custom-select.is-open, .custom-date-field.is-open').forEach((el) => this.closeFloatingDropdown(el));
+      }
+    });
+    document.addEventListener('pointerdown', (event) => {
+      const preview = this.getFloatingPanelElement('employee-preview');
+      if (!preview || document.body.classList.contains('is-dragging-modal')) return;
+      if (preview.contains(event.target)) return;
+      this.closeEmployeePreview();
+    });
+    document.addEventListener('pointerdown', (event) => {
+      if (event.target.closest('.custom-select')) return;
+      if (event.target.closest('.custom-date-field')) return;
+      // A period-unit or date-field panel may be portaled to
+      // #floatingPanelsRoot (see positionPeriodUnitPanel /
+      // positionDateFieldPanel) and so is no longer a descendant of its
+      // wrapper - without this check, this handler would close (and
+      // reparent) it out from under an in-progress click on one of its
+      // options/days before that click's own handler runs.
+      if (event.target.closest('.custom-select__panel--period-unit')) return;
+      if (event.target.closest('.custom-date-field__panel')) return;
+      document.querySelectorAll('.custom-select.is-open, .custom-date-field.is-open').forEach((el) => this.closeFloatingDropdown(el));
+    });
+    document.addEventListener('click', (event) => {
+      const trigger = event.target.closest('.custom-select--period-unit .custom-select__trigger');
+      if (trigger) {
+        const wrap = trigger.closest('.custom-select--period-unit');
+        const wasOpen = wrap.classList.contains('is-open');
+        document.querySelectorAll('.custom-select.is-open, .custom-date-field.is-open').forEach((el) => this.closeFloatingDropdown(el));
+        if (!wasOpen) {
+          this.openCustomSelect(wrap);
+          this.positionPeriodUnitPanel(wrap);
+        }
+        return;
+      }
+      const option = event.target.closest('.custom-select--period-unit .custom-select__option, .custom-select__panel--period-unit .custom-select__option');
+      if (option) {
+        // The panel may have been portaled to #floatingPanelsRoot (see
+        // positionPeriodUnitPanel), so it's no longer necessarily a
+        // descendant of its `.custom-select--period-unit` wrapper - look it
+        // up via the shared id set on both when that happens.
+        const panelEl = option.closest('.custom-select__panel--period-unit');
+        const panelId = panelEl?.dataset.periodUnitPanelId;
+        const wrap = (panelId && document.querySelector(`.custom-select--period-unit[data-period-unit-panel-id="${panelId}"]`))
+          || option.closest('.custom-select--period-unit');
+        const select = wrap.querySelector('select.period-unit-select');
+        if (select) {
+          select.value = option.dataset.value;
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        // A native <select> updates its own displayed text automatically
+        // when `.value` changes; this custom trigger needs the same done by
+        // hand, since some change listeners (e.g. dynamics-chart updates)
+        // only refresh the chart, not the whole control markup.
+        const valueEl = wrap.querySelector('.custom-select__value');
+        if (valueEl) valueEl.textContent = option.textContent.trim();
+        (panelEl || wrap).querySelectorAll('.custom-select__option').forEach((o) => {
+          o.classList.toggle('is-selected', o === option);
+        });
+        this.closeCustomSelect(wrap);
+        return;
+      }
+      const dateTrigger = event.target.closest('.custom-date-field__trigger');
+      if (dateTrigger) {
+        if (dateTrigger.disabled) return;
+        const wrap = dateTrigger.closest('.custom-date-field');
+        const wasOpen = wrap.classList.contains('is-open');
+        document.querySelectorAll('.custom-select.is-open, .custom-date-field.is-open').forEach((el) => this.closeFloatingDropdown(el));
+        if (!wasOpen) this.openDateFieldPanel(wrap);
+        return;
+      }
+      const navBtn = event.target.closest('.custom-date-field__nav');
+      if (navBtn) {
+        const panelEl = navBtn.closest('.custom-date-field__panel');
+        const panelId = panelEl?.dataset.calendarPanelId;
+        const wrap = (panelId && document.querySelector(`.custom-date-field[data-calendar-panel-id="${panelId}"]`))
+          || navBtn.closest('.custom-date-field');
+        if (wrap) this.navigateCalendarPanel(wrap, navBtn.dataset.calendarNav === 'next' ? 1 : -1);
+        return;
+      }
+      const dayBtn = event.target.closest('.custom-date-field__day');
+      if (dayBtn) {
+        const panelEl = dayBtn.closest('.custom-date-field__panel');
+        const panelId = panelEl?.dataset.calendarPanelId;
+        const wrap = (panelId && document.querySelector(`.custom-date-field[data-calendar-panel-id="${panelId}"]`))
+          || dayBtn.closest('.custom-date-field');
+        if (wrap) this.selectCalendarDate(wrap, dayBtn.dataset.date);
+        return;
+      }
+      const timesheetToggle = event.target.closest('[data-timesheet-toggle]');
+      if (timesheetToggle) {
+        timesheetToggle.closest('.timesheet-row')?.classList.toggle('is-open');
+      }
+      const targetIndicatorPeriodBtn = event.target.closest('[data-target-indicator-period]');
+      if (targetIndicatorPeriodBtn) {
+        const next = targetIndicatorPeriodBtn.dataset.targetIndicatorPeriod;
+        if (this.state.targetIndicatorPeriodKey !== next) {
+          this.state.targetIndicatorPeriodKey = next;
+          const card = targetIndicatorPeriodBtn.closest('.target-indicator-card');
+          if (card) {
+            const centerId = card.dataset.centerId || '';
+            const isTechBlock = card.dataset.isTechBlock === 'true';
+            card.outerHTML = this.renderTargetIndicatorCard(centerId, isTechBlock);
+          }
+        }
+        return;
       }
     });
     document.getElementById('importBtn')?.addEventListener('click', () => {
@@ -512,13 +721,19 @@ const StaffApp = {
   },
   getSidebarItems() {
     return [
-      { key: 'techBlock', label: 'Тех. блок', href: this.buildPageHref('dashboard', ''), page: 'dashboard' },
+      { key: 'techBlock', label: 'Технический блок', href: this.buildPageHref('dashboard', ''), page: 'dashboard' },
       { key: 'centers', label: 'Центры', href: this.buildPageHref('dashboard', ''), page: 'dashboard' },
       { key: 'employees', label: 'Сотрудники', href: this.buildPageHref('employees', ''), page: 'employees' }
     ];
   },
   getCentersList() {
     return Array.isArray(this.mockData.centers) ? this.mockData.centers : [];
+  },
+  getCenterAbbreviation(name) {
+    return String(name || '')
+      .split(/\s+/)
+      .map((word) => (word.match(/[A-Za-zА-Яа-яЁё]/) || [''])[0].toUpperCase())
+      .join('');
   },
   getManagementsList() {
     return Array.isArray(this.mockData.managements) ? this.mockData.managements.map((management) => ({
@@ -590,15 +805,25 @@ const StaffApp = {
       return;
     }
     if (sectionKey === 'centers') {
+      const firstCenter = this.getCentersList()[0];
+      if (firstCenter) {
+        if (document.getElementById('pageContent')) {
+          this.setCurrentCenter(firstCenter.id);
+          return;
+        }
+        window.location.assign(this.buildPageHref('dashboard', firstCenter.id));
+      }
       return;
     }
   },
   setCurrentCenter(centerId) {
     this.closeTaskModal({ immediate: true });
+    this.closeEmployeePreview({ immediate: true });
     const nextCenterId = !centerId || centerId === 'techBlock' ? '' : centerId;
     const currentCenterId = this.getCurrentCenterId();
     if (nextCenterId === currentCenterId && this.state.currentPage === 'dashboard') {
       this.setActiveCenterTab(nextCenterId || 'techBlock');
+      this.updateSidebarActiveState();
       return;
     }
     this.setActiveCenterTab(nextCenterId || 'techBlock');
@@ -745,6 +970,18 @@ const StaffApp = {
     const root = this.ensureTransitionRoot();
     return root?.querySelector('.view-layer--current') || document.getElementById('pageContent');
   },
+  resolveLiveViewLayer(container) {
+    // A container captured in a click-handler closure can go stale: once a
+    // page transition commits, '.view-layer--next' (where the handler's
+    // container pointed) is emptied out and '.view-layer--current' becomes
+    // the visible one, but DOM nodes are moved (not recreated), so the old
+    // closure still references the now-invisible layer. Redirect back to
+    // whatever's actually on screen before rendering into it.
+    if (container?.classList?.contains('view-layer--next')) {
+      return this.getCurrentViewLayer() || container;
+    }
+    return container;
+  },
   async renderWithTransition(renderFn, options = {}) {
     const root = this.ensureTransitionRoot();
     if (!root) {
@@ -760,11 +997,18 @@ const StaffApp = {
     const nextLayer = root.querySelector('.view-layer--next');
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (!currentLayer || !nextLayer || !currentLayer.children.length || prefersReducedMotion) {
+      root.classList.remove('is-navigating');
       options.beforeDirectRender?.(currentLayer);
       renderFn(currentLayer || document.getElementById('pageContent'), { direct: true });
       options.afterCommit?.(currentLayer);
       return;
     }
+    // Block interaction on the outgoing layer for the whole click-to-commit
+    // window (can span 500ms+): otherwise a click landing on soon-to-be-
+    // replaced content (e.g. a period-filter button) races the delayed DOM
+    // swap below and can leave different controls reflecting different
+    // renders once the commit overwrites currentLayer.
+    root.classList.add('is-navigating');
     const oldCharts = options.oldCharts || StaffCharts.charts.filter((chart) => currentLayer.contains(chart.canvas));
     const pendingCharts = StaffCharts.charts.filter((chart) => nextLayer.contains(chart.canvas));
     pendingCharts.forEach((chart) => chart.destroy());
@@ -795,6 +1039,7 @@ const StaffApp = {
       root.classList.remove('is-loading');
       window.requestAnimationFrame(() => {
         root.classList.remove('is-committing');
+        root.classList.remove('is-navigating');
         options.afterCommit?.(currentLayer);
       });
     }, options.duration || 480);
@@ -827,11 +1072,75 @@ const StaffApp = {
           <span class="center-tabs__indicator" aria-hidden="true"></span>
           ${centers.map((center) => `
             <button type="button" class="center-tab ${currentCenter?.id === center.id ? 'is-active' : ''}" data-center-id="${center.id}">
-              ${this.escapeHtml(center.shortName || center.name)}
+              ${this.escapeHtml(this.getCenterAbbreviation(center.name))}
             </button>
           `).join('')}
         </div>
       </section>
+    `;
+  },
+  openCentersDropdown(item = document.querySelector('.sidebar__item--has-dropdown')) {
+    window.clearTimeout(this.centersDropdownCloseTimer);
+    item?.classList.add('is-open');
+  },
+  closeCentersDropdown(options = {}) {
+    window.clearTimeout(this.centersDropdownCloseTimer);
+    const close = () => {
+      document.querySelectorAll('.sidebar__item--has-dropdown.is-open').forEach((item) => {
+        item.classList.remove('is-open');
+      });
+    };
+    const delay = Number(options.delay || 0);
+    if (delay > 0) {
+      this.centersDropdownCloseTimer = window.setTimeout(close, delay);
+      return;
+    }
+    close();
+  },
+  bindCentersDropdown(nav) {
+    const item = nav?.querySelector('.sidebar__item--has-dropdown');
+    if (!item) return;
+    const open = () => this.openCentersDropdown(item);
+    const closeLater = () => {
+      window.clearTimeout(this.centersDropdownCloseTimer);
+      this.centersDropdownCloseTimer = window.setTimeout(() => {
+        if (!item.matches(':hover') && !item.contains(document.activeElement)) {
+          this.closeCentersDropdown();
+        }
+      }, 150);
+    };
+
+    item.addEventListener('mouseenter', open);
+    item.addEventListener('mouseleave', closeLater);
+    item.addEventListener('focusin', open);
+    item.addEventListener('focusout', closeLater);
+  },
+  getSidebarItemIconSvg(key) {
+    if (key === 'techBlock') {
+      return `
+        <svg class="sidebar__nav-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <rect x="2" y="2" width="5" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <rect x="9" y="2" width="5" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <rect x="2" y="9" width="5" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <rect x="9" y="9" width="5" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/>
+        </svg>
+      `;
+    }
+    if (key === 'centers') {
+      return `
+        <svg class="sidebar__nav-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <circle cx="4" cy="4" r="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <circle cx="12" cy="4" r="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <circle cx="8" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <path d="M5.6 5.4L6.8 10.2M10.4 5.4L9.2 10.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+      `;
+    }
+    return `
+      <svg class="sidebar__nav-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <circle cx="8" cy="5" r="2.6" fill="none" stroke="currentColor" stroke-width="1.4"/>
+        <path d="M3 14c0-2.8 2.2-5 5-5s5 2.2 5 5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
     `;
   },
   renderSidebar() {
@@ -840,7 +1149,8 @@ const StaffApp = {
     const items = this.getSidebarItems();
     const currentPage = this.state.currentPage === 'employee' ? 'employees' : this.state.currentPage;
     const centers = this.getCentersList();
-    const activeKey = currentPage === 'employees' ? 'employees' : (this.getCurrentCenterId() ? 'centers' : 'techBlock');
+    const currentCenterId = this.getCurrentCenterId();
+    const activeKey = currentPage === 'employees' ? 'employees' : (currentCenterId ? 'centers' : 'techBlock');
     nav.innerHTML = `
       ${items.map((item) => {
         const isActive = item.key === activeKey;
@@ -855,19 +1165,19 @@ const StaffApp = {
           return `
             <div class="${itemClasses}">
               <a class="sidebar__item-link" href="${item.href}" data-nav-item="${item.key}">
-                <span class="sidebar__dot sidebar__icon" aria-hidden="true"></span>
+                <span class="sidebar__dot sidebar__icon" aria-hidden="true">${this.getSidebarItemIconSvg(item.key)}</span>
                 <span class="sidebar__compact-label" aria-hidden="true">${compactLabel}</span>
                 <span class="sidebar__content">
                   <span class="sidebar__label">${this.escapeHtml(item.label)}</span>
-                  <span class="sidebar__subtitle">в составе тех. блока</span>
                 </span>
-                <span class="sidebar__chevron" aria-hidden="true">⌄</span>
+                <svg class="sidebar__chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                  <path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
               </a>
               <div class="sidebar__dropdown">
                 ${centers.map((center) => `
-                  <a class="sidebar__dropdown-item" href="${this.buildPageHref('dashboard', center.id)}" data-sidebar-center-id="${this.escapeHtml(center.id)}">
-                    <span>${this.escapeHtml(center.name)}</span>
-                    <span class="sidebar__dropdown-item__hint">${this.escapeHtml(center.shortName || center.name)}</span>
+                  <a class="sidebar__dropdown-item ${currentCenterId === center.id ? 'is-active' : ''}" href="${this.buildPageHref('dashboard', center.id)}" data-sidebar-center-id="${this.escapeHtml(center.id)}">
+                    <span>${this.escapeHtml(this.getCenterAbbreviation(center.name))}</span>
                   </a>
                 `).join('')}
               </div>
@@ -877,11 +1187,10 @@ const StaffApp = {
         return `
           <div class="${itemClasses}">
             <a class="sidebar__item-link" href="${item.href}" data-nav-item="${item.key}">
-              <span class="sidebar__dot sidebar__icon" aria-hidden="true"></span>
+              <span class="sidebar__dot sidebar__icon" aria-hidden="true">${this.getSidebarItemIconSvg(item.key)}</span>
               <span class="sidebar__compact-label" aria-hidden="true">${compactLabel}</span>
               <span class="sidebar__content">
                 <span class="sidebar__label">${this.escapeHtml(item.label)}</span>
-                ${item.key === 'techBlock' ? '<span class="sidebar__subtitle">верхний уровень</span>' : ''}
               </span>
             </a>
           </div>
@@ -894,22 +1203,26 @@ const StaffApp = {
         const key = link.getAttribute('data-nav-item');
         if (key === 'centers') {
           event.preventDefault();
-          link.closest('.sidebar__item--has-dropdown')?.classList.toggle('is-open');
+          this.closeCentersDropdown();
+          this.navigateToSection(key);
           return;
         }
         if (key === 'techBlock' || key === 'employees') {
           event.preventDefault();
+          this.closeCentersDropdown();
           this.navigateToSection(key);
         }
       });
     });
     nav.querySelectorAll('[data-sidebar-center-id]').forEach((link) => {
       link.addEventListener('click', (event) => {
+        this.closeCentersDropdown();
         if (!document.getElementById('pageContent')) return;
         event.preventDefault();
         this.setCurrentCenter(link.getAttribute('data-sidebar-center-id'));
       });
     });
+    this.bindCentersDropdown(nav);
   },
   updateSidebarActiveState() {
     const nav = document.getElementById('sidebar-nav');
@@ -933,6 +1246,7 @@ const StaffApp = {
     const title = document.getElementById('pageTitle');
     if (!container || !title) return;
     this.closeTaskModal({ immediate: true });
+    this.closeEmployeePreview({ immediate: true });
     const page = document.body.dataset.page || 'dashboard';
     this.state.currentPage = page;
     this.state.currentCenter = this.getCurrentCenterId();
@@ -992,10 +1306,70 @@ const StaffApp = {
     const isGoodDelta = isNegativeMetric ? !isPositiveDelta : isPositiveDelta;
     return isGoodDelta ? 'metric-delta--positive' : 'metric-delta--negative';
   },
-  renderMetricDelta(currentValue, previousValue, isNegativeMetric = false) {
+  getComparisonCaption(periodPreset) {
+    if (periodPreset === 'week') {
+      return 'по сравнению с прошлой неделей';
+    }
+    if (periodPreset === 'month') {
+      return 'по сравнению с прошлым месяцем';
+    }
+    if (periodPreset === 'quarter') {
+      return 'по сравнению с прошлым кварталом';
+    }
+    if (periodPreset === 'year') {
+      return 'по сравнению с прошлым годом';
+    }
+    return 'по сравнению с прошлым периодом';
+  },
+  renderTrendArrow(isUp) {
+    const upPath = '<polyline points="0.7 8 6 2.7 9.3 6 15.3 0.7" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><polyline points="11.3 0.7 15.3 0.7 15.3 4.7" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>';
+    const downPath = '<polyline points="0.7 4.7 6 10 9.3 6.7 15.3 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><polyline points="11.3 12 15.3 12 15.3 8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>';
+    return `<span class="metric-delta__trend" aria-hidden="true"><svg viewBox="0 0 16 13" focusable="false">${isUp ? upPath : downPath}</svg></span>`;
+  },
+  renderMetricDelta(currentValue, previousValue, isNegativeMetric = false, compareCaption = 'по сравнению с прошлым периодом', inlineCompare = false) {
     const delta = this.getPercentChange(currentValue, previousValue);
     const deltaClass = this.getDeltaClass(delta, isNegativeMetric);
-    return `<div class="metric-delta ${deltaClass}">${this.escapeHtml(this.formatDeltaPercent(delta))}</div>`;
+    const trendIcon = (delta === null || Math.abs(delta) < 0.1) ? '' : this.renderTrendArrow(delta > 0);
+    const deltaMarkup = `<div class="metric-delta ${deltaClass}">${trendIcon}${this.escapeHtml(this.formatDeltaPercent(delta))}</div>`;
+    if (delta === null) {
+      return deltaMarkup;
+    }
+    return `
+      <div class="metric-delta-wrap${inlineCompare ? ' metric-delta-wrap--inline' : ''}">
+        ${deltaMarkup}
+        <div class="metric-delta__compare" title="${this.escapeHtml(compareCaption)}">${this.escapeHtml(compareCaption)}</div>
+      </div>
+    `;
+  },
+  getPeriodTemporalGroup(index) {
+    if (index === 3) {
+      return {
+        key: 'past',
+        label: 'Прошлое',
+        icon: '<polyline points="0.7 2.7 0.7 6.7 4.7 6.7" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.3 10a6 6 0 1 0 1.4-6.2L0.7 6.7" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>'
+      };
+    }
+    if (index === 4) {
+      return {
+        key: 'future',
+        label: 'Будущее',
+        icon: '<path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>'
+      };
+    }
+    return {
+      key: 'present',
+      label: 'Настоящее',
+      icon: '<circle cx="8" cy="8" r="5.3" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="8" r="1.8" fill="currentColor" stroke="none"/>'
+    };
+  },
+  renderPeriodCardGroupBadge(index) {
+    const group = this.getPeriodTemporalGroup(index);
+    return `
+      <div class="period-card__group">
+        <span class="period-card__group-icon" aria-hidden="true"><svg viewBox="0 0 16 16" focusable="false">${group.icon}</svg></span>
+        <span class="period-card__group-label">${this.escapeHtml(group.label)}</span>
+      </div>
+    `;
   },
   getLoadLevelClass(percent) {
     const numericValue = Number(percent);
@@ -1015,6 +1389,9 @@ const StaffApp = {
   },
   getDynamicSubtitle(granularity) {
     const value = this.normalizeGranularity(granularity);
+    if (value === 'days') {
+      return 'Средняя загрузка по дням';
+    }
     if (value === 'months') {
       return 'Средняя загрузка по месяцам';
     }
@@ -1025,6 +1402,9 @@ const StaffApp = {
   },
   getDynamicGranularityKeys(granularity) {
     const value = String(granularity || 'week').toLowerCase();
+    if (value === 'day' || value === 'days') {
+      return { singular: 'day', plural: 'days' };
+    }
     if (value === 'month' || value === 'months') {
       return { singular: 'month', plural: 'months' };
     }
@@ -1032,6 +1412,19 @@ const StaffApp = {
       return { singular: 'quarter', plural: 'quarters' };
     }
     return { singular: 'week', plural: 'weeks' };
+  },
+  getAllowedGranularities(periodPreset) {
+    const preset = String(periodPreset || 'month');
+    if (preset === 'month') {
+      return ['weeks', 'days'];
+    }
+    if (preset === 'quarter') {
+      return ['weeks', 'months'];
+    }
+    if (preset === 'year') {
+      return ['weeks', 'months', 'quarters'];
+    }
+    return ['weeks', 'months', 'quarters'];
   },
   getDynamicSeries(sourceData, granularity) {
     if (!sourceData) {
@@ -1053,6 +1446,9 @@ const StaffApp = {
   },
   getDefaultDynamicLabels(granularity, length) {
     const keys = this.getDynamicGranularityKeys(granularity);
+    if (keys.plural === 'days') {
+      return Array.from({ length }, (_, index) => `${index + 1}`);
+    }
     if (keys.plural === 'quarters') {
       const quarters = ['I квартал', 'II квартал', 'III квартал', 'IV квартал'];
       return Array.from({ length }, (_, index) => quarters[index] || `${index + 1} квартал`);
@@ -1099,9 +1495,10 @@ const StaffApp = {
     const date = new Date(year, month - 1, day);
     return Number.isNaN(date.getTime()) ? null : date;
   },
-  getPeriodRange(periodPreset = 'month') {
+  getPeriodRange(periodPreset = 'month', unitIndex = null) {
     const today = new Date();
     const preset = String(periodPreset || 'month');
+    const year = today.getFullYear();
     let startDate;
     let endDate;
 
@@ -1110,21 +1507,94 @@ const StaffApp = {
       startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - day + 1);
       endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + (7 - day));
     } else if (preset === 'quarter') {
-      const quarterStartMonth = Math.floor(today.getMonth() / 3) * 3;
-      startDate = new Date(today.getFullYear(), quarterStartMonth, 1);
-      endDate = new Date(today.getFullYear(), quarterStartMonth + 3, 0);
+      const quarterIndex = Number.isInteger(unitIndex) ? unitIndex : Math.floor(today.getMonth() / 3);
+      const quarterStartMonth = quarterIndex * 3;
+      startDate = new Date(year, quarterStartMonth, 1);
+      endDate = new Date(year, quarterStartMonth + 3, 0);
     } else if (preset === 'year') {
-      startDate = new Date(today.getFullYear(), 0, 1);
-      endDate = new Date(today.getFullYear(), 11, 31);
+      startDate = new Date(year, 0, 1);
+      endDate = new Date(year, 11, 31);
     } else {
-      startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-      endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      const monthIndex = Number.isInteger(unitIndex) ? unitIndex : today.getMonth();
+      startDate = new Date(year, monthIndex, 1);
+      endDate = new Date(year, monthIndex + 1, 0);
     }
 
     return {
       startDate: this.getDateInputValue(startDate),
       endDate: this.getDateInputValue(endDate)
     };
+  },
+  getDefaultPeriodUnit(periodPreset) {
+    const preset = String(periodPreset);
+    const today = new Date();
+    if (preset === 'quarter') {
+      return Math.floor(today.getMonth() / 3);
+    }
+    if (preset === 'year') {
+      return 0;
+    }
+    return today.getMonth();
+  },
+  getPeriodUnitOptionsList(periodPreset) {
+    const year = new Date().getFullYear();
+    if (periodPreset === 'month') {
+      const months = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+      return months.map((name, index) => ({ value: index, label: `${name} ${year}` }));
+    }
+    if (periodPreset === 'quarter') {
+      const quarters = ['I квартал', 'II квартал', 'III квартал', 'IV квартал'];
+      return quarters.map((name, index) => ({ value: index, label: `${name} ${year}` }));
+    }
+    if (periodPreset === 'year') {
+      return [{ value: 0, label: `${year}` }];
+    }
+    return [];
+  },
+  getPeriodUnitOptionsMarkup(periodPreset, selectedUnit) {
+    return this.getPeriodUnitOptionsList(periodPreset)
+      .map((option) => `<option value="${option.value}" ${(periodPreset === 'year' || selectedUnit === option.value) ? 'selected' : ''}>${this.escapeHtml(option.label)}</option>`)
+      .join('');
+  },
+  wrapPeriodUnitSelect(selectMarkup, periodPreset, selectedUnit) {
+    const list = this.getPeriodUnitOptionsList(periodPreset);
+    if (!list.length) {
+      return selectMarkup;
+    }
+    const selected = list.find((option) => periodPreset === 'year' || option.value === selectedUnit) || list[0];
+    const panelMarkup = list.map((option) => `
+      <button type="button" class="custom-select__option${(periodPreset === 'year' || selectedUnit === option.value) ? ' is-selected' : ''}" role="option" data-value="${option.value}">${this.escapeHtml(option.label)}</button>
+    `).join('');
+    return `
+      <div class="custom-select custom-select--period-unit">
+        <button type="button" class="custom-select__trigger custom-select__trigger--period-unit" aria-haspopup="listbox" aria-expanded="false">
+          <span class="custom-select__value">${this.escapeHtml(selected.label)}</span>
+          <svg class="custom-select__trigger-icon" viewBox="0 0 10 6" aria-hidden="true" focusable="false">
+            <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div class="custom-select__panel custom-select__panel--period-unit" role="listbox" hidden>${panelMarkup}</div>
+        ${selectMarkup}
+      </div>
+    `;
+  },
+  getAveragePeriodLabel(settings) {
+    const year = new Date().getFullYear();
+    const preset = settings?.periodPreset;
+    if (preset === 'month') {
+      const months = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+      const index = Number.isInteger(settings.periodUnit) ? settings.periodUnit : new Date().getMonth();
+      return `среднее за ${months[index] || ''} ${year}`;
+    }
+    if (preset === 'quarter') {
+      const quarters = ['I квартал', 'II квартал', 'III квартал', 'IV квартал'];
+      const index = Number.isInteger(settings.periodUnit) ? settings.periodUnit : 0;
+      return `среднее за ${quarters[index] || ''} ${year}`;
+    }
+    if (preset === 'year') {
+      return `среднее за ${year} год`;
+    }
+    return 'среднее за выбранный период';
   },
   getDynamicSettings(level = 'techBlock') {
     const defaultSettings = {
@@ -1136,14 +1606,21 @@ const StaffApp = {
     this.state.dynamics = this.state.dynamics || {};
     const currentSettings = this.state.dynamics[normalizedLevel] || {};
     const preset = currentSettings.periodPreset || defaultSettings[normalizedLevel].periodPreset;
+    const periodUnit = Number.isInteger(currentSettings.periodUnit) ? currentSettings.periodUnit : this.getDefaultPeriodUnit(preset);
     const range = preset === 'custom'
       ? this.getPeriodRange(defaultSettings[normalizedLevel].periodPreset)
-      : this.getPeriodRange(preset);
+      : this.getPeriodRange(preset, periodUnit);
+    const allowedGranularities = this.getAllowedGranularities(preset);
+    let granularity = this.normalizeGranularity(currentSettings.granularity || defaultSettings[normalizedLevel].granularity);
+    if (!allowedGranularities.includes(granularity)) {
+      granularity = allowedGranularities[0];
+    }
     const settings = {
       periodPreset: preset,
+      periodUnit,
       startDate: currentSettings.startDate || range.startDate,
       endDate: currentSettings.endDate || range.endDate,
-      granularity: this.normalizeGranularity(currentSettings.granularity || defaultSettings[normalizedLevel].granularity)
+      granularity
     };
     this.state.dynamics[normalizedLevel] = settings;
     return settings;
@@ -1153,10 +1630,29 @@ const StaffApp = {
     const preset = String(periodPreset || settings.periodPreset);
     settings.periodPreset = preset;
     if (preset !== 'custom') {
-      const range = this.getPeriodRange(preset);
+      const unit = this.getDefaultPeriodUnit(preset);
+      settings.periodUnit = unit;
+      const range = this.getPeriodRange(preset, unit);
       settings.startDate = range.startDate;
       settings.endDate = range.endDate;
     }
+    const allowedGranularities = this.getAllowedGranularities(preset);
+    if (!allowedGranularities.includes(settings.granularity)) {
+      settings.granularity = allowedGranularities[0];
+    }
+    this.state.dynamics[level] = settings;
+    return settings;
+  },
+  setDynamicPeriodUnit(level, unitIndex) {
+    const settings = this.getDynamicSettings(level);
+    const index = Number(unitIndex);
+    if (!Number.isFinite(index)) {
+      return settings;
+    }
+    settings.periodUnit = index;
+    const range = this.getPeriodRange(settings.periodPreset, index);
+    settings.startDate = range.startDate;
+    settings.endDate = range.endDate;
     this.state.dynamics[level] = settings;
     return settings;
   },
@@ -1170,7 +1666,9 @@ const StaffApp = {
   },
   setDynamicGranularity(level, granularity) {
     const settings = this.getDynamicSettings(level);
-    settings.granularity = this.normalizeGranularity(granularity);
+    const normalized = this.normalizeGranularity(granularity);
+    const allowedGranularities = this.getAllowedGranularities(settings.periodPreset);
+    settings.granularity = allowedGranularities.includes(normalized) ? normalized : allowedGranularities[0];
     this.state.dynamics[level] = settings;
     if (level === 'techBlock' || level === 'center') {
       this.state.dynamicGranularity = settings.granularity;
@@ -1180,6 +1678,183 @@ const StaffApp = {
     }
     return settings;
   },
+  getOverviewPeriodSettings(level) {
+    const normalizedLevel = ['techBlock', 'center', 'employees', 'employeePreview'].includes(level) ? level : 'techBlock';
+    this.state.overviewPeriod = this.state.overviewPeriod || {};
+    const current = this.state.overviewPeriod[normalizedLevel] || {};
+    const preset = current.periodPreset || 'month';
+    const periodUnit = Number.isInteger(current.periodUnit) ? current.periodUnit : this.getDefaultPeriodUnit(preset);
+    const range = preset === 'custom' ? this.getPeriodRange('month') : this.getPeriodRange(preset, periodUnit);
+    const settings = {
+      periodPreset: preset,
+      periodUnit,
+      startDate: current.startDate || range.startDate,
+      endDate: current.endDate || range.endDate
+    };
+    this.state.overviewPeriod[normalizedLevel] = settings;
+    return settings;
+  },
+  setOverviewPeriod(level, periodPreset) {
+    const settings = this.getOverviewPeriodSettings(level);
+    const preset = String(periodPreset || settings.periodPreset);
+    settings.periodPreset = preset;
+    if (preset !== 'custom') {
+      const unit = this.getDefaultPeriodUnit(preset);
+      settings.periodUnit = unit;
+      const range = this.getPeriodRange(preset, unit);
+      settings.startDate = range.startDate;
+      settings.endDate = range.endDate;
+    }
+    this.state.overviewPeriod[level] = settings;
+    return settings;
+  },
+  setOverviewPeriodUnit(level, unitIndex) {
+    const settings = this.getOverviewPeriodSettings(level);
+    const index = Number(unitIndex);
+    if (!Number.isFinite(index)) {
+      return settings;
+    }
+    settings.periodUnit = index;
+    const range = this.getPeriodRange(settings.periodPreset, index);
+    settings.startDate = range.startDate;
+    settings.endDate = range.endDate;
+    this.state.overviewPeriod[level] = settings;
+    return settings;
+  },
+  setCustomOverviewPeriod(level, startDate, endDate) {
+    const settings = this.getOverviewPeriodSettings(level);
+    settings.periodPreset = 'custom';
+    settings.startDate = startDate || settings.startDate;
+    settings.endDate = endDate || settings.endDate;
+    this.state.overviewPeriod[level] = settings;
+    return settings;
+  },
+  renderOverviewPeriodBar(level) {
+    const settings = this.getOverviewPeriodSettings(level);
+    const presetOptions = [
+      { key: 'month', label: 'Месяц' },
+      { key: 'quarter', label: 'Квартал' },
+      { key: 'year', label: 'Год' },
+      { key: 'custom', label: 'Свой период' }
+    ];
+    const isCustom = settings.periodPreset === 'custom';
+    const unitOptionsMarkup = this.getPeriodUnitOptionsMarkup(settings.periodPreset, settings.periodUnit);
+    const unitSelector = unitOptionsMarkup ? this.wrapPeriodUnitSelect(`
+      <select class="period-unit-select" data-overview-level="${this.escapeHtml(level)}" data-overview-period-unit-select>
+        ${unitOptionsMarkup}
+      </select>
+    `, settings.periodPreset, settings.periodUnit) : '';
+    const customDateFields = `
+      <div class="custom-period-fields custom-period-fields--inline">
+        <label>
+          <span>Дата начала</span>
+          ${this.wrapDateField(`<input class="date-fit" type="date" value="${this.escapeHtml(settings.startDate)}" data-overview-level="${this.escapeHtml(level)}" data-overview-period-start hidden>`, settings.startDate, { ariaLabel: 'Дата начала' })}
+        </label>
+        <label>
+          <span>Дата окончания</span>
+          ${this.wrapDateField(`<input class="date-fit" type="date" value="${this.escapeHtml(settings.endDate)}" data-overview-level="${this.escapeHtml(level)}" data-overview-period-end hidden>`, settings.endDate, { ariaLabel: 'Дата окончания' })}
+        </label>
+      </div>
+    `;
+    const rightGroup = isCustom
+      ? `
+        <span class="dynamic-controls__divider" aria-hidden="true"></span>
+        <div class="dynamic-controls__group dynamic-controls__group--custom-dates">
+          ${customDateFields}
+        </div>
+      `
+      : (unitSelector ? `
+        <span class="dynamic-controls__divider" aria-hidden="true"></span>
+        <div class="dynamic-controls__group dynamic-controls__group--unit" data-period-unit="${this.escapeHtml(settings.periodPreset)}">
+          <span class="dynamic-controls__label">${settings.periodPreset === 'month' ? 'Выберите месяц' : settings.periodPreset === 'quarter' ? 'Выберите квартал' : 'Выберите год'}</span>
+          ${unitSelector}
+        </div>
+      ` : '');
+    return `
+      <div class="overview-period-bar" data-overview-level="${this.escapeHtml(level)}">
+        <div class="dynamic-controls__panel">
+          <div class="dynamic-controls__group dynamic-controls__group--period">
+            <span class="dynamic-controls__label">Выберите период</span>
+            <div class="period-preset-switcher" data-overview-level="${this.escapeHtml(level)}">
+              ${presetOptions.map((option) => `
+                <button type="button" class="period-preset-btn ${settings.periodPreset === option.key ? 'is-active' : ''}" data-overview-level="${this.escapeHtml(level)}" data-overview-period-preset="${option.key}">
+                  ${this.escapeHtml(option.label)}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+          ${rightGroup}
+        </div>
+      </div>
+    `;
+  },
+  attachOverviewPeriodListeners(level, container, onChange) {
+    container.querySelectorAll(`[data-overview-period-preset][data-overview-level="${level}"]`).forEach((button) => {
+      button.addEventListener('click', () => {
+        this.setOverviewPeriod(level, button.dataset.overviewPeriodPreset);
+        onChange();
+      });
+    });
+    container.querySelectorAll(`[data-overview-period-unit-select][data-overview-level="${level}"]`).forEach((select) => {
+      select.addEventListener('change', () => {
+        this.setOverviewPeriodUnit(level, select.value);
+        onChange();
+      });
+    });
+    container.querySelectorAll(`.overview-period-bar[data-overview-level="${level}"] input[type="date"]`).forEach((input) => {
+      input.addEventListener('change', () => {
+        const fields = input.closest('.custom-period-fields');
+        const startInput = fields?.querySelector('[data-overview-period-start]');
+        const endInput = fields?.querySelector('[data-overview-period-end]');
+        this.setCustomOverviewPeriod(level, startInput?.value || '', endInput?.value || '');
+        onChange();
+      });
+    });
+  },
+  isDateWithinRange(dateValue, startDate, endDate) {
+    if (!dateValue) {
+      return false;
+    }
+    const value = String(dateValue);
+    if (startDate && value < startDate) {
+      return false;
+    }
+    if (endDate && value > endDate) {
+      return false;
+    }
+    return true;
+  },
+  getPeriodDaysCount(periodRange) {
+    const start = this.parseInputDate(periodRange?.startDate);
+    const end = this.parseInputDate(periodRange?.endDate);
+    if (!start || !end) {
+      return 30;
+    }
+    return Math.max(1, Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)) + 1);
+  },
+  getProratedHours(baseHours, periodRange) {
+    if (baseHours === null || baseHours === undefined || !periodRange) {
+      return baseHours;
+    }
+    const BASELINE_DAYS = 30;
+    const days = this.getPeriodDaysCount(periodRange);
+    return Math.round(baseHours * (days / BASELINE_DAYS));
+  },
+  getAverageLoadForRange(sourceData, startDate, endDate) {
+    const rawSeries = this.getDynamicRawSeries(sourceData);
+    const rangeStart = this.parseInputDate(startDate);
+    const rangeEnd = this.parseInputDate(endDate);
+    if (!rawSeries.length || !rangeStart || !rangeEnd) {
+      return null;
+    }
+    const startTime = rangeStart.getTime();
+    const endTime = new Date(rangeEnd.getFullYear(), rangeEnd.getMonth(), rangeEnd.getDate(), 23, 59, 59).getTime();
+    const values = rawSeries
+      .map((entry) => ({ time: this.parseInputDate(entry.date)?.getTime(), value: Number(entry.value) }))
+      .filter((entry) => Number.isFinite(entry.time) && Number.isFinite(entry.value) && entry.time >= startTime && entry.time <= endTime)
+      .map((entry) => entry.value);
+    return values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : null;
+  },
   formatDateForDisplay(value) {
     const date = this.parseInputDate(value);
     if (!date) {
@@ -1188,8 +1863,84 @@ const StaffApp = {
     const pad = (item) => String(item).padStart(2, '0');
     return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()}`;
   },
+  formatDateISO(date) {
+    const pad = (item) => String(item).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  },
+  getCalendarWeekdayLabels() {
+    return ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+  },
+  getCalendarMonthNames() {
+    return ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+  },
+  getCalendarMonthCells(year, month) {
+    const pad = (item) => String(item).padStart(2, '0');
+    const firstOfMonth = new Date(year, month, 1);
+    const startOffset = (firstOfMonth.getDay() + 6) % 7; // Monday-first week
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const cells = [];
+    for (let idx = 0; idx < startOffset; idx++) {
+      const cellDate = new Date(year, month, idx - startOffset + 1);
+      cells.push({ day: cellDate.getDate(), inMonth: false, iso: this.formatDateISO(cellDate) });
+    }
+    for (let day = 1; day <= daysInMonth; day++) {
+      cells.push({ day, inMonth: true, iso: `${year}-${pad(month + 1)}-${pad(day)}` });
+    }
+    let trailing = 1;
+    while (cells.length < 42) {
+      const cellDate = new Date(year, month + 1, trailing);
+      cells.push({ day: cellDate.getDate(), inMonth: false, iso: this.formatDateISO(cellDate) });
+      trailing++;
+    }
+    return cells;
+  },
+  renderCalendarPanelMarkup(year, month, selectedIso) {
+    const monthNames = this.getCalendarMonthNames();
+    const weekdays = this.getCalendarWeekdayLabels();
+    const cells = this.getCalendarMonthCells(year, month);
+    const todayIso = this.formatDateISO(new Date());
+    return `
+      <div class="custom-date-field__header">
+        <button type="button" class="custom-date-field__nav" data-calendar-nav="prev" aria-label="Предыдущий месяц">
+          <svg viewBox="0 0 8 12" aria-hidden="true" focusable="false"><path d="M7 1 2 6l5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span class="custom-date-field__month-label">${this.escapeHtml(monthNames[month])} ${year}</span>
+        <button type="button" class="custom-date-field__nav" data-calendar-nav="next" aria-label="Следующий месяц">
+          <svg viewBox="0 0 8 12" aria-hidden="true" focusable="false"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div class="custom-date-field__weekdays">
+        ${weekdays.map((label) => `<span>${this.escapeHtml(label)}</span>`).join('')}
+      </div>
+      <div class="custom-date-field__days">
+        ${cells.map((cell) => `
+          <button type="button" class="custom-date-field__day${cell.inMonth ? '' : ' is-outside'}${cell.iso === selectedIso ? ' is-selected' : ''}${cell.iso === todayIso ? ' is-today' : ''}" data-date="${cell.iso}">${cell.day}</button>
+        `).join('')}
+      </div>
+    `;
+  },
+  wrapDateField(inputMarkup, value, options = {}) {
+    const disabled = Boolean(options.disabled);
+    const label = options.ariaLabel || '';
+    const displayValue = value ? this.formatDateForDisplay(value) : '';
+    return `
+      <div class="custom-date-field">
+        <button type="button" class="custom-select__trigger custom-date-field__trigger date-fit" aria-haspopup="dialog" aria-expanded="false"${label ? ` aria-label="${this.escapeHtml(label)}"` : ''}${disabled ? ' disabled' : ''}>
+          <span class="custom-select__value">${this.escapeHtml(displayValue)}</span>
+          <svg class="custom-date-field__icon" viewBox="0 0 14 14" aria-hidden="true" focusable="false">
+            <rect x="1.5" y="2.5" width="11" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/>
+            <path d="M1.5 5.5h11" stroke="currentColor" stroke-width="1.2"/>
+            <path d="M4 1.2v2M10 1.2v2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <div class="custom-date-field__panel" role="dialog" hidden></div>
+        ${inputMarkup}
+      </div>
+    `;
+  },
   formatDynamicSubtitle(settings) {
     const granularityLabels = {
+      days: 'по дням',
       weeks: 'по неделям',
       months: 'по месяцам',
       quarters: 'по кварталам'
@@ -1250,7 +2001,7 @@ const StaffApp = {
     const valueClass = this.isPercentText(value) ? ' percent-value' : '';
     return `
       <div class="donut-center-label ${this.escapeHtml(className)}">
-        <span class="donut-center-label__value${valueClass}">${this.escapeHtml(value)}</span>
+        <span class="donut-center-label__value viz-metric-value${valueClass}">${this.escapeHtml(value)}</span>
         <span class="donut-center-label__caption">${this.escapeHtml(caption)}</span>
       </div>
     `;
@@ -1267,8 +2018,8 @@ const StaffApp = {
     const valueText = value === null || value === undefined || value === '' ? '—' : value;
     const valueClass = this.isPercentText(valueText) ? ' percent-value' : '';
     return `
-      <div class="data-viz-card__metric">
-        <span class="data-viz-card__metric-value${valueClass}" ${id ? `id="${this.escapeHtml(id)}"` : ''}>${this.escapeHtml(valueText)}</span>
+      <div class="data-viz-card__metric metric-card--fit">
+        <span class="data-viz-card__metric-value viz-metric-value value-fit metric-value-large${valueClass}" ${id ? `id="${this.escapeHtml(id)}"` : ''}>${this.escapeHtml(valueText)}</span>
         <span class="data-viz-card__metric-label">${this.escapeHtml(label)}</span>
       </div>
     `;
@@ -1283,20 +2034,20 @@ const StaffApp = {
     return `
       <div class="bar-chart-footer">
         ${this.renderChartLegend([
-          { label: 'План', value: 1, color: REFERENCE_CHART_THEME.colors.mist },
-          { label: 'Факт', value: 1, color: REFERENCE_CHART_THEME.colors.brass },
-          { label: 'Итого', value: 1, color: REFERENCE_CHART_THEME.colors.graphite }
-        ], { suffix: '', maxItems: 3, hideValues: true })}
-        <div class="bar-chart-total-note">Последняя группа показывает сумму за выбранный период.</div>
+          { label: 'План', value: 1, color: REFERENCE_CHART_THEME.colors.graphite },
+          { label: 'Факт', value: 1, color: REFERENCE_CHART_THEME.colors.ember }
+        ], { suffix: '', maxItems: 2, hideValues: true })}
       </div>
     `;
   },
   formatEmployeePlanFactSubtitle() {
-    const granularityLabel = this.state.employeePeriod === 'month'
-      ? 'по неделям'
-      : this.state.employeePeriod === 'week'
-        ? 'по дням'
-        : 'по этапам';
+    const granularityLabels = {
+      week: 'по дням',
+      month: 'по неделям',
+      quarter: 'по месяцам',
+      year: 'по кварталам'
+    };
+    const granularityLabel = granularityLabels[this.state.employeePeriod] || 'по этапам';
     return `Период: ${this.formatDateForDisplay(this.state.employeeStartDate)} — ${this.formatDateForDisplay(this.state.employeeEndDate)} · детализация ${granularityLabel}`;
   },
   getDynamicRawSeries(sourceData) {
@@ -1351,7 +2102,11 @@ const StaffApp = {
       let label;
       let order;
 
-      if (currentGranularity === 'months') {
+      if (currentGranularity === 'days') {
+        key = entry.date;
+        label = String(entryDate.getDate());
+        order = entryTime;
+      } else if (currentGranularity === 'months') {
         key = `${entryDate.getFullYear()}-${entryDate.getMonth()}`;
         label = this.getMonthLabel(entryDate.getMonth());
         order = entryDate.getFullYear() * 12 + entryDate.getMonth();
@@ -1404,9 +2159,13 @@ const StaffApp = {
     }
     return null;
   },
-  getTasksForEmployees(employees) {
+  getTasksForEmployees(employees, periodRange = null) {
     const employeeIds = new Set((employees || []).map((employee) => Number(employee.id)));
-    return (this.mockData.tasks || []).filter((task) => employeeIds.has(Number(task.employeeId)));
+    const tasks = (this.mockData.tasks || []).filter((task) => employeeIds.has(Number(task.employeeId)));
+    if (!periodRange) {
+      return tasks;
+    }
+    return tasks.filter((task) => this.isDateWithinRange(task.dueDate, periodRange.startDate, periodRange.endDate));
   },
   isLateProjectTask(task) {
     return /просроч|не\s*в\s*срок|задерж/i.test(`${task?.status || ''} ${task?.indicator || ''}`);
@@ -1460,12 +2219,48 @@ const StaffApp = {
     const match = String(value || '').replace(',', '.').match(/-?\d+(\.\d+)?/);
     return match ? Number(match[0]) : 0;
   },
+  pluralizeRu(count, one, few, many) {
+    const n = Math.abs(Math.round(Number(count) || 0));
+    const lastTwo = n % 100;
+    const last = n % 10;
+    if (lastTwo >= 11 && lastTwo <= 14) return many;
+    if (last === 1) return one;
+    if (last >= 2 && last <= 4) return few;
+    return many;
+  },
+  pluralizeHours(count) {
+    return this.pluralizeRu(count, 'час', 'часа', 'часов');
+  },
+  pluralizeDays(count) {
+    return this.pluralizeRu(count, 'день', 'дня', 'дней');
+  },
+  getOverdueDaysLabel(dueDate, indicator) {
+    if (!/не\s*в\s*срок/i.test(String(indicator || ''))) return '';
+    const due = new Date(`${dueDate}T00:00:00`);
+    if (isNaN(due.getTime())) return '';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const overdueDays = Math.max(1, Math.round((today - due) / 86400000));
+    return `Просрочено на ${overdueDays} ${this.pluralizeDays(overdueDays)}`;
+  },
+  getEmployeeWorkTypeBreakdown(tasks) {
+    const byType = new Map();
+    (tasks || []).forEach((task) => {
+      const type = task.workType || 'Без типа';
+      const hours = this.parseWorkHours(task.workTime);
+      byType.set(type, (byType.get(type) || 0) + hours);
+    });
+    return Array.from(byType.entries())
+      .map(([label, hours]) => ({ label, hours }))
+      .sort((a, b) => b.hours - a.hours);
+  },
   formatHours(value) {
     const numericValue = Number(value);
     if (!Number.isFinite(numericValue)) {
-      return '0 ч';
+      return `0 ${this.pluralizeHours(0)}`;
     }
-    return `${Number.isInteger(numericValue) ? numericValue : numericValue.toFixed(1)} ч`;
+    const displayValue = Number.isInteger(numericValue) ? numericValue : numericValue.toFixed(1);
+    return `${displayValue} ${this.pluralizeHours(numericValue)}`;
   },
   getProjectDeadlineStatus(tasks) {
     const taskList = tasks || [];
@@ -1491,6 +2286,7 @@ const StaffApp = {
       projects.set(projectName, current);
     });
     return Array.from(projects.values()).map((project) => ({
+      id: project.tasks[0]?.id ?? '',
       project: project.project,
       hours: project.hours,
       deadlineStatus: this.getProjectDeadlineStatus(project.tasks),
@@ -1498,13 +2294,13 @@ const StaffApp = {
       isOnTime: project.tasks.some((task) => this.isOnTimeProjectTask(task)) && !project.tasks.some((task) => this.isLateProjectTask(task))
     }));
   },
-  getCenterProjectsSummary(centerId = '') {
+  getCenterProjectsSummary(centerId = '', periodRange = null) {
     const employees = this.getNormalizedEmployees();
     const center = centerId ? this.getCenterById(centerId) : null;
     const scopedEmployees = centerId
       ? employees.filter((employee) => employee.centerId === centerId || employee.centerName === center?.name)
       : employees;
-    const tasks = this.getTasksForEmployees(scopedEmployees);
+    const tasks = this.getTasksForEmployees(scopedEmployees, periodRange);
     const projects = this.getProjectHoursSummary(tasks);
     return {
       centerId: centerId || '',
@@ -1516,129 +2312,711 @@ const StaffApp = {
       projects
     };
   },
-  renderCenterSummaryCard(summary) {
-    const projects = summary?.projects || [];
+  getProjectMatrixStatusOrder() {
+    return ['В работе', 'На паузе', 'В очереди', 'Завершена'];
+  },
+  getProjectMatrixTypeOrder() {
+    return ['Коммерческий проект', 'Инвестиционный проект', 'Предпроектная подготовка', 'Другие проекты'];
+  },
+  getProjectMatrixHoursTone(hasPlan, remainingHours) {
+    if (!hasPlan) return 'neutral';
+    if (remainingHours < 0) return 'delay';
+    if (remainingHours < 24.5) return 'warning';
+    return 'done';
+  },
+  getProjectCommentPool() {
+    return [
+      'Уточнить сроки поставки материалов у смежного отдела.',
+      'Требуется согласование объёма работ с заказчиком.',
+      'Ожидаем обновлённые исходные данные от техотдела.',
+      'Пересмотреть плановые часы после уточнения ТЗ.',
+      'Заказчик запросил промежуточный статус по этапу.',
+      'Нужна повторная проверка расчётов перед сдачей.'
+    ];
+  },
+  getProjectComment(taskId) {
+    const numericId = Math.abs(Math.round(Number(taskId))) || 0;
+    if (numericId % 4 !== 0) return '';
+    const pool = this.getProjectCommentPool();
+    return pool[numericId % pool.length];
+  },
+  getProjectsForMatrix(centerId = '') {
+    const employees = this.getNormalizedEmployees();
+    const center = centerId ? this.getCenterById(centerId) : null;
+    const scopedEmployees = centerId
+      ? employees.filter((employee) => employee.centerId === centerId || employee.centerName === center?.name)
+      : employees;
+    const tasks = this.getTasksForEmployees(scopedEmployees);
+    return tasks.map((task) => {
+      const employee = scopedEmployees.find((item) => Number(item.id) === Number(task.employeeId));
+      const actualHours = this.parseWorkHours(task.workTime);
+      const hasPlan = Number.isFinite(task.projectPlanHours) && task.projectPlanHours > 0;
+      const planHours = hasPlan ? Number(task.projectPlanHours) : 0;
+      const remainingHours = hasPlan ? planHours - actualHours : null;
+      const isLate = this.isLateProjectTask(task);
+      const comment = this.getProjectComment(task.id);
+      return {
+        id: task.id,
+        name: task.project,
+        type: task.projectType || 'Другие проекты',
+        status: task.projectStatus || 'В работе',
+        centerName: employee?.centerName || employee?.center || '',
+        management: employee?.managementName || employee?.management || 'Без управления',
+        planHours,
+        actualHours,
+        hasPlan,
+        remainingHours,
+        hoursTone: this.getProjectMatrixHoursTone(hasPlan, remainingHours),
+        dueDate: task.dueDate,
+        dateTone: isLate ? 'delay' : 'done',
+        dateLabel: task.indicator || (isLate ? 'Не в срок' : 'В срок'),
+        comment,
+        hasComment: Boolean(comment)
+      };
+    });
+  },
+  filterProjectMatrixByOverdue(projects, filter) {
+    if (!filter || filter === 'all') return projects;
+    return projects.filter((project) => {
+      if (filter === 'date') return project.dateTone === 'delay';
+      if (filter === 'hours') return project.hoursTone === 'delay';
+      if (filter === 'date-hours') return project.dateTone === 'delay' || project.hoursTone === 'delay';
+      if (filter === 'no-date') return !project.dueDate;
+      if (filter === 'no-hours') return !project.hasPlan;
+      return true;
+    });
+  },
+  getProjectMatrixGroups(centerId = '') {
+    const filtered = this.filterProjectMatrixByOverdue(this.getProjectsForMatrix(centerId), this.state.projectsOverdueFilter);
+    const byKey = {};
+    filtered.forEach((project) => {
+      const key = `${project.status}||${project.type}`;
+      if (!byKey[key]) byKey[key] = [];
+      byKey[key].push(project);
+    });
+    return {
+      byKey,
+      statuses: this.getProjectMatrixStatusOrder().filter((status) => filtered.some((project) => project.status === status)),
+      types: this.getProjectMatrixTypeOrder().filter((type) => filtered.some((project) => project.type === type))
+    };
+  },
+  renderProjectsMatrixLegend() {
+    const items = [
+      { tone: 'done', name: '25-100%', description: 'запас часов / резерв' },
+      { tone: 'warning', name: '0-24%', description: 'приближение к лимиту' },
+      { tone: 'delay', name: '<0%', description: 'перерасход' },
+      { tone: 'neutral', name: 'нет данных', description: 'нет плановых часов' }
+    ];
     return `
-      <section class="wide-card center-summary-card">
+      <div class="projects-matrix-legend">
+        <span class="projects-matrix-legend__label">Легенда индикаторов</span>
+        ${items.map((item) => `
+          <span class="projects-matrix-legend__item">
+            <span class="status-pill status-pill--${item.tone}">${this.escapeHtml(item.name)}</span>
+            <span class="projects-matrix-legend__text">${this.escapeHtml(item.description)}</span>
+          </span>
+        `).join('')}
+      </div>
+    `;
+  },
+  renderProjectsMatrixControls(centerId) {
+    const groupLabel = centerId ? 'По управлениям' : 'По центрам';
+    const groupedByTask = this.state.projectsGroupedByTask;
+    const overdueOptions = [
+      { value: 'all', label: 'Все' },
+      { value: 'date', label: 'Просрочка даты' },
+      { value: 'hours', label: 'Просрочка часов' },
+      { value: 'date-hours', label: 'Дата или часы' },
+      { value: 'no-date', label: 'Без даты завершения' },
+      { value: 'no-hours', label: 'Без плановых часов' }
+    ];
+    return `
+      <div class="projects-matrix-controls">
+        <div class="period-switcher">
+          <button type="button" class="period-btn ${groupedByTask ? '' : 'is-active'}" data-projects-group-mode="management">${this.escapeHtml(groupLabel)}</button>
+          <button type="button" class="period-btn ${groupedByTask ? 'is-active' : ''}" data-projects-group-mode="task">По задачам</button>
+        </div>
+        <div class="period-switcher">
+          ${overdueOptions.map((option) => `
+            <button type="button" class="period-btn ${this.state.projectsOverdueFilter === option.value ? 'is-active' : ''}" data-projects-overdue-filter="${this.escapeHtml(option.value)}">${this.escapeHtml(option.label)}</button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  },
+  renderProjectMatrixDetailRow(project, options = {}) {
+    const contextValue = options.isTechBlock ? (project.centerName || 'Без центра') : (project.management || 'Без управления');
+    const planFormatted = Math.round(project.planHours).toLocaleString('ru-RU');
+    const factFormatted = Math.round(project.actualHours).toLocaleString('ru-RU');
+    const hoursDisplay = project.hasPlan ? `${planFormatted} / ${factFormatted}` : `— / ${factFormatted}`;
+    const isMatched = project.hasPlan && Math.round(project.planHours) === Math.round(project.actualHours);
+    const hoursBadgeTone = isMatched ? 'process' : project.hoursTone;
+    const hoursBadgeLabel = isMatched
+      ? 'Выполнен'
+      : project.hasPlan
+        ? `${project.remainingHours > 0 ? '+' : ''}${Math.round(project.remainingHours)}`
+        : '—';
+    const commentFlagHtml = project.hasComment
+      ? `<button type="button" class="project-comment-flag" title="${this.escapeHtml(project.comment)}" aria-label="Показать комментарий">!</button>`
+      : '';
+    return `
+      <div class="projects-matrix-detail-grid__row">
+        ${options.showContextColumn ? `<div class="projects-matrix-detail-grid__cell">${this.escapeHtml(contextValue)}</div>` : ''}
+        <div class="projects-matrix-detail-grid__cell projects-matrix-detail-grid__cell--id">${this.escapeHtml(String(project.id))}${commentFlagHtml}</div>
+        <div class="projects-matrix-detail-grid__cell">${this.escapeHtml(project.name || '—')}</div>
+        <div class="projects-matrix-detail-grid__cell">${this.escapeHtml(project.dueDate || '—')}</div>
+        <div class="projects-matrix-detail-grid__cell"><span class="status-pill status-pill--${project.dateTone}">${this.escapeHtml(project.dateLabel)}</span></div>
+        <div class="projects-matrix-detail-grid__cell">${this.escapeHtml(hoursDisplay)}</div>
+        <div class="projects-matrix-detail-grid__cell"><span class="status-pill status-pill--${hoursBadgeTone}">${this.escapeHtml(hoursBadgeLabel)}</span></div>
+      </div>
+    `;
+  },
+  renderProjectMatrixDetails(projects, status, type, centerId) {
+    if (!projects.length) return '';
+    const isTechBlock = !centerId;
+    const groupedByTask = this.state.projectsGroupedByTask;
+    const showContextColumn = groupedByTask;
+    const contextLabel = isTechBlock ? 'Центр' : 'Управление';
+    let groups = [{ title: '', items: projects }];
+    if (!groupedByTask) {
+      if (isTechBlock) {
+        const byCenterName = new Map();
+        projects.forEach((project) => {
+          const label = project.centerName || 'Без центра';
+          if (!byCenterName.has(label)) byCenterName.set(label, []);
+          byCenterName.get(label).push(project);
+        });
+        groups = Array.from(byCenterName.entries()).map(([title, items]) => ({ title, items }));
+      } else {
+        groups = [{ title: projects[0]?.management || 'Без управления', items: projects }];
+      }
+    }
+    const groupsHtml = groups.map((group) => `
+      <div class="projects-matrix-group">
+        ${group.title ? `<div class="projects-matrix-group__title">${this.escapeHtml(group.title)}</div>` : ''}
+        <div class="projects-matrix-detail-grid${showContextColumn ? ' projects-matrix-detail-grid--with-context' : ''}">
+          <div class="projects-matrix-detail-grid__row projects-matrix-detail-grid__row--head">
+            ${showContextColumn ? `<div class="projects-matrix-detail-grid__cell">${this.escapeHtml(contextLabel)}</div>` : ''}
+            <div class="projects-matrix-detail-grid__cell">ID</div>
+            <div class="projects-matrix-detail-grid__cell">Название</div>
+            <div class="projects-matrix-detail-grid__cell">Срок выполнения</div>
+            <div class="projects-matrix-detail-grid__cell">Индикатор по дате</div>
+            <div class="projects-matrix-detail-grid__cell">План / факт часы</div>
+            <div class="projects-matrix-detail-grid__cell">Остаток по часам</div>
+          </div>
+          ${group.items.map((project) => this.renderProjectMatrixDetailRow(project, { showContextColumn, isTechBlock })).join('')}
+        </div>
+      </div>
+    `).join('');
+    return `
+      <div class="projects-matrix-details">
+        <div class="projects-matrix-details__title">Проекты: ${this.escapeHtml(type)} / ${this.escapeHtml(status)}</div>
+        ${groupsHtml}
+      </div>
+    `;
+  },
+  renderProjectsMatrixGrid(centerId) {
+    const scope = centerId || 'techBlock';
+    if (this.state.projectMatrixExpandedScope !== scope) {
+      this.state.projectMatrixExpandedScope = scope;
+      this.state.projectMatrixExpandedKey = null;
+    }
+    const { byKey, statuses, types } = this.getProjectMatrixGroups(centerId);
+    if (!statuses.length || !types.length) {
+      return '<div class="empty-state">По выбранному центру пока нет проектов.</div>';
+    }
+    const rows = statuses.map((status) => {
+      const cells = types.map((type) => {
+        const key = `${status}||${type}`;
+        const projects = byKey[key] || [];
+        const count = projects.length;
+        const isCritical = status === 'В работе' && projects.some((project) => project.hoursTone === 'delay' || project.dateTone === 'delay');
+        const isExpanded = this.state.projectMatrixExpandedKey === key;
+        return `
+          <div class="projects-matrix__cell projects-matrix__count-cell${count ? ' clickable' : ''}${isCritical ? ' projects-matrix__count-cell--critical' : ''}${isExpanded ? ' is-expanded' : ''}"
+               ${count ? `data-projects-matrix-key="${this.escapeHtml(key)}"` : ''}>
+            <span class="projects-matrix__count-value">${count}</span>
+            ${count ? `<span class="projects-matrix__toggle-icon">${isExpanded ? '▲' : '▼'}</span>` : ''}
+          </div>
+        `;
+      }).join('');
+      const expandedType = types.find((type) => this.state.projectMatrixExpandedKey === `${status}||${type}`);
+      const detailsHtml = expandedType
+        ? this.renderProjectMatrixDetails(byKey[`${status}||${expandedType}`] || [], status, expandedType, centerId)
+        : '';
+      return `
+        <div class="projects-matrix__row">
+          <div class="projects-matrix__cell projects-matrix__cell--title">${this.escapeHtml(status)}</div>
+          ${cells}
+        </div>
+        ${detailsHtml}
+      `;
+    }).join('');
+    return `
+      <div class="projects-matrix">
+        <div class="projects-matrix__row projects-matrix__row--header">
+          <div class="projects-matrix__cell projects-matrix__cell--title">Статус / Вид проекта</div>
+          ${types.map((type) => `<div class="projects-matrix__cell">${this.escapeHtml(type)}</div>`).join('')}
+        </div>
+        ${rows}
+      </div>
+    `;
+  },
+  renderProjectsMatrixBlock(centerId) {
+    return `
+      <div class="projects-matrix-block" id="projectsMatrixBlock">
+        ${this.renderProjectsMatrixLegend()}
+        <div class="projects-matrix-controls-slot">${this.renderProjectsMatrixControls(centerId)}</div>
+        <div class="projects-matrix-wrap" id="projectsMatrixGrid">${this.renderProjectsMatrixGrid(centerId)}</div>
+      </div>
+    `;
+  },
+  attachProjectsMatrixHandlers(root, centerId) {
+    const block = root.querySelector('#projectsMatrixBlock');
+    if (!block) return;
+    this.bindProjectsMatrixHandlers(block, centerId);
+  },
+  bindProjectsMatrixHandlers(block, centerId) {
+    // Rebind against `block` itself (not by re-querying from the original
+    // `root`/container): once a page transition commits, the container
+    // passed in initially can be the now-emptied '.view-layer--next' (its
+    // children, including this block, get moved into '.view-layer--current'
+    // rather than recreated) - re-querying from it would silently find
+    // nothing and stop rebinding after the very next action. `block` is a
+    // direct node reference, so it stays valid through that move.
+    const rerender = () => {
+      const controlsSlot = block.querySelector('.projects-matrix-controls-slot');
+      if (controlsSlot) controlsSlot.innerHTML = this.renderProjectsMatrixControls(centerId);
+      const gridContainer = block.querySelector('#projectsMatrixGrid');
+      if (gridContainer) gridContainer.innerHTML = this.renderProjectsMatrixGrid(centerId);
+      this.bindProjectsMatrixHandlers(block, centerId);
+    };
+    block.querySelectorAll('[data-projects-group-mode]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const next = button.dataset.projectsGroupMode === 'task';
+        if (this.state.projectsGroupedByTask === next) return;
+        this.state.projectsGroupedByTask = next;
+        rerender();
+      });
+    });
+    block.querySelectorAll('[data-projects-overdue-filter]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const next = button.dataset.projectsOverdueFilter;
+        if (this.state.projectsOverdueFilter === next) return;
+        this.state.projectsOverdueFilter = next;
+        this.state.projectMatrixExpandedKey = null;
+        rerender();
+      });
+    });
+    block.querySelectorAll('[data-projects-matrix-key]').forEach((cell) => {
+      cell.addEventListener('click', () => {
+        const key = cell.dataset.projectsMatrixKey;
+        this.state.projectMatrixExpandedKey = this.state.projectMatrixExpandedKey === key ? null : key;
+        rerender();
+      });
+    });
+  },
+  renderCenterSummaryCard(summary) {
+    return `
+      <section class="wide-card projects-matrix-card">
         <div class="wide-card__head">
           <div>
-            <h3>Общая сводка</h3>
-            <p class="card__subtitle">${this.escapeHtml(summary?.title || 'Технический блок')}</p>
+            <h3>Проекты</h3>
           </div>
         </div>
-        <div class="center-summary-kpis">
-          <div class="center-summary-kpi"><span>Проектов всего</span><strong>${summary?.totalProjects || 0}</strong></div>
-          <div class="center-summary-kpi"><span>Сотрудников всего</span><strong>${summary?.totalEmployees || 0}</strong></div>
-          <div class="center-summary-kpi"><span>Проектов в срок</span><strong>${summary?.projectsOnTime || 0}</strong></div>
-          <div class="center-summary-kpi center-summary-kpi--late"><span>Проектов не в срок</span><strong>${summary?.projectsLate || 0}</strong></div>
+        ${this.renderProjectsMatrixBlock(summary?.centerId || '')}
+      </section>
+    `;
+  },
+  getTargetIndicatorTypes() {
+    return ['Коммерческий проект', 'Инвестиционный проект'];
+  },
+  getTargetIndicatorPeriods() {
+    const year = 2026;
+    return [
+      { key: `${year}-H1`, label: `I полугодие ${year}`, start: `${year}-01-01`, end: `${year}-06-30` },
+      { key: `${year}-H2`, label: `II полугодие ${year}`, start: `${year}-07-01`, end: `${year}-12-31` }
+    ];
+  },
+  getDefaultTargetIndicatorPeriodKey() {
+    const periods = this.getTargetIndicatorPeriods();
+    const todayIso = this.formatDateISO(new Date());
+    const match = periods.find((period) => todayIso >= period.start && todayIso <= period.end);
+    return (match || periods[periods.length - 1]).key;
+  },
+  getTargetIndicatorRow(centerId, periodKey) {
+    const period = this.getTargetIndicatorPeriods().find((item) => item.key === periodKey) || this.getTargetIndicatorPeriods()[0];
+    const types = this.getTargetIndicatorTypes();
+    const projects = this.getProjectsForMatrix(centerId).filter((project) => types.includes(project.type)
+      && project.dueDate && project.dueDate >= period.start && project.dueDate <= period.end);
+    const completed = projects.filter((project) => project.status === 'Завершена');
+    const onTime = completed.filter((project) => project.dateTone !== 'delay');
+    const inHours = completed.filter((project) => !project.hasPlan || project.actualHours <= project.planHours + 0.5);
+    const overrunHours = completed.reduce((sum, project) => {
+      if (project.hasPlan && project.actualHours > project.planHours) {
+        return sum + (project.actualHours - project.planHours);
+      }
+      return sum;
+    }, 0);
+    return {
+      total: projects.length,
+      completed: completed.length,
+      onTime: onTime.length,
+      inHours: inHours.length,
+      onTimePercent: completed.length ? Math.round((onTime.length / completed.length) * 100) : null,
+      inHoursPercent: completed.length ? Math.round((inHours.length / completed.length) * 100) : null,
+      overrunHours: Math.round(overrunHours),
+      taskIds: completed.map((project) => project.id),
+      comments: completed.filter((project) => project.hasComment).map((project) => ({ id: project.id, text: project.comment }))
+    };
+  },
+  renderTargetIndicatorMetric(label, percent, note, extra) {
+    return `
+      <div class="target-indicator-metric">
+        <span class="target-indicator-metric__label">${this.escapeHtml(label)}</span>
+        <span class="target-indicator-metric__value">${percent === null ? '—' : `${percent}%`}</span>
+        <span class="target-indicator-metric__note">${this.escapeHtml(note)}</span>
+        ${extra ? `<span class="target-indicator-metric__extra">${this.escapeHtml(extra)}</span>` : ''}
+      </div>
+    `;
+  },
+  renderTargetIndicatorMetrics(row, extraClass = '') {
+    return `
+      <div class="target-indicator-metrics${extraClass ? ` ${extraClass}` : ''}">
+        ${this.renderTargetIndicatorMetric('В срок', row.onTimePercent, `${row.onTime} из ${row.completed}`)}
+        ${this.renderTargetIndicatorMetric('В норме часов', row.inHoursPercent, `${row.inHours} из ${row.completed}`, row.overrunHours > 0 ? `превышение: ${row.overrunHours} ч` : '')}
+      </div>
+    `;
+  },
+  renderTargetIndicatorCard(centerId, isTechBlock) {
+    const periods = this.getTargetIndicatorPeriods();
+    this.state.targetIndicatorPeriodKey = this.state.targetIndicatorPeriodKey || this.getDefaultTargetIndicatorPeriodKey();
+    const periodKey = periods.some((period) => period.key === this.state.targetIndicatorPeriodKey)
+      ? this.state.targetIndicatorPeriodKey
+      : this.getDefaultTargetIndicatorPeriodKey();
+    const row = this.getTargetIndicatorRow(centerId, periodKey);
+    const bodyHtml = row.total ? `
+      <div class="target-indicator-summary${isTechBlock ? ' target-indicator-summary--large' : ''}">
+        <div><span class="target-indicator-summary__label">Начато</span><strong>${row.total}</strong></div>
+        <div><span class="target-indicator-summary__label">Завершено</span><strong>${row.completed}</strong></div>
+      </div>
+      ${this.renderTargetIndicatorMetrics(row, isTechBlock ? 'target-indicator-metrics--large' : '')}
+    ` : '';
+    return `
+      <section class="card side-panel-card target-indicator-card" id="targetIndicatorCard" data-center-id="${this.escapeHtml(centerId || '')}" data-is-tech-block="${isTechBlock ? 'true' : 'false'}">
+        <div class="wide-card__head"><div><h3>Целевой показатель</h3></div></div>
+        <div class="period-switcher target-indicator-period-switcher">
+          ${periods.map((period) => `
+            <button type="button" class="period-btn ${period.key === periodKey ? 'is-active' : ''}" data-target-indicator-period="${this.escapeHtml(period.key)}">${this.escapeHtml(period.label)}</button>
+          `).join('')}
         </div>
-        <div class="center-summary-table-wrap">
-          ${projects.length ? `
-            <table class="center-summary-table">
-              <thead>
-                <tr>
-                  <th>Проект</th>
-                  <th>Суммарные часы</th>
-                  <th>Статус сроков</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${projects.map((project) => `
-                  <tr>
-                    <td>${this.escapeHtml(project.project)}</td>
-                    <td>${this.escapeHtml(this.formatHours(project.hours))}</td>
-                    <td><span class="status-pill ${project.isLate ? 'status-pill--delay' : project.isOnTime ? 'status-pill--done' : 'status-pill--neutral'}">${this.escapeHtml(project.deadlineStatus)}</span></td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          ` : '<div class="empty-state">По выбранному центру пока нет задач.</div>'}
+        <p class="target-indicator-subtitle">Коммерческие и инвестиционные проекты: доля завершённых в срок и в пределах плановых часов</p>
+        ${bodyHtml || '<div class="empty-state">Нет коммерческих или инвестиционных проектов за выбранный период.</div>'}
+        ${row.total ? `
+          <div class="target-indicator-footer">
+            <details class="target-indicator-task-ids">
+              <summary>ID задач в расчёте <span>${row.taskIds.length}</span></summary>
+              <div class="target-indicator-task-ids__chips">
+                ${row.taskIds.map((id) => `<span class="target-indicator-task-id">${this.escapeHtml(String(id))}</span>`).join('')}
+              </div>
+            </details>
+            <details class="target-indicator-comments">
+              <summary>Комментарии <span>${row.comments.length}</span></summary>
+              <div class="target-indicator-comments__list">
+                ${row.comments.length ? row.comments.map((comment) => `
+                  <div class="target-indicator-comment">
+                    <span class="target-indicator-comment__id">${this.escapeHtml(String(comment.id))}</span>
+                    <p class="target-indicator-comment__text">${this.escapeHtml(comment.text)}</p>
+                  </div>
+                `).join('') : '<div class="target-indicator-comments__empty">Нет комментариев к задачам.</div>'}
+              </div>
+            </details>
+          </div>
+        ` : ''}
+      </section>
+    `;
+  },
+  getProjectNotifications(centerId) {
+    const projects = this.getProjectsForMatrix(centerId).filter((project) => project.status !== 'Завершена');
+    const overdueProjects = projects.filter((project) => project.dateTone === 'delay');
+    const overHoursProjects = projects.filter((project) => project.hoursTone === 'delay');
+    const overHoursTotal = overHoursProjects.reduce((sum, project) => sum + Math.max(0, -project.remainingHours), 0);
+    const noPlanProjects = projects.filter((project) => !project.hasPlan);
+    const entries = [];
+    if (overdueProjects.length) {
+      entries.push({
+        label: 'Вышли за сроки',
+        value: `${overdueProjects.length} ${this.pluralizeRu(overdueProjects.length, 'проект', 'проекта', 'проектов')}`
+      });
+    }
+    if (overHoursProjects.length) {
+      entries.push({
+        label: 'Вышли по часам',
+        value: `${overHoursProjects.length} ${this.pluralizeRu(overHoursProjects.length, 'проект', 'проекта', 'проектов')} / ${Math.round(overHoursTotal)} ч.`
+      });
+    }
+    if (noPlanProjects.length) {
+      entries.push({
+        label: 'Не указаны плановые часы',
+        value: `${noPlanProjects.length} ${this.pluralizeRu(noPlanProjects.length, 'проект', 'проекта', 'проектов')}`
+      });
+    }
+    return { entries, count: entries.length };
+  },
+  renderProjectNotificationsCard(centerId) {
+    const data = this.getProjectNotifications(centerId);
+    if (!data.entries.length) return '';
+    return `
+      <section class="card side-panel-card project-notifications-card">
+        <div class="wide-card__head"><div><h3>Уведомления по проектам</h3></div></div>
+        <div class="project-notifications-summary">
+          <span class="project-notifications-summary__label">Контрольные показатели по проектам</span>
+          <span class="project-notifications-summary__badge">${data.count}</span>
+        </div>
+        <div class="project-notifications-list">
+          ${data.entries.map((entry) => `
+            <div class="project-notifications-row">
+              <span class="project-notifications-row__label">${this.escapeHtml(entry.label)}</span>
+              <span class="project-notifications-row__value">${this.escapeHtml(entry.value)}</span>
+            </div>
+          `).join('')}
         </div>
       </section>
     `;
   },
-  buildDynamicKpis(employees, tasks = this.getTasksForEmployees(employees)) {
+  getAbsenceCategories() {
+    return [
+      { key: 'businessTrip', label: 'Командировка' },
+      { key: 'vacation', label: 'Отпуск' },
+      { key: 'sickLeave', label: 'Больничный' },
+      { key: 'unpaidVacation', label: 'Без сохранения' },
+      { key: 'maternityLeave', label: 'Декрет' },
+      { key: 'dayOff', label: 'Отгул' }
+    ];
+  },
+  getAbsenceCategoryForStatus(status) {
+    const map = {
+      'Командировка': 'businessTrip',
+      'В отпуске': 'vacation',
+      'Отпуск': 'vacation',
+      'Больничный': 'sickLeave',
+      'Без сохранения': 'unpaidVacation',
+      'Отпуск без сохранения': 'unpaidVacation',
+      'Декрет': 'maternityLeave',
+      'Отгул': 'dayOff'
+    };
+    return map[status] || null;
+  },
+  getAbsenceData(centerId) {
+    const employees = this.getNormalizedEmployees().filter((employee) => !centerId || employee.centerId === centerId);
+    const byCategory = {};
+    this.getAbsenceCategories().forEach((category) => { byCategory[category.key] = []; });
+    employees.forEach((employee) => {
+      const category = this.getAbsenceCategoryForStatus(employee.status);
+      if (category && byCategory[category]) {
+        byCategory[category].push(employee.fullName || employee.shortName || '—');
+      }
+    });
+    const categories = this.getAbsenceCategories().map((category) => ({
+      ...category,
+      employees: byCategory[category.key].sort((a, b) => a.localeCompare(b, 'ru'))
+    }));
+    const total = categories.reduce((sum, category) => sum + category.employees.length, 0);
+    return { categories, total };
+  },
+  renderAbsencesCard(centerId) {
+    const data = this.getAbsenceData(centerId);
+    const todayLabel = this.formatDateForDisplay(this.formatDateISO(new Date()));
+    return `
+      <section class="card side-panel-card timesheet-card">
+        <div class="wide-card__head"><div><h3>Табель</h3></div><span class="timesheet-card__date">${this.escapeHtml(todayLabel)}</span></div>
+        <div class="timesheet-list">
+          ${data.categories.map((category) => `
+            <div class="timesheet-row${category.employees.length ? ' is-expandable' : ''}">
+              <div class="timesheet-row__header"${category.employees.length ? ' data-timesheet-toggle' : ''}>
+                <span class="timesheet-row__label">${this.escapeHtml(category.label)}</span>
+                <span class="timesheet-row__value">${category.employees.length}</span>
+                ${category.employees.length ? '<span class="timesheet-row__toggle-icon">▾</span>' : ''}
+              </div>
+              ${category.employees.length ? `
+                <div class="timesheet-row__list">
+                  ${category.employees.map((name) => `<div class="timesheet-row__employee">${this.escapeHtml(name)}</div>`).join('')}
+                </div>
+              ` : ''}
+            </div>
+          `).join('')}
+          <div class="timesheet-row timesheet-row--total">
+            <div class="timesheet-row__header">
+              <span class="timesheet-row__label">Всего отсутствий</span>
+              <span class="timesheet-row__value">${data.total}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    `;
+  },
+  getEmployeesWorkingToday(groupEmployees) {
+    return (groupEmployees || []).filter((employee) => !this.getAbsenceCategoryForStatus(employee.status));
+  },
+  getResourceLoadRows(centerId, isTechBlock) {
+    const employees = this.getNormalizedEmployees();
+    if (isTechBlock) {
+      return this.getCentersList().map((center) => {
+        const centerEmployees = employees.filter((employee) => employee.centerId === center.id);
+        const percent = centerEmployees.length
+          ? Math.round(centerEmployees.reduce((sum, employee) => sum + Number(employee.loadPercent || 0), 0) / centerEmployees.length)
+          : 0;
+        return {
+          name: this.getCenterAbbreviation(center.name) || center.shortName || center.name,
+          percent,
+          workingToday: this.getEmployeesWorkingToday(centerEmployees).length,
+          total: centerEmployees.length
+        };
+      });
+    }
+    return this.getManagementsList()
+      .filter((management) => management.centerId === centerId)
+      .map((management) => {
+        const managementEmployees = employees.filter((employee) => employee.managementId === management.id);
+        const percent = managementEmployees.length
+          ? Math.round(managementEmployees.reduce((sum, employee) => sum + Number(employee.loadPercent || 0), 0) / managementEmployees.length)
+          : 0;
+        return {
+          name: management.name,
+          percent,
+          workingToday: this.getEmployeesWorkingToday(managementEmployees).length,
+          total: managementEmployees.length
+        };
+      });
+  },
+  renderResourceLoadCard(centerId, isTechBlock) {
+    const rows = this.getResourceLoadRows(centerId, isTechBlock);
+    return `
+      <section class="card side-panel-card resource-load-card">
+        <div class="wide-card__head"><div><h3>Загрузка ресурсов</h3></div></div>
+        <div class="resource-load-list">
+          ${rows.length ? rows.map((row) => `
+            <div class="resource-load-row">
+              <div class="resource-load-row__header">
+                <span class="resource-load-row__label">${this.escapeHtml(row.name)}</span>
+                <span class="resource-load-row__count" title="Работают сегодня">${row.workingToday} сегодня</span>
+                <span class="resource-load-row__value ${this.getLoadLevelClass(row.percent)}">${row.percent}%</span>
+              </div>
+              <div class="resource-load-row__track">
+                <div class="resource-load-row__fill ${this.getLoadLevelClass(row.percent)}" style="width:${Math.min(100, Math.max(0, row.percent))}%"></div>
+              </div>
+            </div>
+          `).join('') : '<div class="empty-state">Нет данных по загрузке.</div>'}
+        </div>
+      </section>
+    `;
+  },
+  renderDashboardSidePanel(centerId, isTechBlock) {
+    return `
+      <aside class="dashboard-side-panel">
+        ${this.renderTargetIndicatorCard(centerId, isTechBlock)}
+        ${this.renderProjectNotificationsCard(centerId)}
+        ${this.renderAbsencesCard(centerId)}
+        ${this.renderResourceLoadCard(centerId, isTechBlock)}
+      </aside>
+    `;
+  },
+  buildDynamicKpis(employees, tasks = this.getTasksForEmployees(employees), periodRange = null, averageLoadOverride = null) {
     const employeeList = employees || [];
     const taskList = tasks || [];
     const projectMetrics = this.getProjectMetrics(employeeList, tasks);
     const tasksInProgress = taskList.filter((task) => /назнач|в\s*процессе|на\s*проверке/i.test(`${task.status || ''}`)).length;
     const tasksLate = taskList.filter((task) => this.isLateProjectTask(task)).length;
+    const completedTaskCount = taskList.filter((task) => /заверш|выполн/i.test(`${task.status || ''}`)).length;
+    const plannedHoursBase = this.sumMetric(employeeList, 'plannedHours');
+    const actualHoursBase = this.sumMetric(employeeList, 'actualHours');
+    const plannedHoursValue = periodRange ? this.getProratedHours(plannedHoursBase, periodRange) : plannedHoursBase;
+    const actualHoursValue = periodRange ? this.getProratedHours(actualHoursBase, periodRange) : actualHoursBase;
     return [
       {
         key: 'plannedHours',
         label: 'Плановые часы',
-        value: this.sumMetric(employeeList, 'plannedHours'),
-        previousValue: this.sumMetric(employeeList, 'previousPlannedHours')
+        value: plannedHoursValue,
+        previousValue: this.sumMetric(employeeList, 'previousPlannedHours'),
+        suffix: this.pluralizeHours(plannedHoursValue)
       },
       {
         key: 'actualHours',
         label: 'Фактические часы',
-        value: this.sumMetric(employeeList, 'actualHours'),
-        previousValue: this.sumMetric(employeeList, 'previousActualHours')
+        value: actualHoursValue,
+        previousValue: this.sumMetric(employeeList, 'previousActualHours'),
+        suffix: this.pluralizeHours(actualHoursValue)
       },
       {
         key: 'loadPercent',
         label: 'Загрузка',
-        value: this.averageMetric(employeeList, 'loadPercent'),
+        value: Number.isFinite(averageLoadOverride) ? averageLoadOverride : this.averageMetric(employeeList, 'loadPercent'),
         previousValue: this.averageMetric(employeeList, 'previousLoadPercent'),
         suffix: '%'
       },
       {
         key: 'tasksTotal',
         label: 'Задач всего',
-        value: this.sumMetric(employeeList, 'tasksTotal'),
-        previousValue: this.sumMetric(employeeList, 'previousTasksTotal')
+        value: periodRange ? taskList.length : this.sumMetric(employeeList, 'tasksTotal'),
+        previousValue: this.sumMetric(employeeList, 'previousTasksTotal'),
+        suffix: 'всего'
       },
       {
         key: 'completedTasks',
         label: 'Выполнено задач',
-        value: this.sumMetric(employeeList, 'completedTasks'),
-        previousValue: this.sumMetric(employeeList, 'previousCompletedTasks')
+        value: periodRange ? completedTaskCount : this.sumMetric(employeeList, 'completedTasks'),
+        previousValue: this.sumMetric(employeeList, 'previousCompletedTasks'),
+        suffix: 'выполнено'
       },
       {
         key: 'tasksInProgress',
         label: 'Задач в процессе',
         value: tasksInProgress,
-        previousValue: null
+        previousValue: null,
+        suffix: 'в процессе'
       },
       {
         key: 'tasksLate',
         label: 'Просрочено / не в срок',
         value: tasksLate,
         previousValue: null,
-        isNegativeMetric: true
+        isNegativeMetric: true,
+        suffix: 'просрочено'
       },
       {
         key: 'projectCount',
         label: 'Проектов всего',
         value: projectMetrics.projectCount,
-        previousValue: projectMetrics.previousProjectCount
+        previousValue: projectMetrics.previousProjectCount,
+        suffix: 'всего'
       },
       {
         key: 'projectsOnTime',
         label: 'Проекты в срок',
         value: projectMetrics.projectsOnTime,
-        previousValue: projectMetrics.previousProjectsOnTime
+        previousValue: projectMetrics.previousProjectsOnTime,
+        suffix: 'в срок'
       },
       {
         key: 'projectsLate',
         label: 'Проекты не в срок',
         value: projectMetrics.projectsLate,
         previousValue: projectMetrics.previousProjectsLate,
-        isNegativeMetric: true
+        isNegativeMetric: true,
+        suffix: 'не в срок'
       },
       {
         key: 'projectHours',
         label: 'Суммарные часы по проектам',
         value: projectMetrics.projectHours,
         previousValue: null,
-        suffix: ' ч'
+        suffix: this.pluralizeHours(projectMetrics.projectHours)
       }
     ];
   },
-  getEmployeeCoreMetrics(employees, tasks = this.getTasksForEmployees(employees)) {
+  getEmployeeCoreMetrics(employees, tasks = this.getTasksForEmployees(employees), periodRange = null, averageLoadOverride = null) {
     const coreMetricKeys = new Set(['plannedHours', 'actualHours', 'loadPercent', 'tasksTotal', 'completedTasks', 'tasksInProgress', 'tasksLate']);
-    return this.buildDynamicKpis(employees, tasks).filter((metric) => coreMetricKeys.has(metric.key));
+    return this.buildDynamicKpis(employees, tasks, periodRange, averageLoadOverride).filter((metric) => coreMetricKeys.has(metric.key));
   },
   formatMetricValue(value, suffix = '') {
     const numericValue = this.getNumericValue(value);
@@ -1647,23 +3025,63 @@ const StaffApp = {
     }
     return `${Math.round(numericValue)}${suffix}`;
   },
-  renderKpiCard(metric, meta = '') {
-    const valueClass = metric.valueClass ? ` ${metric.valueClass}` : '';
+  renderMetricValueMarkup(value, suffix = '') {
+    const numericValue = this.getNumericValue(value);
+    if (numericValue === null) {
+      return '—';
+    }
+    const numberText = this.escapeHtml(`${Math.round(numericValue)}`);
+    if (!suffix) {
+      return numberText;
+    }
+    return `${numberText}<span class="metric-card__value-suffix">${this.escapeHtml(suffix)}</span>`;
+  },
+  renderKpiCard(metric, meta = '', compareCaption = 'по сравнению с прошлым периодом', inlineCompare = false) {
+    const metricKey = metric.key ? String(metric.key) : '';
+    const autoLoadClass = !metric.valueClass && (metricKey === 'loadPercent' || metricKey === 'averageLoad')
+      ? this.getLoadLevelClass(metric.value)
+      : '';
+    const valueClass = metric.valueClass ? ` ${metric.valueClass}` : (autoLoadClass ? ` ${autoLoadClass}` : '');
+    const metricKeyClass = metricKey ? ` metric-card--${this.escapeHtml(metricKey)}` : '';
+    const valueRoleClass = metricKey === 'employeesCount' || metricKey === 'totalEmployees' ? ' employee-count-value' : '';
     const formattedValue = this.formatMetricValue(metric.value, metric.suffix || '');
     const percentValueClass = this.isPercentText(formattedValue) ? ' percent-value kpi-card__value--percent' : '';
     return `
-      <article class="kpi-card metric-card">
+      <article class="kpi-card metric-card${metricKeyClass}">
+        <span class="kpi-card__icon" aria-hidden="true">${this.getKpiIconSvg(metricKey)}</span>
         <div class="kpi-card__label metric-card__label">${this.escapeHtml(metric.label)}</div>
         <div class="kpi-card__metric">
-          <div class="kpi-card__value metric-card__value value-fit${valueClass}${percentValueClass}">${this.escapeHtml(formattedValue)}</div>
-          <div class="metric-card__delta">${this.renderMetricDelta(metric.value, metric.previousValue, Boolean(metric.isNegativeMetric))}</div>
+          <div class="kpi-card__value metric-card__value value-fit${valueClass}${valueRoleClass}${percentValueClass}">${this.renderMetricValueMarkup(metric.value, metric.suffix || '')}</div>
+          <div class="metric-card__delta">${this.renderMetricDelta(metric.value, metric.previousValue, Boolean(metric.isNegativeMetric), compareCaption, inlineCompare)}</div>
         </div>
         ${meta ? `<div class="kpi-card__meta">${this.escapeHtml(meta)}</div>` : ''}
       </article>
     `;
   },
+  getKpiIconSvg(key) {
+    const icons = {
+      plannedHours: '<rect x="2" y="3" width="12" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M2 6.5h12" stroke="currentColor" stroke-width="1.3"/><path d="M5 2v2.4M11 2v2.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>',
+      actualHours: '<circle cx="8" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 5.3V8.5l3 1.7" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>',
+      loadPercent: '<path d="M2.5 11.5a5.5 5.5 0 0 1 11 0" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M8 11.5 10.3 7.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11.5" r="0.9" fill="currentColor" stroke="none"/>',
+      averageLoad: '<path d="M2.5 11.5a5.5 5.5 0 0 1 11 0" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M8 11.5 10.3 7.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11.5" r="0.9" fill="currentColor" stroke="none"/>',
+      totalEmployees: '<circle cx="6" cy="5.6" r="2.1" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M2.3 13.2c0-2.3 1.7-3.9 3.7-3.9s3.7 1.6 3.7 3.9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="11.3" cy="5.1" r="1.7" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M9.6 9.6c.6-.5 1.3-.8 2.1-.8 1.7 0 3.1 1.3 3.3 3" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>',
+      employeesCount: '<circle cx="6" cy="5.6" r="2.1" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M2.3 13.2c0-2.3 1.7-3.9 3.7-3.9s3.7 1.6 3.7 3.9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="11.3" cy="5.1" r="1.7" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M9.6 9.6c.6-.5 1.3-.8 2.1-.8 1.7 0 3.1 1.3 3.3 3" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>',
+      tasksTotal: '<rect x="2.5" y="2.5" width="11" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M5 6h6M5 8.3h6M5 10.6h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>',
+      activeTasks: '<rect x="2.5" y="2.5" width="11" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M5 6h6M5 8.3h6M5 10.6h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>',
+      completedTasks: '<circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M5.5 8.2l1.8 1.8 3.2-3.6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>',
+      tasksInProgress: '<circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 8V4.2A3.8 3.8 0 0 1 11.8 8H8Z" fill="currentColor" stroke="none"/>',
+      tasksLate: '<path d="M8 2.6 14 13H2L8 2.6Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M8 6.4v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11.1" r="0.7" fill="currentColor" stroke="none"/>',
+      centersCount: '<circle cx="4" cy="4" r="2" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="12" cy="4" r="2" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5.6 5.4L6.8 10.2M10.4 5.4L9.2 10.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>',
+      managementsCount: '<rect x="6" y="2" width="4" height="3" rx="0.8" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="2" y="10.5" width="4" height="3" rx="0.8" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="10" y="10.5" width="4" height="3" rx="0.8" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 5v2.5M8 7.5H4v3M8 7.5h4v3" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>'
+    };
+    const markup = icons[key] || '<path d="M3 13V9M8 13V5M13 13V7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>';
+    return `<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">${markup}</svg>`;
+  },
   renderMetricsPanel(metrics = [], options = {}) {
-    const visibleMetrics = (metrics || []).filter((metric) => metric && metric.key !== 'efficiency');
+    const compareCaption = options.compareCaption || 'по сравнению с прошлым периодом';
+    const inlineCompare = Boolean(options.inlineCompare);
+    const hiddenMetricKeys = new Set(['efficiency', 'projectCount', 'projectsOnTime', 'projectsLate', 'projectHours']);
+    const visibleMetrics = (metrics || []).filter((metric) => metric && !hiddenMetricKeys.has(metric.key));
     const groups = [
       {
         title: 'Общие показатели',
@@ -1672,10 +3090,6 @@ const StaffApp = {
       {
         title: 'Задачи',
         keys: ['tasksTotal', 'completedTasks', 'tasksInProgress', 'tasksLate']
-      },
-      {
-        title: 'Проекты',
-        keys: ['projectCount', 'projectsOnTime', 'projectsLate', 'projectHours']
       }
     ];
     const renderedGroups = groups.map((group) => {
@@ -1687,7 +3101,7 @@ const StaffApp = {
         <div class="metrics-group">
           <div class="metrics-group__title">${this.escapeHtml(group.title)}</div>
           <div class="metrics-grid">
-            ${groupMetrics.map((metric) => this.renderKpiCard(metric)).join('')}
+            ${groupMetrics.map((metric) => this.renderKpiCard(metric, '', compareCaption, inlineCompare)).join('')}
           </div>
         </div>
       `;
@@ -1698,7 +3112,7 @@ const StaffApp = {
         <div class="metrics-group">
           <div class="metrics-group__title">Дополнительно</div>
           <div class="metrics-grid">
-            ${uncategorizedMetrics.map((metric) => this.renderKpiCard(metric)).join('')}
+            ${uncategorizedMetrics.map((metric) => this.renderKpiCard(metric, '', compareCaption, inlineCompare)).join('')}
           </div>
         </div>
       `);
@@ -1712,14 +3126,19 @@ const StaffApp = {
   },
   renderEmployeeMetricsPanel(metrics = []) {
     const visibleMetrics = (metrics || []).filter((metric) => metric && metric.key !== 'efficiency');
+    const compareCaption = this.getComparisonCaption(this.state.employeePeriod);
     const groups = [
       {
         title: 'Часы и загрузка',
-        keys: ['plannedHours', 'actualHours', 'loadPercent']
+        keys: ['plannedHours', 'actualHours', 'loadPercent'],
+        gridClass: 'employee-metric-grid--hours',
+        groupClass: 'employee-metric-group--hours'
       },
       {
         title: 'Задачи',
-        keys: ['tasksTotal', 'completedTasks', 'tasksInProgress', 'tasksLate']
+        keys: ['tasksTotal', 'completedTasks', 'tasksInProgress', 'tasksLate'],
+        gridClass: 'employee-metric-grid--tasks',
+        groupClass: 'employee-metric-group--tasks'
       }
     ];
     const renderedGroups = groups.map((group) => {
@@ -1728,41 +3147,46 @@ const StaffApp = {
         .filter(Boolean);
       if (!groupMetrics.length) return '';
       return `
-        <div class="metrics-group">
-          <div class="metrics-group__title">${this.escapeHtml(group.title)}</div>
-          <div class="metrics-grid">
-            ${groupMetrics.map((metric) => this.renderKpiCard(metric)).join('')}
+        <section class="metrics-group employee-metric-group ${this.escapeHtml(group.groupClass || '')}">
+          <div class="metrics-group__title employee-metric-group__title">${this.escapeHtml(group.title)}</div>
+          <div class="metrics-grid employee-metric-grid ${this.escapeHtml(group.gridClass || '')}">
+            ${groupMetrics.map((metric) => this.renderKpiCard(metric, '', compareCaption, true)).join('')}
           </div>
-        </div>
+        </section>
       `;
     }).filter(Boolean);
     if (!renderedGroups.length) return '';
     return `
-      <section class="metrics-panel metrics-panel--employee">
-        ${renderedGroups.map((groupMarkup, index) => `${index > 0 ? '<div class="metrics-separator" aria-hidden="true"></div>' : ''}${groupMarkup}`).join('')}
+      <section class="metrics-panel metrics-panel--employee employee-metrics-section">
+        ${renderedGroups.join('<div class="employee-metrics-divider" aria-hidden="true"></div>')}
       </section>
     `;
   },
-  buildEmployeesCompactKpis(employees = []) {
+  buildEmployeesCompactKpis(employees = [], periodRange = null) {
     const employeeList = employees || [];
     const centerCount = new Set(employeeList.map((employee) => employee.centerId || employee.centerName || employee.center).filter(Boolean)).size;
     const managementCount = new Set(employeeList.map((employee) => employee.managementId || employee.managementName || employee.management).filter(Boolean)).size;
-    const activeTasks = this.getTasksForEmployees(employeeList).filter((task) => !/заверш|выполн/i.test(`${task.status || ''}`)).length;
+    const activeTasks = this.getTasksForEmployees(employeeList, periodRange).filter((task) => !/заверш|выполн/i.test(`${task.status || ''}`)).length;
     return [
-      { key: 'employeesCount', label: 'Всего сотрудников', value: employeeList.length, previousValue: null },
-      { key: 'centersCount', label: 'Центров', value: centerCount, previousValue: null },
-      { key: 'managementsCount', label: 'Управлений', value: managementCount, previousValue: null },
-      { key: 'activeTasks', label: 'Активных задач', value: activeTasks, previousValue: null }
+      { key: 'employeesCount', label: 'Всего сотрудников', value: employeeList.length, previousValue: null, suffix: 'сотрудников' },
+      { key: 'centersCount', label: 'Центров', value: centerCount, previousValue: null, suffix: 'центров' },
+      { key: 'managementsCount', label: 'Управлений', value: managementCount, previousValue: null, suffix: 'управлений' },
+      { key: 'activeTasks', label: 'Активных задач', value: activeTasks, previousValue: null, suffix: 'задач' }
     ];
   },
-  renderPreviewMetricCard(metric) {
+  renderPreviewMetricCard(metric, compareCaption = 'по сравнению с прошлым периодом') {
     const formattedValue = this.formatMetricValue(metric.value, metric.suffix || '');
     const percentValueClass = this.isPercentText(formattedValue) ? ' percent-value preview-metric-card__value--percent' : '';
+    const metricKey = metric.key ? String(metric.key) : '';
+    const autoLoadClass = (metricKey === 'loadPercent' || metricKey === 'averageLoad')
+      ? ` ${this.getLoadLevelClass(metric.value)}`
+      : '';
     return `
       <div class="preview-metric-card">
+        <span class="kpi-card__icon" aria-hidden="true">${this.getKpiIconSvg(metricKey)}</span>
         <div class="preview-metric-card__label">${this.escapeHtml(metric.label)}</div>
-        <div class="preview-metric-card__value value-fit${percentValueClass}">${this.escapeHtml(formattedValue)}</div>
-        ${this.renderMetricDelta(metric.value, metric.previousValue, Boolean(metric.isNegativeMetric))}
+        <div class="preview-metric-card__value value-fit${percentValueClass}${autoLoadClass}">${this.renderMetricValueMarkup(metric.value, metric.suffix || '')}</div>
+        ${this.renderMetricDelta(metric.value, metric.previousValue, Boolean(metric.isNegativeMetric), compareCaption, true)}
       </div>
     `;
   },
@@ -1772,29 +3196,39 @@ const StaffApp = {
         key: 'totalEmployees',
         label: 'Всего сотрудников',
         value: this.mockData.employees?.length ?? summary.totalEmployees,
-        previousValue: null
+        previousValue: null,
+        suffix: 'сотрудников'
       },
       {
         key: 'averageLoad',
         label: 'Средняя загрузка',
-        value: summary.averageLoad,
+        value: summary.periodAverageLoad ?? summary.averageLoad,
         previousValue: summary.previousAverageLoad,
         suffix: '%',
-        valueClass: this.getLoadLevelClass(summary.averageLoad)
+        valueClass: this.getLoadLevelClass(summary.periodAverageLoad ?? summary.averageLoad)
       }
     ];
   },
   getAnalyticsKpis(summary) {
     if (summary.id !== 'techBlock') {
-      return (summary.dynamicKpis || []).filter((metric) => metric.key !== 'efficiency');
+      const dynamicKpis = (summary.dynamicKpis || []).filter((metric) => metric.key !== 'efficiency');
+      return [...dynamicKpis, this.buildTotalEmployeesKpi(summary)];
     }
     const dynamicKpis = (summary.dynamicKpis || []).filter((metric) => metric.key !== 'loadPercent' && metric.key !== 'efficiency');
     return [...this.buildTechBlockOverviewKpis(summary), ...dynamicKpis];
   },
+  buildTotalEmployeesKpi(summary) {
+    return {
+      key: 'totalEmployees',
+      label: 'Всего сотрудников',
+      value: summary.totalEmployees,
+      previousValue: null,
+      suffix: 'сотрудников'
+    };
+  },
   renderPeriodPresetSwitcher(level) {
     const settings = this.getDynamicSettings(level);
     const options = [
-      { key: 'week', label: 'Неделя' },
       { key: 'month', label: 'Месяц' },
       { key: 'quarter', label: 'Квартал' },
       { key: 'year', label: 'Год' },
@@ -1813,11 +3247,14 @@ const StaffApp = {
   renderGranularitySwitcher(level) {
     const settings = this.getDynamicSettings(level);
     const current = this.normalizeGranularity(settings.granularity);
-    const options = [
+    const allOptions = [
+      { key: 'days', label: 'По дням' },
       { key: 'weeks', label: 'По неделям' },
       { key: 'months', label: 'По месяцам' },
       { key: 'quarters', label: 'По кварталам' }
     ];
+    const allowedGranularities = this.getAllowedGranularities(settings.periodPreset);
+    const options = allOptions.filter((option) => allowedGranularities.includes(option.key));
     return `
       <div class="granularity-switcher" data-dynamic-level="${this.escapeHtml(level)}">
         ${options.map((option) => `
@@ -1828,27 +3265,61 @@ const StaffApp = {
       </div>
     `;
   },
+  renderPeriodUnitSelector(level) {
+    const settings = this.getDynamicSettings(level);
+    const optionsMarkup = this.getPeriodUnitOptionsMarkup(settings.periodPreset, settings.periodUnit);
+    if (!optionsMarkup) {
+      return '';
+    }
+    return this.wrapPeriodUnitSelect(`
+      <select class="period-unit-select" data-dynamic-level="${this.escapeHtml(level)}" data-period-unit-select>
+        ${optionsMarkup}
+      </select>
+    `, settings.periodPreset, settings.periodUnit);
+  },
   renderDynamicControls(level) {
     const settings = this.getDynamicSettings(level);
+    const isCustom = settings.periodPreset === 'custom';
+    const unitSelector = this.renderPeriodUnitSelector(level);
+    const customDateFields = `
+      <div class="custom-period-fields custom-period-fields--inline">
+        <label>
+          <span>Дата начала</span>
+          ${this.wrapDateField(`<input class="date-fit" type="date" value="${this.escapeHtml(settings.startDate)}" data-dynamic-level="${this.escapeHtml(level)}" data-custom-period-start hidden>`, settings.startDate, { ariaLabel: 'Дата начала' })}
+        </label>
+        <label>
+          <span>Дата окончания</span>
+          ${this.wrapDateField(`<input class="date-fit" type="date" value="${this.escapeHtml(settings.endDate)}" data-dynamic-level="${this.escapeHtml(level)}" data-custom-period-end hidden>`, settings.endDate, { ariaLabel: 'Дата окончания' })}
+        </label>
+      </div>
+    `;
+    const middleGroup = isCustom
+      ? `
+        <span class="dynamic-controls__divider" aria-hidden="true"></span>
+        <div class="dynamic-controls__group dynamic-controls__group--custom-dates">
+          ${customDateFields}
+        </div>
+      `
+      : (unitSelector ? `
+        <span class="dynamic-controls__divider" aria-hidden="true"></span>
+        <div class="dynamic-controls__group dynamic-controls__group--unit" data-period-unit="${this.escapeHtml(settings.periodPreset)}">
+          <span class="dynamic-controls__label">${settings.periodPreset === 'month' ? 'Месяц' : settings.periodPreset === 'quarter' ? 'Квартал' : 'Год'}</span>
+          ${unitSelector}
+        </div>
+      ` : '');
     return `
       <div class="dynamic-controls" data-dynamic-level="${this.escapeHtml(level)}">
-        <div class="dynamic-controls__group">
-          <span class="dynamic-controls__label">Период</span>
-          ${this.renderPeriodPresetSwitcher(level)}
-        </div>
-        <div class="dynamic-controls__group">
-          <span class="dynamic-controls__label">Детализация</span>
-          ${this.renderGranularitySwitcher(level)}
-        </div>
-        <div class="custom-period-fields ${settings.periodPreset === 'custom' ? 'is-visible' : 'is-hidden'}">
-          <label>
-            <span>Дата начала</span>
-            <input class="date-fit" type="date" value="${this.escapeHtml(settings.startDate)}" data-dynamic-level="${this.escapeHtml(level)}" data-custom-period-start>
-          </label>
-          <label>
-            <span>Дата окончания</span>
-            <input class="date-fit" type="date" value="${this.escapeHtml(settings.endDate)}" data-dynamic-level="${this.escapeHtml(level)}" data-custom-period-end>
-          </label>
+        <div class="dynamic-controls__panel">
+          <div class="dynamic-controls__group dynamic-controls__group--period">
+            <span class="dynamic-controls__label">Период</span>
+            ${this.renderPeriodPresetSwitcher(level)}
+          </div>
+          ${middleGroup}
+          <span class="dynamic-controls__divider" aria-hidden="true"></span>
+          <div class="dynamic-controls__group dynamic-controls__group--granularity">
+            <span class="dynamic-controls__label">Детализация</span>
+            ${this.renderGranularitySwitcher(level)}
+          </div>
         </div>
       </div>
     `;
@@ -1864,6 +3335,11 @@ const StaffApp = {
     root.querySelectorAll(`[data-dynamic-granularity][data-dynamic-level="${level}"]`).forEach((button) => {
       button.classList.toggle('is-active', button.dataset.dynamicGranularity === settings.granularity);
     });
+    root.querySelectorAll(`[data-period-unit-select][data-dynamic-level="${level}"]`).forEach((select) => {
+      if (Number.isInteger(settings.periodUnit)) {
+        select.value = String(settings.periodUnit);
+      }
+    });
     root.querySelectorAll(`.dynamic-controls[data-dynamic-level="${level}"] .custom-period-fields`).forEach((fields) => {
       const isCustomPeriod = settings.periodPreset === 'custom';
       fields.classList.toggle('is-hidden', !isCustomPeriod);
@@ -1878,6 +3354,43 @@ const StaffApp = {
       }
     });
     this.initSwitchIndicators(root);
+  },
+  attachDynamicControlsListeners(level, container, sourceData, chartId) {
+    container.querySelectorAll(`[data-period-preset][data-dynamic-level="${level}"]`).forEach((button) => {
+      button.addEventListener('click', () => {
+        this.setDynamicPeriod(level, button.dataset.periodPreset);
+        this.refreshDynamicControls(level, this.resolveLiveViewLayer(container), sourceData, chartId);
+      });
+    });
+    container.querySelectorAll(`[data-dynamic-granularity][data-dynamic-level="${level}"]`).forEach((button) => {
+      button.addEventListener('click', () => {
+        this.setDynamicGranularity(level, button.dataset.dynamicGranularity);
+        this.updateDynamicChart(level, chartId, sourceData, this.resolveLiveViewLayer(container));
+      });
+    });
+    container.querySelectorAll(`[data-period-unit-select][data-dynamic-level="${level}"]`).forEach((select) => {
+      select.addEventListener('change', () => {
+        this.setDynamicPeriodUnit(level, select.value);
+        this.updateDynamicChart(level, chartId, sourceData, this.resolveLiveViewLayer(container));
+      });
+    });
+    container.querySelectorAll(`.dynamic-controls[data-dynamic-level="${level}"] input[type="date"]`).forEach((input) => {
+      input.addEventListener('change', () => {
+        const fields = input.closest('.custom-period-fields');
+        const startInput = fields?.querySelector('[data-custom-period-start]');
+        const endInput = fields?.querySelector('[data-custom-period-end]');
+        this.setCustomDynamicPeriod(level, startInput?.value || '', endInput?.value || '');
+        this.updateDynamicChart(level, chartId, sourceData, this.resolveLiveViewLayer(container));
+      });
+    });
+  },
+  refreshDynamicControls(level, container, sourceData, chartId) {
+    const panel = container.querySelector(`.dynamic-controls[data-dynamic-level="${level}"]`);
+    if (panel) {
+      panel.outerHTML = this.renderDynamicControls(level);
+    }
+    this.attachDynamicControlsListeners(level, container, sourceData, chartId);
+    this.updateDynamicChart(level, chartId, sourceData, container);
   },
   updateDynamicChart(level = 'techBlock', chartId = 'dynamicLoadChart', sourceData = null, root = document) {
     if (!['techBlock', 'center', 'employee'].includes(level)) {
@@ -1921,6 +3434,10 @@ const StaffApp = {
       averageBadge.textContent = averageBadge.classList.contains('data-viz-card__metric-value')
         ? (average !== null ? `${average}%` : '—')
         : (average !== null ? `Среднее ${average}%` : 'Нет данных');
+      const averageLabel = averageBadge.closest('.data-viz-card__metric')?.querySelector('.data-viz-card__metric-label');
+      if (averageLabel) {
+        averageLabel.textContent = this.getAveragePeriodLabel(settings);
+      }
     }
 
     this.updateDynamicControlsState(level, root);
@@ -1947,7 +3464,7 @@ const StaffApp = {
       percent: totalWeight ? Math.round((value / totalWeight) * 100) : 0
     }));
   },
-  getCenterSummary(centerId) {
+  getCenterSummary(centerId, periodRange = null) {
     const center = this.getCenterById(centerId);
     const centerIndex = Math.max(0, this.getCentersList().findIndex((item) => item.id === centerId));
     const employees = this.getNormalizedEmployees().filter((employee) => employee.centerId === centerId || employee.centerName === center?.name);
@@ -1959,7 +3476,7 @@ const StaffApp = {
     const periods = this.getPeriodCards().map((period, index) => {
       const plan = Math.round(Number(period.plan || 0) * employees.length);
       const basePercent = Number(period.percent || averageLoad || 0);
-      const percent = plan ? Math.max(0, Math.min(100, Math.round((averageLoad * 0.65) + (basePercent * 0.35) + ((centerIndex % 3) - 1) * 2))) : 0;
+      const percent = plan ? Math.max(0, Math.min(100, Math.round((averageLoad * 0.35) + (basePercent * 0.65) + ((centerIndex % 3) - 1) * 2))) : 0;
       const fact = Math.round(plan * percent / 100);
       const absence = Math.round(Number(period.missing ?? period.absence ?? 0) * employees.length);
       const idle = Math.max(0, Math.round(plan - fact));
@@ -1976,6 +3493,10 @@ const StaffApp = {
         centers: [{ name: center?.name || 'Текущий центр', percent }]
       };
     });
+    const periodTasks = this.getTasksForEmployees(employees, periodRange);
+    const periodAverageLoad = periodRange
+      ? (this.getAverageLoadForRange(center?.dynamicLoad, periodRange.startDate, periodRange.endDate) ?? averageLoad)
+      : averageLoad;
     return {
       id: centerId,
       title: center?.name || 'Центр',
@@ -1984,10 +3505,11 @@ const StaffApp = {
       adminEmployees: employees.length - nonAdminEmployees.length,
       averageLoad,
       previousAverageLoad,
+      periodAverageLoad,
       dynamicLoad: center?.dynamicLoad || null,
-      dynamicKpis: this.buildDynamicKpis(employees),
+      dynamicKpis: this.buildDynamicKpis(employees, periodTasks, periodRange, periodAverageLoad),
       managementLoads: this.getManagementLoadByCenter(centerId),
-      projectSummary: this.getCenterProjectsSummary(centerId),
+      projectSummary: this.getCenterProjectsSummary(centerId, periodRange),
       periods,
       quarterlyLoad: this.getQuarterlyLoad().map((item, index) => ({
         label: item.label,
@@ -1995,7 +3517,7 @@ const StaffApp = {
       }))
     };
   },
-  getTechBlockSummary() {
+  getTechBlockSummary(periodRange = null) {
     const centerSummaries = this.getCentersList().map((center) => this.getCenterSummary(center.id));
     const baseSummary = this.mockData.techBlockSummary || {};
     const employees = this.getNormalizedEmployees();
@@ -2024,6 +3546,11 @@ const StaffApp = {
         }))
       };
     });
+    const techBlockDynamicLoad = baseSummary.dynamicLoad || this.mockData.dynamicLoad || null;
+    const periodTasks = this.getTasksForEmployees(employees, periodRange);
+    const periodAverageLoad = periodRange
+      ? (this.getAverageLoadForRange(techBlockDynamicLoad, periodRange.startDate, periodRange.endDate) ?? averageLoad)
+      : averageLoad;
     return {
       id: 'techBlock',
       title: baseSummary.title || 'Технический блок',
@@ -2032,10 +3559,11 @@ const StaffApp = {
       adminEmployees: employees.length - nonAdminEmployees.length,
       averageLoad,
       previousAverageLoad,
-      dynamicLoad: baseSummary.dynamicLoad || this.mockData.dynamicLoad || null,
-      dynamicKpis: this.buildDynamicKpis(employees),
+      periodAverageLoad,
+      dynamicLoad: techBlockDynamicLoad,
+      dynamicKpis: this.buildDynamicKpis(employees, periodTasks, periodRange, periodAverageLoad),
       managementLoads: [],
-      projectSummary: this.getCenterProjectsSummary(''),
+      projectSummary: this.getCenterProjectsSummary('', periodRange),
       periods,
       quarterlyLoad: this.getQuarterlyLoad().map((quarter, index) => {
         const values = centerSummaries.map((summary) => Number(summary.quarterlyLoad[index]?.percent || 0));
@@ -2053,20 +3581,30 @@ const StaffApp = {
     if (!options.preserveExistingCharts) {
       StaffCharts.destroyAll();
     }
+    const overviewLevel = summary.id === 'techBlock' ? 'techBlock' : 'center';
+    const overviewSettings = this.getOverviewPeriodSettings(overviewLevel);
+    const overviewRange = { startDate: overviewSettings.startDate, endDate: overviewSettings.endDate };
+    summary = overviewLevel === 'techBlock'
+      ? this.getTechBlockSummary(overviewRange)
+      : this.getCenterSummary(summary.id, overviewRange);
     const isTechBlock = summary.id === 'techBlock';
     const analyticsKpis = this.getAnalyticsKpis(summary);
     const dynamicLevel = isTechBlock ? 'techBlock' : 'center';
     const dynamicSettings = this.getDynamicSettings(dynamicLevel);
     const dynamicAverage = this.getDynamicAverageValue(summary, dynamicSettings);
     this.state.activeAnalyticsSummary = summary;
-    const cardsMarkup = (summary.periods || []).map((card) => `
-      <article class="card data-viz-card data-viz-card--period">
+    const periodsSource = summary.periods || [];
+    const periodDisplayOrder = [3, 0, 1, 2, 4].filter((index) => periodsSource[index]);
+    const cardsMarkup = periodDisplayOrder.map((index) => {
+      const card = periodsSource[index];
+      return `
+      <article class="card data-viz-card data-viz-card--period data-viz-card--period-${this.getPeriodTemporalGroup(index).key}">
+        ${this.renderPeriodCardGroupBadge(index)}
         <div class="data-viz-card__header">
-          <div>
+          <div class="data-viz-card__header-text">
             <h3 class="data-viz-card__title">${this.escapeHtml(card.title)}</h3>
             <p class="data-viz-card__subtitle">${this.escapeHtml(card.subtitle || '')}</p>
           </div>
-          ${this.renderDataVizMetric(`${card.percent}%`, 'загрузка')}
         </div>
         <div class="data-viz-card__body donut-layout">
           <div class="donut-layout__chart chart-frame chart-frame--donut">
@@ -2079,10 +3617,10 @@ const StaffApp = {
           </div>
         </div>
         <div class="card__stats">
-          <div class="stat-row"><span>Факт</span><strong>${card.fact}</strong></div>
-          <div class="stat-row"><span>План</span><strong>${card.plan}</strong></div>
-          <div class="stat-row"><span>Простой</span><strong>${card.idle}</strong></div>
-          <div class="stat-row"><span>Отсутствие</span><strong>${card.absence}</strong></div>
+          <div class="stat-row"><span>Факт</span><strong>${this.formatHours(card.fact)}</strong></div>
+          <div class="stat-row"><span>План</span><strong>${this.formatHours(card.plan)}</strong></div>
+          <div class="stat-row"><span>Простой</span><strong>${this.formatHours(card.idle)}</strong></div>
+          <div class="stat-row"><span>Отсутствие</span><strong>${this.formatHours(card.absence)}</strong></div>
         </div>
         <div class="analytics-list-title">${isTechBlock ? 'Загрузка центров' : 'Загрузка управлений'}</div>
         <div class="card__list">
@@ -2099,69 +3637,58 @@ const StaffApp = {
           `}
         </div>
       </article>
-    `).join('');
+    `;
+    }).join('');
 
     container.innerHTML = `
       <section class="center-page-shell analytics-content center-content-transition is-visible">
         ${isTechBlock ? '' : this.renderTopCenterTabs()}
-        <div class="analytics-heading">
+        ${isTechBlock ? `<div class="analytics-heading">
           <div>
             <p class="section-subtitle">${this.escapeHtml(isTechBlock ? 'Сводная аналитика по всем центрам' : 'Аналитика выбранного центра')}</p>
-            <h2 class="section-title">${this.escapeHtml(isTechBlock ? 'Загрузка тех. блока' : `Загрузка: ${summary.title}`)}</h2>
+            <h2 class="section-title">${this.escapeHtml(isTechBlock ? 'Загрузка технического блока' : `Загрузка: ${summary.title}`)}</h2>
           </div>
-        </div>
-        ${this.renderMetricsPanel(analyticsKpis)}
-        <section class="hero-grid dashboard-periods-grid">
-          ${cardsMarkup}
+        </div>` : ''}
+        ${this.renderOverviewPeriodBar(overviewLevel)}
+        ${this.renderMetricsPanel(analyticsKpis, { compareCaption: this.getComparisonCaption(overviewSettings.periodPreset), inlineCompare: true })}
+        <section class="dashboard-periods-row">
+          <section class="hero-grid dashboard-periods-grid dashboard-periods-grid--compact">
+            ${cardsMarkup}
+          </section>
+          ${this.renderDashboardSidePanel(isTechBlock ? '' : summary.id, isTechBlock)}
         </section>
-        ${this.renderCenterSummaryCard(summary.projectSummary)}
         <section class="wide-card data-viz-card data-viz-card--wide">
           <div class="data-viz-card__header">
             <div>
               <h3 class="data-viz-card__title">Динамика загрузки</h3>
               <p class="data-viz-card__subtitle" id="dynamicLoadSubtitle">${this.escapeHtml(this.formatDynamicSubtitle(dynamicSettings))}</p>
             </div>
-            ${this.renderDataVizMetric(dynamicAverage !== null ? `${dynamicAverage}%` : '—', 'среднее', 'dynamicLoadAverage')}
+            ${this.renderDataVizMetric(dynamicAverage !== null ? `${dynamicAverage}%` : '—', this.getAveragePeriodLabel(dynamicSettings), 'dynamicLoadAverage')}
           </div>
           ${this.renderDynamicControls(dynamicLevel)}
           <div class="data-viz-card__body chart-frame chart-frame--wide">
             <div class="chart-large"><canvas id="dynamicLoadChart"></canvas></div>
           </div>
         </section>
+        ${this.renderCenterSummaryCard(summary.projectSummary)}
       </section>
     `;
 
     container.querySelectorAll('.center-tab').forEach((button) => {
       button.addEventListener('click', () => this.setCurrentCenter(button.dataset.centerId));
     });
-    container.querySelectorAll(`[data-period-preset][data-dynamic-level="${dynamicLevel}"]`).forEach((button) => {
-      button.addEventListener('click', () => {
-        this.setDynamicPeriod(dynamicLevel, button.dataset.periodPreset);
-        this.updateDynamicChart(dynamicLevel, 'dynamicLoadChart', summary, container);
-      });
-    });
-    container.querySelectorAll(`[data-dynamic-granularity][data-dynamic-level="${dynamicLevel}"]`).forEach((button) => {
-      button.addEventListener('click', () => {
-        this.setDynamicGranularity(dynamicLevel, button.dataset.dynamicGranularity);
-        this.updateDynamicChart(dynamicLevel, 'dynamicLoadChart', summary, container);
-      });
-    });
-    container.querySelectorAll(`.dynamic-controls[data-dynamic-level="${dynamicLevel}"] input[type="date"]`).forEach((input) => {
-      input.addEventListener('change', () => {
-        const fields = input.closest('.custom-period-fields');
-        const startInput = fields?.querySelector('[data-custom-period-start]');
-        const endInput = fields?.querySelector('[data-custom-period-end]');
-        this.setCustomDynamicPeriod(dynamicLevel, startInput?.value || '', endInput?.value || '');
-        this.updateDynamicChart(dynamicLevel, 'dynamicLoadChart', summary, container);
-      });
-    });
+    this.attachOverviewPeriodListeners(overviewLevel, container, () => this.renderAnalyticsPage(summary, this.resolveLiveViewLayer(container), options));
+    this.attachDynamicControlsListeners(dynamicLevel, container, summary, 'dynamicLoadChart');
+    this.attachProjectsMatrixHandlers(container, summary.projectSummary?.centerId || '');
     const cards = container.querySelectorAll('[data-chart="doughnut"]');
-    cards.forEach((canvas, index) => {
-      const card = summary.periods[index];
+    const periodsById = new Map((summary.periods || []).map((item) => [String(item.id), item]));
+    cards.forEach((canvas) => {
+      const card = periodsById.get(canvas.dataset.index);
+      if (!card) return;
       const labels = (card.projectTypes || []).map((item) => item.name);
       const values = (card.projectTypes || []).map((item) => item.percent);
       const colors = this.getChartPaletteSequence();
-      StaffCharts.createDoughnut(canvas, labels, values, colors);
+      StaffCharts.createDoughnut(canvas, labels, values, colors, { fillPercent: card.percent });
     });
     this.updateDynamicChart(dynamicLevel, 'dynamicLoadChart', summary, container);
     this.initCenterTabsAnimation(container);
@@ -2188,6 +3715,7 @@ const StaffApp = {
   },
   renderEmployeesPageWithTransition() {
     this.closeTaskModal({ immediate: true });
+    this.closeEmployeePreview({ immediate: true });
     this.state.currentPage = 'employees';
     document.body.dataset.page = 'employees';
     this.state.currentCenter = '';
@@ -2210,10 +3738,13 @@ const StaffApp = {
     const filterBlock = this.getFilteredEmployees();
     const managements = this.getManagementsList();
     const statuses = [...new Set(employees.map((employee) => employee.status))];
-    const employeePageKpis = this.buildEmployeesCompactKpis(filterBlock);
+    const overviewSettings = this.getOverviewPeriodSettings('employees');
+    const overviewRange = { startDate: overviewSettings.startDate, endDate: overviewSettings.endDate };
+    const employeePageKpis = this.buildEmployeesCompactKpis(filterBlock, overviewRange);
 
     container.innerHTML = `
       <a class="page-back" href="dashboard.html">← Назад</a>
+      ${this.renderOverviewPeriodBar('employees')}
       <div class="kpi-grid employees-compact-kpis">
         ${employeePageKpis.map((metric) => this.renderKpiCard(metric)).join('')}
       </div>
@@ -2224,31 +3755,20 @@ const StaffApp = {
             <input id="employeeSearch" type="text" placeholder="Введите ФИО" value="${this.escapeHtml(this.state.filters.search)}">
           </div>
           <div class="employees-filter field">
-            <label for="filterCenter">Центр</label>
-            <select id="filterCenter">
-              ${this.populateCenterFilter()}
-            </select>
+            <label id="filterCenterLabel">Центр</label>
+            ${this.renderCustomSelect('filterCenter', this.getCenterFilterOptions(), this.state.filters.centerId)}
           </div>
           <div class="employees-filter field">
-            <label for="filterManagement">Управление</label>
-            <select id="filterManagement">
-              ${this.populateManagementFilter()}
-            </select>
+            <label id="filterManagementLabel">Управление</label>
+            ${this.renderCustomSelect('filterManagement', this.getManagementFilterOptions(), this.state.filters.managementId)}
           </div>
           <div class="employees-filter field">
-            <label for="filterStatus">Статус</label>
-            <select id="filterStatus">
-              <option value="">Все статусы</option>
-              ${statuses.map((status) => `<option value="${this.escapeHtml(status)}" ${this.state.filters.status === status ? 'selected' : ''}>${this.escapeHtml(status)}</option>`).join('')}
-            </select>
+            <label id="filterStatusLabel">Статус</label>
+            ${this.renderCustomSelect('filterStatus', this.getStatusFilterOptions(statuses), this.state.filters.status)}
           </div>
           <button class="button button--primary employees-reset" id="resetFilters">Сбросить</button>
         </div>
         <div class="employees-table-wrapper">
-          <div class="table-card__head">
-            <h3>Сотрудники</h3>
-            <span class="chip" id="employeesCountChip">${filterBlock.length} сотрудников</span>
-          </div>
           <div id="employeesResults">
             ${this.renderEmployeesResults(filterBlock)}
           </div>
@@ -2257,6 +3777,7 @@ const StaffApp = {
       <div id="employeePreviewRoot"></div>
     `;
 
+    this.attachOverviewPeriodListeners('employees', container, () => this.renderEmployeesPageWithTransition());
     this.bindEmployeesEvents(container);
   },
   bindEmployeesEvents(root = document) {
@@ -2264,26 +3785,50 @@ const StaffApp = {
       this.state.filters.search = event.target.value;
       this.applyEmployeeFilters();
     });
-    root.querySelector('#filterCenter')?.addEventListener('change', (event) => {
-      this.state.filters.centerId = event.target.value;
-      if (!this.isManagementAvailableForCenter(this.state.filters.managementId, this.state.filters.centerId)) {
-        this.state.filters.managementId = '';
-      }
-      this.applyEmployeeFilters();
-    });
-    root.querySelector('#filterManagement')?.addEventListener('change', (event) => {
-      this.state.filters.managementId = event.target.value;
-      this.applyEmployeeFilters();
-    });
-    root.querySelector('#filterStatus')?.addEventListener('change', (event) => {
-      this.state.filters.status = event.target.value;
-      this.applyEmployeeFilters();
-    });
     root.querySelector('#resetFilters')?.addEventListener('click', () => {
       this.state.filters = { search: '', centerId: '', managementId: '', status: '' };
       this.applyEmployeeFilters();
     });
     this.bindEmployeesTableEvents(root);
+    this.bindCustomSelectEvents(root);
+  },
+  bindCustomSelectEvents(root = document) {
+    // Bind to the toolbar (freshly recreated by renderEmployeesPage's innerHTML
+    // replacement each call), not `root` itself: `root` can be a view-transition
+    // layer that's reused across renders, which would accumulate one listener
+    // per re-render instead of replacing it.
+    const scope = root.querySelector('.employees-toolbar') || root;
+    scope.addEventListener('click', (event) => {
+      const trigger = event.target.closest('.custom-select__trigger');
+      if (trigger) {
+        const select = trigger.closest('.custom-select');
+        const wasOpen = select.classList.contains('is-open');
+        scope.querySelectorAll('.custom-select.is-open').forEach((openSelect) => this.closeCustomSelect(openSelect));
+        if (!wasOpen) this.openCustomSelect(select);
+        return;
+      }
+      const option = event.target.closest('.custom-select__option');
+      if (option) {
+        const select = option.closest('.custom-select');
+        this.closeCustomSelect(select);
+        this.handleEmployeeFilterChange(select.id, option.dataset.value || '');
+      }
+    });
+  },
+  handleEmployeeFilterChange(selectId, value) {
+    if (selectId === 'filterCenter') {
+      this.state.filters.centerId = value;
+      if (!this.isManagementAvailableForCenter(this.state.filters.managementId, this.state.filters.centerId)) {
+        this.state.filters.managementId = '';
+      }
+    } else if (selectId === 'filterManagement') {
+      this.state.filters.managementId = value;
+    } else if (selectId === 'filterStatus') {
+      this.state.filters.status = value;
+    } else {
+      return;
+    }
+    this.applyEmployeeFilters();
   },
   applyEmployeeFilters() {
     if (!this.isManagementAvailableForCenter(this.state.filters.managementId, this.state.filters.centerId)) {
@@ -2303,17 +3848,10 @@ const StaffApp = {
     if (searchInput && searchInput.value !== this.state.filters.search) {
       searchInput.value = this.state.filters.search || '';
     }
-    const centerSelect = root.querySelector('#filterCenter');
-    if (centerSelect) centerSelect.value = this.state.filters.centerId || '';
-    const managementSelect = root.querySelector('#filterManagement');
-    if (managementSelect) {
-      managementSelect.innerHTML = this.populateManagementFilter();
-      managementSelect.value = this.state.filters.managementId || '';
-    }
-    const statusSelect = root.querySelector('#filterStatus');
-    if (statusSelect) statusSelect.value = this.state.filters.status || '';
-    const countChip = root.querySelector('#employeesCountChip');
-    if (countChip) countChip.textContent = `${filtered.length} сотрудников`;
+    this.refreshCustomSelect('filterCenter', this.getCenterFilterOptions(), this.state.filters.centerId);
+    this.refreshCustomSelect('filterManagement', this.getManagementFilterOptions(), this.state.filters.managementId);
+    const statuses = [...new Set(this.getNormalizedEmployees().map((employee) => employee.status))];
+    this.refreshCustomSelect('filterStatus', this.getStatusFilterOptions(statuses), this.state.filters.status);
     const results = root.querySelector('#employeesResults');
     if (results) {
       results.innerHTML = this.renderEmployeesResults(filtered);
@@ -2378,6 +3916,7 @@ const StaffApp = {
             <th>Сотрудник</th>
             <th>Должность</th>
             <th>Управление</th>
+            <th>Устроен в</th>
             <th>Загрузка</th>
             <th>Выполнено задач</th>
             <th></th>
@@ -2389,12 +3928,13 @@ const StaffApp = {
               <td>
                 <div class="employee-name-cell">
                   <strong>${this.escapeHtml(employee.fullName)}</strong>
-                  <div class="card__subtitle">${this.escapeHtml(employee.centerName || employee.center || 'Без центра')}</div>
+                  <div class="card__subtitle">${this.escapeHtml(this.getCenterAbbreviation(this.getCenterById(employee.centerId)?.name || employee.centerName || employee.center) || 'Без центра')}</div>
                 </div>
               </td>
               <td>${this.escapeHtml(employee.position)}</td>
               <td>${this.escapeHtml(employee.managementName || employee.management || 'Без управления')}</td>
-              <td>${this.renderPercentBadge(`${employee.loadPercent}%`, 'badge--accent')}</td>
+              <td>${this.escapeHtml(employee.employmentType || '—')}</td>
+              <td>${this.renderPercentBadge(`${employee.loadPercent}%`, this.getLoadLevelClass(employee.loadPercent))}</td>
               <td>${employee.completedTasks}/${employee.tasksTotal}</td>
               <td>
                 <button class="button button--subtle profile-button" data-profile-id="${employee.id}">Профиль</button>
@@ -2410,53 +3950,356 @@ const StaffApp = {
       ? this.renderEmployeesTable(filterBlock)
       : `<div class="empty-state">Под выбранные фильтры сотрудников не найдено.</div>`;
   },
-  populateCenterFilter() {
+  getCenterFilterOptions() {
     const centers = this.getCentersList();
-    const currentCenterId = String(this.state.filters.centerId || '');
+    return [{ value: '', label: 'Все центры' }, ...centers.map((center) => ({ value: center.id, label: this.getCenterAbbreviation(center.name) || center.shortName || center.name }))];
+  },
+  getManagementFilterOptions() {
+    const centerId = String(this.state.filters.centerId || '');
+    const managements = this.getManagementsList().filter((management) => !centerId || management.centerId === centerId);
+    return [{ value: '', label: 'Все управления' }, ...managements.map((management) => ({ value: management.id, label: management.name }))];
+  },
+  getStatusFilterOptions(statuses) {
+    return [{ value: '', label: 'Все статусы' }, ...(statuses || []).map((status) => ({ value: status, label: status }))];
+  },
+  renderCustomSelectInner(options, value) {
+    const currentValue = String(value || '');
+    const selected = options.find((option) => String(option.value) === currentValue) || options[0] || { label: '' };
     return `
-      <option value="">Все центры</option>
-      ${centers.map((center) => `<option value="${this.escapeHtml(center.id)}" ${currentCenterId === center.id ? 'selected' : ''}>${this.escapeHtml(center.name)}</option>`).join('')}
+      <button type="button" class="custom-select__trigger" aria-haspopup="listbox" aria-expanded="false">
+        <span class="custom-select__value">${this.escapeHtml(selected.label || '')}</span>
+        <svg class="custom-select__trigger-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <div class="custom-select__panel" role="listbox" hidden>
+        ${options.map((option) => `
+          <button type="button" class="custom-select__option${String(option.value) === currentValue ? ' is-selected' : ''}" role="option" data-value="${this.escapeHtml(option.value)}">${this.escapeHtml(option.label)}</button>
+        `).join('')}
+      </div>
     `;
   },
-  populateManagementFilter() {
-    const centerId = String(this.state.filters.centerId || '');
-    const currentManagementId = this.isManagementAvailableForCenter(this.state.filters.managementId, centerId)
-      ? String(this.state.filters.managementId || '')
-      : '';
-    const managements = this.getManagementsList().filter((management) => !centerId || management.centerId === centerId);
-    return `
-      <option value="">Все управления</option>
-      ${managements.map((management) => `<option value="${this.escapeHtml(management.id)}" ${currentManagementId === management.id ? 'selected' : ''}>${this.escapeHtml(management.name)}</option>`).join('')}
-    `;
+  renderCustomSelect(id, options, value) {
+    return `<div class="custom-select" id="${this.escapeHtml(id)}">${this.renderCustomSelectInner(options, value)}</div>`;
+  },
+  refreshCustomSelect(id, options, value) {
+    const select = document.getElementById(id);
+    if (select) select.innerHTML = this.renderCustomSelectInner(options, value);
+  },
+  openCustomSelect(select) {
+    if (!select) return;
+    select.classList.add('is-open');
+    const trigger = select.querySelector('.custom-select__trigger');
+    const panel = select.querySelector('.custom-select__panel');
+    if (trigger) trigger.setAttribute('aria-expanded', 'true');
+    if (panel) panel.hidden = false;
+  },
+  closeCustomSelect(select) {
+    if (!select) return;
+    select.classList.remove('is-open');
+    const trigger = select.querySelector('.custom-select__trigger');
+    let panel = select.querySelector('.custom-select__panel');
+    if (!panel && select.dataset.periodUnitPanelId) {
+      // The panel was portaled out to #floatingPanelsRoot (see
+      // positionPeriodUnitPanel) to escape a clipping/transformed ancestor;
+      // move it back so future renders find it in its expected place.
+      panel = document.querySelector(`.custom-select__panel--period-unit[data-period-unit-panel-id="${select.dataset.periodUnitPanelId}"]`);
+      if (panel) select.appendChild(panel);
+    }
+    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+    if (panel) panel.hidden = true;
+    if (select._periodUnitScrollHandler) {
+      window.removeEventListener('scroll', select._periodUnitScrollHandler, true);
+      select._periodUnitScrollHandler = null;
+    }
+  },
+  positionPeriodUnitPanel(wrap) {
+    // The period-unit panel sits inside a `.dynamic-controls__panel` with
+    // both `overflow: hidden` (clips its rounded corner) and a `transform`
+    // (nudges it into place) - the transform makes that ancestor the
+    // containing block for a fixed-position descendant too, so it still gets
+    // clipped even as `position: fixed`. Portal the panel out to the
+    // viewport-level #floatingPanelsRoot to escape both.
+    const trigger = wrap.querySelector('.custom-select__trigger');
+    const panel = wrap.querySelector('.custom-select__panel');
+    if (!trigger || !panel) return;
+    const id = wrap.dataset.periodUnitPanelId || `period-unit-${Math.random().toString(36).slice(2)}`;
+    wrap.dataset.periodUnitPanelId = id;
+    panel.dataset.periodUnitPanelId = id;
+    this.ensureFloatingPanelsRoot().appendChild(panel);
+    const rect = trigger.getBoundingClientRect();
+    const panelWidth = panel.getBoundingClientRect().width || rect.width;
+    const margin = 8;
+    const centeredLeft = rect.left + rect.width / 2 - panelWidth / 2;
+    const clampedLeft = Math.min(Math.max(centeredLeft, margin), window.innerWidth - panelWidth - margin);
+    panel.style.top = `${rect.bottom + 6}px`;
+    panel.style.left = `${clampedLeft}px`;
+    if (wrap._periodUnitScrollHandler) {
+      window.removeEventListener('scroll', wrap._periodUnitScrollHandler, true);
+    }
+    const closeOnScroll = (event) => {
+      // Scroll events don't bubble, but a capture-phase window listener still
+      // sees them for any scrollable descendant - including the option list
+      // scrolling inside itself. Only treat this as "the page moved under
+      // the panel" (which should close it) when the scroll didn't originate
+      // from the panel's own option list.
+      if (panel.contains(event.target)) return;
+      this.closeCustomSelect(wrap);
+    };
+    wrap._periodUnitScrollHandler = closeOnScroll;
+    window.addEventListener('scroll', closeOnScroll, true);
+  },
+  closeFloatingDropdown(el) {
+    if (el.classList.contains('custom-date-field')) {
+      this.closeDateFieldPanel(el);
+    } else {
+      this.closeCustomSelect(el);
+    }
+  },
+  openDateFieldPanel(wrap) {
+    const trigger = wrap.querySelector('.custom-date-field__trigger');
+    const panel = wrap.querySelector('.custom-date-field__panel');
+    const input = wrap.querySelector('input[type="date"]');
+    if (!trigger || !panel || !input || trigger.disabled) return;
+    const base = this.parseInputDate(input.value) || new Date();
+    wrap.dataset.calendarViewYear = base.getFullYear();
+    wrap.dataset.calendarViewMonth = base.getMonth();
+    panel.innerHTML = this.renderCalendarPanelMarkup(base.getFullYear(), base.getMonth(), input.value || '');
+    wrap.classList.add('is-open');
+    trigger.setAttribute('aria-expanded', 'true');
+    panel.hidden = false;
+    this.positionDateFieldPanel(wrap);
+  },
+  closeDateFieldPanel(wrap) {
+    if (!wrap) return;
+    wrap.classList.remove('is-open');
+    const trigger = wrap.querySelector('.custom-date-field__trigger');
+    let panel = wrap.querySelector('.custom-date-field__panel');
+    if (!panel && wrap.dataset.calendarPanelId) {
+      // Portaled out to #floatingPanelsRoot (see positionDateFieldPanel) to
+      // escape a clipping/transformed ancestor - move it back so future
+      // renders find it in its expected place.
+      panel = document.querySelector(`.custom-date-field__panel[data-calendar-panel-id="${wrap.dataset.calendarPanelId}"]`);
+      if (panel) wrap.appendChild(panel);
+    }
+    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+    if (panel) panel.hidden = true;
+    if (wrap._calendarScrollHandler) {
+      window.removeEventListener('scroll', wrap._calendarScrollHandler, true);
+      wrap._calendarScrollHandler = null;
+    }
+  },
+  positionDateFieldPanel(wrap) {
+    // Same reasoning as positionPeriodUnitPanel: the field can sit inside a
+    // container with overflow:hidden and/or a transform (both would clip or
+    // mis-position a plain absolute/fixed panel), so it's portaled to the
+    // viewport-level #floatingPanelsRoot and positioned in true viewport
+    // coordinates, centered under the trigger and clamped to stay on-screen.
+    const trigger = wrap.querySelector('.custom-date-field__trigger');
+    const panel = wrap.querySelector('.custom-date-field__panel');
+    if (!trigger || !panel) return;
+    const id = wrap.dataset.calendarPanelId || `calendar-${Math.random().toString(36).slice(2)}`;
+    wrap.dataset.calendarPanelId = id;
+    panel.dataset.calendarPanelId = id;
+    this.ensureFloatingPanelsRoot().appendChild(panel);
+    const rect = trigger.getBoundingClientRect();
+    const panelWidth = panel.getBoundingClientRect().width || rect.width;
+    const margin = 8;
+    const centeredLeft = rect.left + rect.width / 2 - panelWidth / 2;
+    const clampedLeft = Math.min(Math.max(centeredLeft, margin), window.innerWidth - panelWidth - margin);
+    panel.style.top = `${rect.bottom + 6}px`;
+    panel.style.left = `${clampedLeft}px`;
+    if (wrap._calendarScrollHandler) {
+      window.removeEventListener('scroll', wrap._calendarScrollHandler, true);
+    }
+    const closeOnScroll = (event) => {
+      if (panel.contains(event.target)) return;
+      this.closeDateFieldPanel(wrap);
+    };
+    wrap._calendarScrollHandler = closeOnScroll;
+    window.addEventListener('scroll', closeOnScroll, true);
+  },
+  navigateCalendarPanel(wrap, direction) {
+    const panel = wrap.querySelector('.custom-date-field__panel')
+      || document.querySelector(`.custom-date-field__panel[data-calendar-panel-id="${wrap.dataset.calendarPanelId}"]`);
+    const input = wrap.querySelector('input[type="date"]');
+    if (!panel || !input) return;
+    let year = Number(wrap.dataset.calendarViewYear);
+    let month = Number(wrap.dataset.calendarViewMonth) + direction;
+    if (month < 0) { month = 11; year -= 1; }
+    if (month > 11) { month = 0; year += 1; }
+    wrap.dataset.calendarViewYear = year;
+    wrap.dataset.calendarViewMonth = month;
+    panel.innerHTML = this.renderCalendarPanelMarkup(year, month, input.value || '');
+  },
+  selectCalendarDate(wrap, iso) {
+    const input = wrap.querySelector('input[type="date"]');
+    if (!input || !iso) return;
+    input.value = iso;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    const valueEl = wrap.querySelector('.custom-date-field__trigger .custom-select__value');
+    if (valueEl) valueEl.textContent = this.formatDateForDisplay(iso);
+    this.closeDateFieldPanel(wrap);
+  },
+  ensureFloatingPanelsRoot() {
+    let root = document.getElementById('floatingPanelsRoot');
+    if (!root) {
+      root = document.createElement('div');
+      root.id = 'floatingPanelsRoot';
+      document.body.appendChild(root);
+    }
+    return root;
+  },
+  getFloatingPanelContainer(panelId) {
+    return this.ensureFloatingPanelsRoot().querySelector(`[data-floating-panel-id="${panelId}"]`);
+  },
+  getFloatingPanelElement(panelId) {
+    const container = this.getFloatingPanelContainer(panelId);
+    if (!container) return null;
+    return container.matches?.('.floating-panel, .task-modal, .employee-preview, .staff-employee-preview')
+      ? container
+      : container.querySelector('.floating-panel, .task-modal, .employee-preview, .staff-employee-preview');
+  },
+  openFloatingPanel(options = {}) {
+    const {
+      id,
+      html,
+      triggerElement = null,
+      panelSelector = '.floating-panel',
+      handleSelector = '.floating-panel__drag-handle',
+      width = '',
+      position = null,
+      draggable = true,
+      modalType = id,
+      centerIfNoTrigger = false,
+      margin = 8,
+      gap = 8
+    } = options;
+    if (!id || !html) return null;
+    const root = this.ensureFloatingPanelsRoot();
+    this.closeFloatingPanel(id, { immediate: true });
+    const template = document.createElement('template');
+    template.innerHTML = html.trim();
+    const container = template.content.firstElementChild;
+    if (!container) return null;
+    container.dataset.floatingPanelId = id;
+    root.appendChild(container);
+    const panelElement = container.matches?.(panelSelector)
+      ? container
+      : container.querySelector(panelSelector) || container.querySelector('.floating-panel, .task-modal, .employee-preview, .staff-employee-preview') || container;
+    panelElement.dataset.modalType = modalType || id;
+    if (width) {
+      panelElement.style.width = width;
+    }
+    this.positionFloatingPanel(triggerElement, panelElement, {
+      position,
+      panelId: modalType || id,
+      centerIfNoTrigger,
+      margin,
+      gap
+    });
+    if (draggable) {
+      this.makeDraggable(panelElement, panelElement.querySelector(handleSelector));
+    }
+    window.requestAnimationFrame(() => {
+      container.classList.add('is-visible');
+      panelElement.classList.add('is-visible');
+    });
+    return { container, panelElement };
+  },
+  closeFloatingPanel(panelId, options = {}) {
+    const { immediate = false, callback = null } = options;
+    const container = this.getFloatingPanelContainer(panelId);
+    if (!container) {
+      callback?.();
+      return;
+    }
+    const finishClose = () => {
+      container.remove();
+      callback?.();
+    };
+    if (immediate) {
+      finishClose();
+      return;
+    }
+    this.closeFloatingPanelWithAnimation(container, finishClose);
+  },
+  positionFloatingPanel(triggerElement, panelElement, options = {}) {
+    if (!panelElement) return;
+    const margin = Number(options.margin ?? 8);
+    const gap = Number(options.gap ?? 8);
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const panelWidth = panelElement.offsetWidth || panelElement.getBoundingClientRect().width;
+    const panelHeight = panelElement.offsetHeight || panelElement.getBoundingClientRect().height;
+    const savedPosition = !triggerElement && !options.position ? this.state.modalPositions?.[options.panelId] : null;
+    const triggerRect = triggerElement?.getBoundingClientRect?.();
+    let left = options.position?.left ?? savedPosition?.x ?? margin;
+    let top = options.position?.top ?? savedPosition?.y ?? margin;
+
+    if (triggerRect && !options.position) {
+      left = triggerRect.left;
+      top = triggerRect.bottom + gap;
+      if (top + panelHeight > viewportHeight - margin) {
+        top = triggerRect.top - panelHeight - gap;
+      }
+    } else if (!savedPosition && !options.position && options.centerIfNoTrigger) {
+      left = (viewportWidth - panelWidth) / 2;
+      top = (viewportHeight - panelHeight) / 2;
+    }
+
+    const maxLeft = Math.max(margin, viewportWidth - panelWidth - margin);
+    const maxTop = Math.max(margin, viewportHeight - panelHeight - margin);
+    left = Math.max(margin, Math.min(left, maxLeft));
+    top = Math.max(margin, Math.min(top, maxTop));
+
+    panelElement.style.position = 'fixed';
+    panelElement.style.right = 'auto';
+    panelElement.style.bottom = 'auto';
+    panelElement.style.left = `${Math.round(left)}px`;
+    panelElement.style.top = `${Math.round(top)}px`;
+    panelElement.style.margin = '0';
   },
   renderEmployeePreview(employeeId, rowElement = null) {
     const employee = this.getNormalizedEmployees().find((item) => Number(item.id) === Number(employeeId));
     if (!employee) return;
+    const existingPreview = this.getFloatingPanelElement('employee-preview');
+    const preservedPosition = !rowElement && existingPreview ? existingPreview.getBoundingClientRect() : null;
     this.state.previewEmployeeId = employeeId;
-    const previewRoot = document.getElementById('employeePreviewRoot');
-    if (!previewRoot) return;
     const filtered = this.getFilteredEmployees();
     const currentIndex = filtered.findIndex((item) => item.id === employeeId);
-    const previewMetrics = this.getEmployeeCoreMetrics([employee]);
+    const previewPeriodSettings = this.getOverviewPeriodSettings('employeePreview');
+    const previewPeriodRange = { startDate: previewPeriodSettings.startDate, endDate: previewPeriodSettings.endDate };
+    const previewTasks = this.getTasksForEmployees([employee], previewPeriodRange);
+    const previewAverageLoad = this.getAverageLoadForRange(employee, previewPeriodRange.startDate, previewPeriodRange.endDate);
+    const previewCoreMetricKeys = new Set(['plannedHours', 'actualHours']);
+    const previewMetrics = this.getEmployeeCoreMetrics([employee], previewTasks, previewPeriodRange, previewAverageLoad)
+      .filter((metric) => previewCoreMetricKeys.has(metric.key));
     document.querySelectorAll('.employee-row.is-selected').forEach((row) => row.classList.remove('is-selected'));
     document.querySelector(`.employee-row[data-employee-id="${employee.id}"]`)?.classList.add('is-selected');
-    previewRoot.innerHTML = `
-      <section class="employee-preview">
-        <div class="employee-preview__head">
+    const html = `
+      <section class="employee-preview employee-preview--floating floating-panel" role="dialog" aria-modal="false" aria-labelledby="employeePreviewTitle">
+        <div class="employee-preview__head employee-preview__header employee-preview__drag-handle floating-panel__header floating-panel__drag-handle">
           <div>
-            <h3 class="section-title">${this.escapeHtml(employee.fullName)}</h3>
+            <h3 class="section-title" id="employeePreviewTitle">${this.escapeHtml(employee.fullName)}</h3>
           </div>
-          <button class="button button--ghost employee-preview__close" id="closePreview">✕</button>
+          <button class="employee-preview__close floating-panel__close" id="closePreview" type="button" aria-label="Закрыть">
+            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+            </svg>
+          </button>
         </div>
-        <div class="employee-preview__body">
+        <div class="employee-preview__body floating-panel__body">
           <div class="detail-list">
             <div class="preview-info-row"><span class="preview-info-row__value">${this.escapeHtml(employee.centerName || employee.center)}</span><span class="preview-info-row__label">Центр</span></div>
             <div class="preview-info-row"><span class="preview-info-row__value">${this.escapeHtml(employee.managementName || employee.management)}</span><span class="preview-info-row__label">Управление</span></div>
             <div class="preview-info-row"><span class="preview-info-row__value">${this.escapeHtml(employee.department)}</span><span class="preview-info-row__label">Отдел</span></div>
             <div class="preview-info-row"><span class="preview-info-row__value">${this.escapeHtml(employee.position)}</span><span class="preview-info-row__label">Должность</span></div>
+            <div class="preview-info-row"><span class="preview-info-row__value">${this.escapeHtml(employee.employmentType || '—')}</span><span class="preview-info-row__label">Устроен в</span></div>
           </div>
+          ${this.renderOverviewPeriodBar('employeePreview')}
           <div class="preview-metric-grid">
-            ${previewMetrics.map((metric) => this.renderPreviewMetricCard(metric)).join('')}
+            ${previewMetrics.map((metric) => this.renderPreviewMetricCard(metric, this.getComparisonCaption(previewPeriodSettings.periodPreset))).join('')}
           </div>
           <div class="preview-actions preview-actions--compact">
             <a class="button button--primary button--sm" href="employee.html?id=${employee.id}">Подробнее</a>
@@ -2466,94 +4309,131 @@ const StaffApp = {
         </div>
       </section>
     `;
-    this.revealInteractiveOverlays();
-    const preview = previewRoot.querySelector('.employee-preview');
+    const opened = this.openFloatingPanel({
+      id: 'employee-preview',
+      html,
+      triggerElement: rowElement || document.querySelector(`.employee-row[data-employee-id="${employee.id}"]`),
+      panelSelector: '.employee-preview',
+      handleSelector: '.employee-preview__drag-handle',
+      width: 'min(650px, calc(100vw - 32px))',
+      position: preservedPosition,
+      modalType: 'employeePreview',
+      draggable: true,
+      margin: 16,
+      gap: 8
+    });
+    const preview = opened?.panelElement;
     if (preview) {
-      this.positionEmployeePreview(rowElement || document.querySelector(`.employee-row[data-employee-id="${employee.id}"]`));
-      this.makeDraggable(preview, preview.querySelector('.employee-preview__head'));
+      this.attachOverviewPeriodListeners('employeePreview', preview, () => this.renderEmployeePreview(employeeId));
     }
-    document.getElementById('closePreview')?.addEventListener('click', () => this.closeEmployeePreview());
-    document.getElementById('nextPreview')?.addEventListener('click', () => this.showNextEmployeePreview());
+    preview?.querySelector('#closePreview')?.addEventListener('click', (event) => {
+      event.stopPropagation();
+      this.closeEmployeePreview();
+    });
+    preview?.querySelector('#nextPreview')?.addEventListener('click', (event) => {
+      event.stopPropagation();
+      this.showNextEmployeePreview();
+    });
+    preview?.querySelector('.preview-actions a')?.addEventListener('click', (event) => {
+      event.stopPropagation();
+    });
   },
   positionEmployeePreview(rowElement) {
-    const preview = document.querySelector('#employeePreviewRoot .employee-preview');
+    const preview = this.getFloatingPanelElement('employee-preview') || document.querySelector('#employeePreviewRoot .employee-preview');
     if (!preview) return;
-    const margin = 12;
-    const savedPosition = this.state.modalPositions?.employeePreview;
-    const previewRect = preview.getBoundingClientRect();
-    let left = savedPosition?.x ?? null;
-    let top = savedPosition?.y ?? null;
-    if (rowElement) {
-      const rowRect = rowElement.getBoundingClientRect();
-      left = rowRect.right + margin;
-      if (left + previewRect.width > window.innerWidth - margin) {
-        left = Math.min(rowRect.left + 24, window.innerWidth - previewRect.width - margin);
-      }
-      top = rowRect.bottom + 8;
-      if (top + previewRect.height > window.innerHeight - margin) {
-        top = rowRect.top - previewRect.height - 8;
-      }
-    }
-    left = Math.max(margin, Math.min(left ?? window.innerWidth - previewRect.width - 24, window.innerWidth - previewRect.width - margin));
-    top = Math.max(margin, Math.min(top ?? 24, window.innerHeight - previewRect.height - margin));
-    preview.style.right = 'auto';
-    preview.style.left = `${Math.round(left)}px`;
-    preview.style.top = `${Math.round(top)}px`;
+    this.positionFloatingPanel(rowElement, preview, { panelId: 'employeePreview', margin: 16, gap: 8 });
   },
   makeDraggable(modalElement, handleElement) {
     if (!modalElement || !handleElement || handleElement.dataset.dragBound === 'true') return;
     handleElement.dataset.dragBound = 'true';
-    handleElement.addEventListener('mousedown', (event) => {
-      if (event.button !== 0 || event.target.closest('button, a, input, select, textarea')) return;
-      event.preventDefault();
+    let isDragging = false;
+    let offsetX = 0;
+    let offsetY = 0;
+    const interactiveSelector = 'button, a, input, select, textarea, label, [role="button"], [contenteditable="true"], .preview-metric-card, .preview-kpi-card, .detail-item, .preview-info-row';
+
+    const onPointerMove = (event) => {
+      if (!isDragging) return;
+      const margin = 8;
+      const currentWidth = modalElement.offsetWidth;
+      const currentHeight = modalElement.offsetHeight;
+      const minX = margin;
+      const minY = margin;
+      const maxX = Math.max(minX, window.innerWidth - currentWidth - margin);
+      const maxY = Math.max(minY, window.innerHeight - currentHeight - margin);
+      const nextLeft = Math.max(minX, Math.min(event.clientX - offsetX, maxX));
+      const nextTop = Math.max(minY, Math.min(event.clientY - offsetY, maxY));
+      modalElement.style.right = 'auto';
+      modalElement.style.bottom = 'auto';
+      modalElement.style.left = `${Math.round(nextLeft)}px`;
+      modalElement.style.top = `${Math.round(nextTop)}px`;
+    };
+
+    const onPointerUp = (event) => {
+      if (!isDragging) return;
+      isDragging = false;
+      const type = modalElement.dataset.modalType || (modalElement.classList.contains('employee-preview') ? 'employeePreview' : modalElement.classList.contains('staff-employee-preview') ? 'staffEmployeePreview' : modalElement.classList.contains('task-modal') ? 'taskModal' : 'modal');
+      const nextRect = modalElement.getBoundingClientRect();
+      this.saveModalPosition(type, nextRect.left, nextRect.top);
+      modalElement.classList.remove('is-dragging');
+      document.body.classList.remove('is-modal-dragging', 'is-dragging-modal');
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+      if (handleElement.hasPointerCapture?.(event.pointerId)) {
+        handleElement.releasePointerCapture?.(event.pointerId);
+      }
+    };
+
+    handleElement.addEventListener('pointerdown', (event) => {
+      if (isDragging || event.button !== 0 || event.target.closest?.(interactiveSelector)) return;
       const modalRect = modalElement.getBoundingClientRect();
       const modalWidth = modalRect.width;
-      const modalHeight = modalRect.height;
-      const offsetX = event.clientX - modalRect.left;
-      const offsetY = event.clientY - modalRect.top;
-      const type = modalElement.dataset.modalType || (modalElement.classList.contains('employee-preview') ? 'employeePreview' : modalElement.classList.contains('staff-employee-preview') ? 'staffEmployeePreview' : modalElement.classList.contains('task-modal') ? 'taskModal' : 'modal');
+      offsetX = event.clientX - modalRect.left;
+      offsetY = event.clientY - modalRect.top;
+      isDragging = true;
       modalElement.style.position = 'fixed';
-      modalElement.style.right = 'auto';
       modalElement.style.left = `${Math.round(modalRect.left)}px`;
       modalElement.style.top = `${Math.round(modalRect.top)}px`;
+      modalElement.style.right = 'auto';
+      modalElement.style.bottom = 'auto';
       modalElement.style.margin = '0';
       modalElement.style.width = `${Math.round(modalWidth)}px`;
+      modalElement.style.transform = 'none';
       modalElement.classList.add('is-dragging');
-      document.body.classList.add('is-modal-dragging');
-      const moveModal = (moveEvent) => {
-        const nextLeft = Math.max(8, Math.min(moveEvent.clientX - offsetX, window.innerWidth - modalWidth - 8));
-        const nextTop = Math.max(8, Math.min(moveEvent.clientY - offsetY, window.innerHeight - modalHeight - 8));
-        modalElement.style.right = 'auto';
-        modalElement.style.left = `${Math.round(nextLeft)}px`;
-        modalElement.style.top = `${Math.round(nextTop)}px`;
-      };
-      const stopDrag = () => {
-        const nextRect = modalElement.getBoundingClientRect();
-        this.saveModalPosition(type, nextRect.left, nextRect.top);
-        modalElement.classList.remove('is-dragging');
-        document.body.classList.remove('is-modal-dragging');
-        document.removeEventListener('mousemove', moveModal);
-        document.removeEventListener('mouseup', stopDrag);
-      };
-      document.addEventListener('mousemove', moveModal);
-      document.addEventListener('mouseup', stopDrag);
+      document.body.classList.add('is-modal-dragging', 'is-dragging-modal');
+      handleElement.setPointerCapture?.(event.pointerId);
+      window.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointerup', onPointerUp);
+      window.addEventListener('pointercancel', onPointerUp);
+      event.preventDefault();
     });
   },
   saveModalPosition(type, x, y) {
     this.state.modalPositions = this.state.modalPositions || {};
     this.state.modalPositions[type] = { x: Math.round(x), y: Math.round(y) };
   },
-  closeEmployeePreview() {
-    const previewRoot = document.getElementById('employeePreviewRoot');
-    if (!previewRoot) return;
-    const preview = previewRoot.querySelector('.employee-preview');
+  closeEmployeePreview(options = {}) {
+    const { immediate = false } = options;
+    const legacyPreviewRoot = document.getElementById('employeePreviewRoot');
     const finishClose = () => {
-      previewRoot.innerHTML = '';
+      if (legacyPreviewRoot) {
+        legacyPreviewRoot.innerHTML = '';
+      }
       document.querySelectorAll('.employee-row.is-selected').forEach((row) => row.classList.remove('is-selected'));
       this.state.previewEmployeeId = null;
     };
-    if (preview) {
-      this.closeModalWithAnimation(preview, finishClose);
+    if (this.getFloatingPanelContainer('employee-preview')) {
+      this.closeFloatingPanel('employee-preview', { immediate, callback: finishClose });
+      return;
+    }
+    const legacyPreview = legacyPreviewRoot?.querySelector('.employee-preview');
+    if (legacyPreview) {
+      if (immediate) {
+        legacyPreview.remove();
+        finishClose();
+        return;
+      }
+      this.closeModalWithAnimation(legacyPreview, finishClose);
       return;
     }
     finishClose();
@@ -2603,6 +4483,10 @@ const StaffApp = {
       }
       document.querySelector('[data-modal-backdrop="task"]')?.remove();
     };
+    if (this.getFloatingPanelContainer('task-subtasks-modal')) {
+      this.closeFloatingPanel('task-subtasks-modal', { immediate, callback: finishClose });
+      return;
+    }
     const backdrop = document.querySelector('[data-modal-backdrop="task"]');
     if (immediate) {
       finishClose();
@@ -2626,39 +4510,37 @@ const StaffApp = {
     panelElement.classList.add('is-closing');
     floatingPanel?.classList.remove('is-visible');
     floatingPanel?.classList.add('is-closing');
-    window.setTimeout(() => callback?.(), 240);
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      floatingPanel?.removeEventListener('transitionend', finish);
+      callback?.();
+    };
+    floatingPanel?.addEventListener('transitionend', finish, { once: true });
+    window.setTimeout(finish, 260);
   },
   renderTaskModalIntoPage(triggerElement = null, position = null) {
     const container = this.getCurrentViewLayer();
     if (!container || this.state.currentPage !== 'employee') return;
+    this.closeFloatingPanel('task-subtasks-modal', { immediate: true });
     document.querySelector('[data-modal-backdrop="task"]')?.remove();
     if (!this.state.showTaskModal) return;
-    document.body.insertAdjacentHTML('beforeend', this.renderTaskModal(this.state.selectedTaskId));
-    const backdrop = document.querySelector('[data-modal-backdrop="task"]');
-    const modal = backdrop?.querySelector('.task-subtasks-modal');
-    if (modal) {
-      if (position) {
-        const modalRect = modal.getBoundingClientRect();
-        const modalWidth = modal.offsetWidth || modalRect.width;
-        const modalHeight = modal.offsetHeight || modalRect.height;
-        const width = position.width || modalWidth;
-        const left = Math.max(16, Math.min(position.left, window.innerWidth - width - 16));
-        const top = Math.max(16, Math.min(position.top, window.innerHeight - modalHeight - 16));
-        modal.style.position = 'fixed';
-        modal.style.right = 'auto';
-        modal.style.left = `${Math.round(left)}px`;
-        modal.style.top = `${Math.round(top)}px`;
-        modal.style.margin = '0';
-        modal.style.width = `${Math.round(width)}px`;
-      } else {
-        this.positionTaskModal(triggerElement, modal);
-      }
-    }
-    this.bindTaskModalEvents(backdrop || container);
-    window.requestAnimationFrame(() => {
-      backdrop?.classList.add('is-visible');
-      modal?.classList.add('is-visible');
+    const opened = this.openFloatingPanel({
+      id: 'task-subtasks-modal',
+      html: this.renderTaskModal(this.state.selectedTaskId),
+      triggerElement,
+      panelSelector: '.task-subtasks-modal',
+      handleSelector: '.task-modal__header',
+      width: position?.width ? `${Math.round(position.width)}px` : 'min(1180px, calc(100vw - 32px))',
+      position,
+      modalType: 'taskModal',
+      draggable: true,
+      centerIfNoTrigger: true,
+      margin: 8,
+      gap: 8
     });
+    this.bindTaskModalEvents(opened?.container || container);
   },
   bindTaskModalEvents(root = document) {
     const backdrop = root.matches?.('[data-modal-backdrop="task"]') ? root : root.querySelector('[data-modal-backdrop="task"]');
@@ -2682,48 +4564,6 @@ const StaffApp = {
         width: modalRect.width
       } : null);
     });
-  },
-  positionTaskModal(triggerElement, modalElement) {
-    if (!modalElement) return;
-    const modalRect = modalElement.getBoundingClientRect();
-    const modalWidth = modalElement.offsetWidth || modalRect.width;
-    const modalHeight = modalElement.offsetHeight || modalRect.height;
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    const gap = 8;
-    const margin = 16;
-    const savedPosition = !triggerElement ? this.state.modalPositions?.taskModal : null;
-    const triggerRect = triggerElement?.getBoundingClientRect?.();
-
-    let top = savedPosition?.y ?? margin;
-    let left = savedPosition?.x ?? Math.max(margin, viewportWidth - modalWidth - 24);
-
-    if (triggerRect) {
-      top = triggerRect.bottom + gap;
-      left = triggerRect.left;
-      if (top + modalHeight > viewportHeight - margin) {
-        top = triggerRect.top - modalHeight - gap;
-      }
-    }
-
-    if (left + modalWidth > viewportWidth - margin) {
-      left = viewportWidth - modalWidth - margin;
-    }
-    if (left < margin) {
-      left = margin;
-    }
-    if (top + modalHeight > viewportHeight - margin) {
-      top = viewportHeight - modalHeight - margin;
-    }
-    if (top < margin) {
-      top = margin;
-    }
-
-    modalElement.style.position = 'fixed';
-    modalElement.style.right = 'auto';
-    modalElement.style.left = `${Math.round(left)}px`;
-    modalElement.style.top = `${Math.round(top)}px`;
-    modalElement.style.margin = '0';
   },
   getTaskSubtasks(taskId) {
     const numericTaskId = Number(taskId);
@@ -2828,7 +4668,7 @@ const StaffApp = {
     return `
       <div class="modal-backdrop modal-backdrop--floating" data-modal-backdrop="task">
         <section class="task-modal task-subtasks-modal floating-panel" data-modal-type="taskModal" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
-          <div class="task-modal__header">
+          <div class="task-modal__header floating-panel__header floating-panel__drag-handle">
             <div>
               <h3 id="taskModalTitle">Работы по задаче: ${this.escapeHtml(task.taskName)}</h3>
               <div class="task-modal__meta">
@@ -2837,9 +4677,13 @@ const StaffApp = {
                 <span class="status-pill task-indicator ${this.getStatusClass(task.indicator)}">${this.escapeHtml(task.indicator)}</span>
               </div>
             </div>
-            <button class="task-modal__close" id="taskModalClose" type="button" aria-label="Закрыть">✕</button>
+            <button class="task-modal__close floating-panel__close" id="taskModalClose" type="button" aria-label="Закрыть">
+              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                <path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+              </svg>
+            </button>
           </div>
-          <div class="task-modal__body">
+          <div class="task-modal__body floating-panel__body">
             <label class="toggle task-modal__toggle">
               <input type="checkbox" id="taskModalActiveToggle" ${onlyActive ? 'checked' : ''}>
               Только активные участники
@@ -2856,14 +4700,14 @@ const StaffApp = {
               <table class="task-modal__table">
                 <thead>
                   <tr>
-                    <th>Название подзадачи</th>
-                    <th>Вид работы</th>
-                    <th>Название детали</th>
-                    <th>Срок выполнения подзадачи</th>
-                    <th>Время выполнения, ч</th>
-                    <th>Статус задачи</th>
-                    <th>Индикатор</th>
-                    <th>Участники подзадачи</th>
+                    <th class="name-cell">Название подзадачи</th>
+                    <th class="work-type-cell">Вид работы</th>
+                    <th class="detail-cell">Название детали</th>
+                    <th class="date-cell">Срок выполнения подзадачи</th>
+                    <th class="hours-cell">Время выполнения, часов</th>
+                    <th class="status-cell">Статус задачи</th>
+                    <th class="indicator-cell">Индикатор</th>
+                    <th class="participants-cell">Участники подзадачи</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2871,14 +4715,19 @@ const StaffApp = {
                     const participants = this.getTaskParticipants(subtask, onlyActive);
                     return `
                       <tr>
-                        <td>${this.escapeHtml(subtask.subtaskName || subtask.taskName || 'Без названия')}</td>
-                        <td>${this.escapeHtml(subtask.workType || '—')}</td>
-                        <td>${this.escapeHtml(subtask.detailName || subtask.assignedDetails || '—')}</td>
-                        <td>${this.escapeHtml(subtask.dueDate || '—')}</td>
-                        <td>${this.escapeHtml(this.formatHours(this.parseWorkHours(subtask.workTime)))}</td>
-                        <td><span class="status-pill task-status ${this.getStatusClass(subtask.status)}">${this.escapeHtml(subtask.status || '—')}</span></td>
-                        <td><span class="status-pill task-indicator ${this.getStatusClass(subtask.indicator)}">${this.escapeHtml(subtask.indicator || '—')}</span></td>
-                        <td>
+                        <td class="name-cell">${this.escapeHtml(subtask.subtaskName || subtask.taskName || 'Без названия')}</td>
+                        <td class="work-type-cell">${this.escapeHtml(subtask.workType || '—')}</td>
+                        <td class="detail-cell">${this.escapeHtml(subtask.detailName || subtask.assignedDetails || '—')}</td>
+                        <td class="date-cell">${this.escapeHtml(subtask.dueDate || '—')}</td>
+                        <td class="hours-cell">${this.escapeHtml(this.formatHours(this.parseWorkHours(subtask.workTime)))}</td>
+                        <td class="status-cell"><span class="status-pill task-status ${this.getStatusClass(subtask.status)}">${this.escapeHtml(subtask.status || '—')}</span></td>
+                        <td class="indicator-cell">
+                          <span class="indicator-inline">
+                            <span class="status-pill task-indicator ${this.getStatusClass(subtask.indicator)}">${this.escapeHtml(subtask.indicator || '—')}</span>
+                            ${this.getOverdueDaysLabel(subtask.dueDate, subtask.indicator) ? `<span class="overdue-note">${this.escapeHtml(this.getOverdueDaysLabel(subtask.dueDate, subtask.indicator))}</span>` : ''}
+                          </span>
+                        </td>
+                        <td class="participants-cell">
                           <div class="participant-list">
                             ${participants.length ? participants.map((participant) => this.renderParticipantLink(participant)).join('') : '<span class="participant-name">—</span>'}
                           </div>
@@ -2916,16 +4765,20 @@ const StaffApp = {
       StaffCharts.destroyAll();
     }
     this.state.activeEmployee = employee;
-    const tasks = this.mockData.tasks.filter((task) => task.employeeId === employee.id);
-    const employeeMetrics = this.getEmployeeCoreMetrics([employee], tasks);
     const periodButtons = [
       { key: 'week', label: 'Неделя' },
       { key: 'month', label: 'Месяц' },
+      { key: 'quarter', label: 'Квартал' },
+      { key: 'year', label: 'Год' },
       { key: 'custom', label: 'Свой период' }
     ];
     const periodMeta = this.getEmployeePeriodMeta();
     this.state.employeeStartDate = this.state.employeeStartDate || periodMeta.startDate;
     this.state.employeeEndDate = this.state.employeeEndDate || periodMeta.endDate;
+    const employeePeriodRange = { startDate: this.state.employeeStartDate, endDate: this.state.employeeEndDate };
+    const tasks = this.getTasksForEmployees([employee], employeePeriodRange);
+    const employeePeriodAverageLoad = this.getAverageLoadForRange(employee, employeePeriodRange.startDate, employeePeriodRange.endDate);
+    const employeeMetrics = this.getEmployeeCoreMetrics([employee], tasks, employeePeriodRange, employeePeriodAverageLoad);
     const dateDisabled = this.state.employeePeriod !== 'custom';
     const employeeDynamicSettings = this.getDynamicSettings('employee');
     const employeeHistoryData = this.getDynamicChartData(
@@ -2942,7 +4795,15 @@ const StaffApp = {
       : null;
     const taskDistributionItems = Object.entries(employee.taskDistribution || {}).map(([label, value]) => ({ label, value }));
     const taskDistributionTotal = taskDistributionItems.reduce((sum, item) => sum + Number(item.value || 0), 0) || employee.tasksTotal || 0;
+    const workTypeBreakdown = this.getEmployeeWorkTypeBreakdown(tasks);
     const planFactSubtitle = this.formatEmployeePlanFactSubtitle();
+    const employeePeriodUnitLabel = this.state.employeePeriod === 'month'
+      ? 'Выберите месяц'
+      : this.state.employeePeriod === 'quarter'
+        ? 'Выберите квартал'
+        : this.state.employeePeriod === 'year'
+          ? 'Выберите год'
+          : '';
 
     container.innerHTML = `
       <section class="employee-profile-card">
@@ -2950,6 +4811,7 @@ const StaffApp = {
         <div class="employee-profile-card__main">
           <h2 class="section-title">${this.escapeHtml(employee.fullName)}</h2>
           <p class="section-subtitle">${this.escapeHtml(employee.centerName || employee.center)} • ${this.escapeHtml(employee.managementName || employee.management)} • ${this.escapeHtml(employee.department)} • ${this.escapeHtml(employee.position)}</p>
+          <p class="section-subtitle">Устроен в: ${this.escapeHtml(employee.employmentType || '—')}</p>
         </div>
         <span class="badge badge--accent">${this.escapeHtml(employee.status)}</span>
       </section>
@@ -2959,21 +4821,30 @@ const StaffApp = {
             <h3>Отчётный период</h3>
             <p class="card__subtitle">Сравнение загрузки по выбранному диапазону</p>
           </div>
-          <div class="period-switcher">
-            ${periodButtons.map((button) => `<button class="period-btn ${this.state.employeePeriod === button.key ? 'is-active' : ''}" data-period="${button.key}">${this.escapeHtml(button.label)}</button>`).join('')}
+          <div class="period-switcher-group">
+            <div class="period-switcher-group__preset">
+              <span class="period-switcher-group__label">Выберите период</span>
+              <div class="period-switcher">
+                ${periodButtons.map((button) => `<button class="period-btn ${this.state.employeePeriod === button.key ? 'is-active' : ''}" data-period="${button.key}">${this.escapeHtml(button.label)}</button>`).join('')}
+              </div>
+            </div>
+            <div class="period-switcher-group__unit">
+              ${employeePeriodUnitLabel ? `<span class="period-switcher-group__label">${this.escapeHtml(employeePeriodUnitLabel)}</span>` : ''}
+              ${this.renderEmployeePeriodUnitSelector()}
+            </div>
           </div>
         </div>
         <div class="date-row">
           <div class="field field--date">
             <label for="employeeStartDate">Дата начала</label>
-            <input id="employeeStartDate" class="date-fit" type="date" value="${this.state.employeeStartDate}" ${dateDisabled ? 'disabled' : ''}>
+            ${this.wrapDateField(`<input id="employeeStartDate" class="date-fit" type="date" value="${this.state.employeeStartDate}" hidden>`, this.state.employeeStartDate, { ariaLabel: 'Дата начала', disabled: dateDisabled })}
           </div>
           <div class="field field--date">
             <label for="employeeEndDate">Дата окончания</label>
-            <input id="employeeEndDate" class="date-fit" type="date" value="${this.state.employeeEndDate}" ${dateDisabled ? 'disabled' : ''}>
+            ${this.wrapDateField(`<input id="employeeEndDate" class="date-fit" type="date" value="${this.state.employeeEndDate}" hidden>`, this.state.employeeEndDate, { ariaLabel: 'Дата окончания', disabled: dateDisabled })}
           </div>
           <div class="field" style="flex:1; display:flex; flex-direction:column; justify-content:flex-end;">
-            <span class="card__subtitle">${this.escapeHtml(periodMeta.label)}</span>
+            <span class="card__subtitle ${this.state.employeePeriod === 'custom' ? 'employee-period-meta-label--custom' : ''}">${this.escapeHtml(periodMeta.label)}</span>
           </div>
         </div>
         ${this.renderEmployeeMetricsPanel(employeeMetrics)}
@@ -2987,11 +4858,20 @@ const StaffApp = {
             </div>
             ${this.renderDataVizMetric(this.formatHours(employee.actualHours), 'факт за период')}
           </div>
-          <div class="data-viz-card__body chart-frame chart-frame--bar">
-            <div class="chart-wrap employee-chart-wrap"><canvas id="barChart"></canvas></div>
-          </div>
-          <div class="data-viz-card__footer">
-            ${this.renderBarChartFooter()}
+          ${this.renderBarChartFooter()}
+          <div class="bar-chart-split">
+            <div class="bar-chart-split__field bar-chart-split__field--periods">
+              <h4 class="bar-chart-split__title">По периодам</h4>
+              <div class="data-viz-card__body chart-frame chart-frame--bar">
+                <div class="chart-wrap employee-chart-wrap chart-wide-horizontal"><canvas id="barChartPeriods"></canvas></div>
+              </div>
+            </div>
+            <div class="bar-chart-split__field bar-chart-split__field--total">
+              <h4 class="bar-chart-split__title">Суммарно</h4>
+              <div class="data-viz-card__body chart-frame chart-frame--bar">
+                <div class="chart-wrap employee-chart-wrap chart-wide-horizontal"><canvas id="barChartTotal"></canvas></div>
+              </div>
+            </div>
           </div>
         </article>
         <article class="card employee-chart-card data-viz-card">
@@ -3011,6 +4891,14 @@ const StaffApp = {
               ${this.renderChartLegend(taskDistributionItems, { suffix: '', maxItems: 5 })}
             </div>
           </div>
+          <div class="employee-worktype-breakdown">
+            <div class="analytics-list-title">Часы по видам работ</div>
+            ${workTypeBreakdown.length ? `
+              <div class="chart-frame chart-frame--bar employee-worktype-chart-frame">
+                <div class="chart-wrap employee-worktype-chart-wrap"><canvas id="workTypeChart"></canvas></div>
+              </div>
+            ` : '<div class="empty-state">Нет данных за период.</div>'}
+          </div>
         </article>
       </section>
       <section class="table-card employee-load-card">
@@ -3024,11 +4912,11 @@ const StaffApp = {
           <table class="employee-load-table">
             <thead>
               <tr>
-                ${this.state.showProjects ? '<th>Проект</th>' : ''}
+                ${this.state.showProjects ? '<th>ID</th><th>Проект</th>' : ''}
                 <th>Название задачи</th>
                 <th>Вид работы</th>
                 <th>Срок выполнения задачи</th>
-                <th>Время выполнения работы, ч</th>
+                <th>Время выполнения работы, часов</th>
                 <th>Статус задачи</th>
                 <th>Индикатор</th>
               </tr>
@@ -3037,7 +4925,7 @@ const StaffApp = {
               ${tasks.map((task) => {
                 return `
                   <tr class="task-row" data-task-id="${task.id}">
-                    ${this.state.showProjects ? `<td>${this.escapeHtml(task.project)}</td>` : ''}
+                    ${this.state.showProjects ? `<td>${this.escapeHtml(String(task.id))}</td><td>${this.escapeHtml(task.project)}</td>` : ''}
                     <td>
                       <button class="employee-load-table__task-link" type="button" data-task-id="${task.id}">
                         ${this.escapeHtml(task.taskName)}
@@ -3047,7 +4935,12 @@ const StaffApp = {
                     <td>${this.escapeHtml(task.dueDate)}</td>
                     <td>${this.escapeHtml(this.formatHours(this.parseWorkHours(task.workTime)))}</td>
                     <td><span class="status-pill ${this.getStatusClass(task.status)}">${this.escapeHtml(task.status)}</span></td>
-                    <td><span class="status-pill ${this.getStatusClass(task.indicator)}">${this.escapeHtml(task.indicator)}</span></td>
+                    <td>
+                      <span class="indicator-inline">
+                        <span class="status-pill ${this.getStatusClass(task.indicator)}">${this.escapeHtml(task.indicator)}</span>
+                        ${this.getOverdueDaysLabel(task.dueDate, task.indicator) ? `<span class="overdue-note">${this.escapeHtml(this.getOverdueDaysLabel(task.dueDate, task.indicator))}</span>` : ''}
+                      </span>
+                    </td>
                   </tr>
                 `;
               }).join('')}
@@ -3061,7 +4954,7 @@ const StaffApp = {
             <h3 class="data-viz-card__title">Динамика загруженности сотрудника</h3>
             <p class="data-viz-card__subtitle" id="employeeHistorySubtitle">${this.escapeHtml(this.formatDynamicSubtitle(employeeDynamicSettings))}</p>
           </div>
-          ${this.renderDataVizMetric(employeeHistoryAverage !== null ? `${employeeHistoryAverage}%` : '—', 'среднее', 'employeeHistoryAverage')}
+          ${this.renderDataVizMetric(employeeHistoryAverage !== null ? `${employeeHistoryAverage}%` : '—', this.getAveragePeriodLabel(employeeDynamicSettings), 'employeeHistoryAverage')}
         </div>
         ${this.renderDynamicControls('employee')}
         <div class="data-viz-card__body chart-frame chart-frame--wide">
@@ -3087,33 +4980,27 @@ const StaffApp = {
           this.renderEmployeePageWithTransition();
         });
       });
+      container.querySelector('#employeePeriodMonthSelect')?.addEventListener('change', (event) => {
+        this.state.employeePeriodMonth = Number(event.target.value);
+        const nextMeta = this.getEmployeePeriodMeta('month');
+        this.state.employeeStartDate = nextMeta.startDate;
+        this.state.employeeEndDate = nextMeta.endDate;
+        this.renderEmployeePageWithTransition();
+      });
+      container.querySelector('#employeePeriodQuarterSelect')?.addEventListener('change', (event) => {
+        this.state.employeePeriodQuarter = Number(event.target.value);
+        const nextMeta = this.getEmployeePeriodMeta('quarter');
+        this.state.employeeStartDate = nextMeta.startDate;
+        this.state.employeeEndDate = nextMeta.endDate;
+        this.renderEmployeePageWithTransition();
+      });
       container.querySelectorAll('.employee-load-table__task-link').forEach((button) => {
         button.addEventListener('click', (event) => {
           event.stopPropagation();
           this.openTaskModal(Number(button.dataset.taskId), button.closest('tr') || button);
         });
       });
-      container.querySelectorAll('[data-period-preset][data-dynamic-level="employee"]').forEach((button) => {
-        button.addEventListener('click', () => {
-          this.setDynamicPeriod('employee', button.dataset.periodPreset);
-          this.updateDynamicChart('employee', 'historyChart', employee, container);
-        });
-      });
-      container.querySelectorAll('[data-dynamic-granularity][data-dynamic-level="employee"]').forEach((button) => {
-        button.addEventListener('click', () => {
-          this.setDynamicGranularity('employee', button.dataset.dynamicGranularity);
-          this.updateDynamicChart('employee', 'historyChart', employee, container);
-        });
-      });
-      container.querySelectorAll('.dynamic-controls[data-dynamic-level="employee"] input[type="date"]').forEach((input) => {
-        input.addEventListener('change', () => {
-          const fields = input.closest('.custom-period-fields');
-          const startInput = fields?.querySelector('[data-custom-period-start]');
-          const endInput = fields?.querySelector('[data-custom-period-end]');
-          this.setCustomDynamicPeriod('employee', startInput?.value || '', endInput?.value || '');
-          this.updateDynamicChart('employee', 'historyChart', employee, container);
-        });
-      });
+      this.attachDynamicControlsListeners('employee', container, employee, 'historyChart');
       container.querySelector('#showProjectsToggle')?.addEventListener('change', (event) => {
         this.state.showProjects = event.target.checked;
         this.renderEmployeePageWithTransition();
@@ -3130,6 +5017,7 @@ const StaffApp = {
   },
   renderEmployeePageWithTransition() {
     this.closeTaskModal({ immediate: true });
+    this.closeEmployeePreview({ immediate: true });
     return this.renderWithTransition(
       (targetLayer, transitionState) => {
         this.renderEmployeePage(targetLayer, { preserveExistingCharts: !transitionState.direct });
@@ -3145,8 +5033,9 @@ const StaffApp = {
     const pad = (value) => String(value).padStart(2, '0');
     const format = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
     if (periodKey === 'month') {
-      const startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-      const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      const monthIndex = Number.isInteger(this.state.employeePeriodMonth) ? this.state.employeePeriodMonth : today.getMonth();
+      const startDate = new Date(today.getFullYear(), monthIndex, 1);
+      const endDate = new Date(today.getFullYear(), monthIndex + 1, 0);
       return {
         startDate: format(startDate),
         endDate: format(endDate),
@@ -3154,11 +5043,32 @@ const StaffApp = {
         rangeLabel: 'Месяц'
       };
     }
+    if (periodKey === 'quarter') {
+      const quarterIndex = Number.isInteger(this.state.employeePeriodQuarter) ? this.state.employeePeriodQuarter : Math.floor(today.getMonth() / 3);
+      const startDate = new Date(today.getFullYear(), quarterIndex * 3, 1);
+      const endDate = new Date(today.getFullYear(), quarterIndex * 3 + 3, 0);
+      return {
+        startDate: format(startDate),
+        endDate: format(endDate),
+        label: `${this.getQuarterLabel(quarterIndex)} ${today.getFullYear()}`,
+        rangeLabel: 'Квартал'
+      };
+    }
+    if (periodKey === 'year') {
+      const startDate = new Date(today.getFullYear(), 0, 1);
+      const endDate = new Date(today.getFullYear(), 11, 31);
+      return {
+        startDate: format(startDate),
+        endDate: format(endDate),
+        label: `${today.getFullYear()} год`,
+        rangeLabel: 'Год'
+      };
+    }
     if (periodKey === 'custom') {
       return {
         startDate: this.state.employeeStartDate || format(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7)),
         endDate: this.state.employeeEndDate || format(today),
-        label: 'Пользовательский период',
+        label: 'Выберите период',
         rangeLabel: 'Свой период'
       };
     }
@@ -3174,15 +5084,99 @@ const StaffApp = {
   getMonthName(monthIndex) {
     return ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'][monthIndex] || '';
   },
+  renderEmployeePeriodUnitSelector() {
+    const period = this.state.employeePeriod;
+    if (period === 'month') {
+      const index = Number.isInteger(this.state.employeePeriodMonth) ? this.state.employeePeriodMonth : new Date().getMonth();
+      return this.wrapPeriodUnitSelect(`
+        <select class="period-unit-select" id="employeePeriodMonthSelect">
+          ${this.getPeriodUnitOptionsMarkup('month', index)}
+        </select>
+      `, 'month', index);
+    }
+    if (period === 'quarter') {
+      const index = Number.isInteger(this.state.employeePeriodQuarter) ? this.state.employeePeriodQuarter : Math.floor(new Date().getMonth() / 3);
+      return this.wrapPeriodUnitSelect(`
+        <select class="period-unit-select" id="employeePeriodQuarterSelect">
+          ${this.getPeriodUnitOptionsMarkup('quarter', index)}
+        </select>
+      `, 'quarter', index);
+    }
+    if (period === 'year') {
+      return this.wrapPeriodUnitSelect(`
+        <select class="period-unit-select" id="employeePeriodYearSelect">
+          ${this.getPeriodUnitOptionsMarkup('year', 0)}
+        </select>
+      `, 'year', 0);
+    }
+    return '';
+  },
   getDayName(dayIndex) {
     return ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'][dayIndex] || '';
   },
+  getEmployeeBarChartBreakdown(periodPreset, startDate, endDate) {
+    const start = startDate ? new Date(`${startDate}T00:00:00`) : null;
+    const end = endDate ? new Date(`${endDate}T00:00:00`) : null;
+    const validRange = start && end && !isNaN(start.getTime()) && !isNaN(end.getTime()) && start <= end;
+    if (periodPreset === 'week') {
+      const labels = [];
+      if (validRange) {
+        const cursor = new Date(start);
+        while (cursor <= end && labels.length < 7) {
+          labels.push(this.getDayName(cursor.getDay()));
+          cursor.setDate(cursor.getDate() + 1);
+        }
+      }
+      return { labels: labels.length ? labels : ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'], xTitle: 'День' };
+    }
+    if (periodPreset === 'quarter') {
+      const labels = [];
+      if (validRange) {
+        const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+        while (cursor <= end && labels.length < 3) {
+          labels.push(this.getMonthLabel(cursor.getMonth()));
+          cursor.setMonth(cursor.getMonth() + 1);
+        }
+      }
+      return { labels: labels.length ? labels : [this.getMonthLabel(0), this.getMonthLabel(1), this.getMonthLabel(2)], xTitle: 'Месяц' };
+    }
+    if (periodPreset === 'year') {
+      return { labels: [this.getQuarterLabel(0), this.getQuarterLabel(1), this.getQuarterLabel(2), this.getQuarterLabel(3)], xTitle: 'Квартал' };
+    }
+    return { labels: ['Неделя 1', 'Неделя 2', 'Неделя 3', 'Неделя 4'], xTitle: 'Неделя' };
+  },
+  buildVaryingHourRatios(count, variant = 'planned') {
+    if (count <= 0) return [];
+    const bases = {
+      planned: [0.22, 0.26, 0.25, 0.27, 0.24, 0.28, 0.23, 0.26, 0.25, 0.27, 0.24, 0.26],
+      actual: [0.2, 0.24, 0.27, 0.29, 0.22, 0.3, 0.21, 0.25, 0.23, 0.28, 0.22, 0.25]
+    };
+    const base = bases[variant] || bases.planned;
+    const picked = Array.from({ length: count }, (_, index) => base[index % base.length]);
+    const sum = picked.reduce((total, value) => total + value, 0);
+    return picked.map((value) => value / sum);
+  },
   updateEmployeeCharts(employee, root = document) {
-    const barCanvas = root.querySelector?.('#barChart') || document.getElementById('barChart');
-    if (barCanvas) {
-      const planned = [0.22, 0.26, 0.25, 0.27].map((part) => Math.round(employee.plannedHours * part));
-      const actual = [0.2, 0.24, 0.27, 0.29].map((part) => Math.round(employee.actualHours * part));
-      StaffCharts.createBar(barCanvas, ['Неделя 1', 'Неделя 2', 'Неделя 3', 'Неделя 4'], planned, actual);
+    const periodsCanvas = root.querySelector?.('#barChartPeriods') || document.getElementById('barChartPeriods');
+    if (periodsCanvas) {
+      const breakdown = this.getEmployeeBarChartBreakdown(this.state.employeePeriod, this.state.employeeStartDate, this.state.employeeEndDate);
+      const plannedRatios = this.buildVaryingHourRatios(breakdown.labels.length, 'planned');
+      const actualRatios = this.buildVaryingHourRatios(breakdown.labels.length, 'actual');
+      const planned = plannedRatios.map((ratio) => Math.round(employee.plannedHours * ratio));
+      const actual = actualRatios.map((ratio) => Math.round(employee.actualHours * ratio));
+      StaffCharts.createBar(periodsCanvas, breakdown.labels, planned, actual, {
+        xTitle: breakdown.xTitle,
+        yTitle: 'Часы',
+        yTitlePaddingBottom: 8
+      });
+    }
+    const totalCanvas = root.querySelector?.('#barChartTotal') || document.getElementById('barChartTotal');
+    if (totalCanvas) {
+      StaffCharts.createBar(totalCanvas, ['Итого'], [Math.round(employee.plannedHours)], [Math.round(employee.actualHours)], {
+        yTitle: 'Часы',
+        yTitlePaddingBottom: 8,
+        barThickness: 44
+      });
     }
     const donutCanvas = root.querySelector?.('#donutChart') || document.getElementById('donutChart');
     if (donutCanvas) {
@@ -3190,6 +5184,24 @@ const StaffApp = {
       const values = Object.values(employee.taskDistribution || {});
       const colors = this.getChartPaletteSequence();
       StaffCharts.createDoughnut(donutCanvas, labels, values, colors);
+    }
+    const workTypeCanvas = root.querySelector?.('#workTypeChart') || document.getElementById('workTypeChart');
+    if (workTypeCanvas) {
+      const periodRange = { startDate: this.state.employeeStartDate, endDate: this.state.employeeEndDate };
+      const workTypeTasks = this.getTasksForEmployees([employee], periodRange);
+      const breakdown = this.getEmployeeWorkTypeBreakdown(workTypeTasks);
+      const wrap = workTypeCanvas.closest('.employee-worktype-chart-wrap');
+      if (wrap) {
+        const rowHeight = 42;
+        const desiredHeight = Math.max(80, breakdown.length * rowHeight + 28);
+        wrap.style.height = `${desiredHeight}px`;
+      }
+      StaffCharts.createSingleBar(workTypeCanvas, breakdown.map((item) => item.label), breakdown.map((item) => item.hours), {
+        horizontal: true,
+        barThickness: 14,
+        xTitle: 'Часы',
+        xTitlePadding: 24
+      });
     }
     const historyCanvas = root.querySelector?.('#historyChart') || document.getElementById('historyChart');
     if (historyCanvas) {

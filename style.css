@@ -31,10 +31,12 @@
   --input-border: #d8d8d8;
   --input-bg: #ffffff;
   --focus-ring: rgba(255,104,44,0.24);
-  --green: #5f6f54;
-  --red: #8b3f2f;
+  --green: #2e7d32;
+  --red: #c62828;
   --orange: #ff682c;
   --blue: #4d4d4d;
+  --yellow: #b8860b;
+  --future: #3462c7;
   --shadow: none;
   --card-radius: 20px;
   --control-radius: 0px;
@@ -58,6 +60,13 @@
   --duration-control: 220ms;
   --ease-view: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-control: cubic-bezier(0.65, 0, 0.35, 1);
+  --metric-card-padding-x: 18px;
+  --metric-card-padding-y: 14px;
+  --metric-card-gap: 8px;
+  --metric-card-min-height: 118px;
+  --metric-card-padding-large-x: 20px;
+  --metric-card-padding-large-y: 18px;
+  --employee-content-offset: 40px;
 }
 
 * { box-sizing: border-box; }
@@ -98,8 +107,8 @@ button, input, select { font: inherit; }
   place-items: center;
   font-weight: 700;
 }
-.sidebar__brand h1 { font-size: 1rem; margin: 0 0 2px; }
-.sidebar__brand p { margin: 0; color: var(--muted); font-size: 0.9rem; }
+.sidebar__brand h1 { font-size: 16px; margin: 0 0 2px; }
+.sidebar__brand p { margin: 0; color: var(--muted); font-size: 14px; }
 .sidebar__nav { display: flex; flex-direction: column; gap: 8px; }
 .sidebar__item {
   position: relative;
@@ -155,7 +164,6 @@ button, input, select { font: inherit; }
   transition: background 180ms ease, color 180ms ease;
 }
 .sidebar__dropdown-item:hover { background: var(--surface-soft); color: var(--primary); }
-.sidebar__dropdown-item__hint { color: var(--muted); font-size: 0.78rem; }
 .sidebar__footer { margin-top: auto; }
 .center-page-shell { display: flex; flex-direction: column; gap: 16px; }
 .center-tabs-card {
@@ -166,15 +174,16 @@ button, input, select { font: inherit; }
   box-shadow: var(--shadow);
 }
 .center-tabs-card__head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
-.center-tabs-card__eyebrow { color: var(--primary); font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
-.center-tabs-card h3 { margin: 4px 0 0; font-size: 1rem; }
+.center-tabs-card__eyebrow { color: var(--primary); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+.center-tabs-card h3 { margin: 4px 0 0; font-size: 16px; }
 .center-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
 .center-tab {
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--muted);
-  border-radius: 999px;
+  border-radius: 200px;
   padding: 8px 12px;
+  font-size: 15px;
   cursor: pointer;
   transition: all 180ms ease;
 }
@@ -204,10 +213,10 @@ button, input, select { font: inherit; }
 }
 .topbar__title { font-size: 1.15rem; font-weight: 700; }
 .topbar__actions { display: flex; align-items: center; gap: 10px; }
-.chip { background: var(--primary-light); color: var(--primary); border-radius: 999px; padding: 8px 12px; font-size: 0.85rem; }
+.chip { background: var(--primary-light); color: var(--primary); border-radius: 200px; padding: 8px 12px; font-size: 14px; }
 .button {
   border: none;
-  border-radius: 999px;
+  border-radius: 200px;
   min-height: 42px;
   padding: 10px 18px;
   cursor: pointer;
@@ -240,9 +249,9 @@ button, input, select { font: inherit; }
 .card { min-height: 320px; }
 .kpi-card, .staff-kpi-card { display: flex; flex-direction: column; justify-content: space-between; min-height: 140px; }
 .card__header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-.card__header h3 { margin: 0; font-size: 1rem; }
-.card__subtitle { margin: 4px 0 0; color: var(--muted); font-size: 0.86rem; }
-.badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border-radius: 999px; font-size: 0.78rem; background: var(--surface-soft); color: var(--muted); }
+.card__header h3 { margin: 0; font-size: 16px; }
+.card__subtitle { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border-radius: 200px; font-size: 12px; background: var(--surface-soft); color: var(--muted); }
 .badge--accent { background: var(--surface-muted); color: var(--accent-secondary); }
 .badge--secondary { background: var(--surface-soft); color: var(--accent-secondary); }
 .badge--success { background: #edf0e8; color: var(--green); }
@@ -256,22 +265,50 @@ button, input, select { font: inherit; }
   inset: 0;
   display: grid;
   place-items: center;
-  font-size: 1rem;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text);
   pointer-events: none;
 }
 .card__stats { display: grid; gap: 6px; }
-.stat-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.86rem; color: var(--muted); }
+.stat-row { display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: var(--muted); }
 .stat-row strong { color: var(--text); }
 .card__list { display: flex; flex-direction: column; gap: 8px; }
-.analytics-list-title { color: var(--muted); font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.analytics-list-title { color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
 .analytics-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
 .analytics-heading .section-subtitle { margin-bottom: 4px; }
 .analytics-heading .section-title { margin-bottom: 0; }
 .list-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-radius: 12px; background: var(--surface-soft); }
-.list-item__label { font-size: 0.9rem; }
+.list-item__label { font-size: 14px; }
 .list-item__value { color: var(--primary); font-weight: 600; }
+
+.employee-worktype-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.employee-worktype-chart-frame {
+  padding: 16px 18px 10px;
+}
+
+.employee-worktype-breakdown .employee-worktype-chart-wrap {
+  height: 98px;
+}
+
+.indicator-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.overdue-note {
+  color: var(--red);
+  font-size: 12px;
+  white-space: nowrap;
+}
 
 .wide-card { padding: 20px; }
 .wide-card__head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 14px; }
@@ -280,20 +317,20 @@ button, input, select { font: inherit; }
 
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 184px)); justify-content: start; gap: 12px; }
 .kpi-card { min-height: 112px; padding: 14px 15px; }
-.kpi-card__label { color: var(--muted); font-size: 0.84rem; line-height: 1.25; }
+.kpi-card__label { color: var(--muted); font-size: 13px; line-height: 1.25; }
 .kpi-card__value { margin-top: 8px; font-size: 1.18rem; font-weight: 700; }
-.kpi-card__meta { margin-top: 6px; font-size: 0.85rem; color: var(--muted); }
+.kpi-card__meta { margin-top: 6px; font-size: 14px; color: var(--muted); }
 .kpi-card__metric { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 8px; }
 .kpi-card__metric .kpi-card__value { margin-top: 0; }
-.metric-delta { display: inline-flex; align-items: center; gap: 4px; min-height: 18px; line-height: 1.2; font-size: 0.82rem; font-weight: 600; color: var(--muted); }
+.metric-delta { display: inline-flex; align-items: center; gap: 4px; min-height: 18px; line-height: 1.2; font-size: 14px; font-weight: 600; color: var(--muted); }
 .metric-delta--positive { color: var(--green); }
 .metric-delta--negative { color: var(--red); }
 .metric-delta--neutral { color: var(--muted); }
 .load-level--low { color: var(--red); }
-.load-level--medium { color: var(--orange); }
+.load-level--medium { color: var(--yellow); }
 .load-level--high { color: var(--green); }
 .badge.load-level--low { background: #f3e8e3; color: var(--red); }
-.badge.load-level--medium { background: var(--surface-muted); color: var(--orange); }
+.badge.load-level--medium { background: var(--surface-muted); color: var(--yellow); }
 .badge.load-level--high { background: #edf0e8; color: var(--green); }
 .dynamic-controls {
   display: flex;
@@ -310,7 +347,7 @@ button, input, select { font: inherit; }
 }
 .dynamic-controls__label {
   color: var(--muted);
-  font-size: 0.76rem;
+  font-size: 12px;
   font-weight: 700;
   line-height: 1;
   text-transform: uppercase;
@@ -323,10 +360,10 @@ button, input, select { font: inherit; }
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--muted);
-  border-radius: 999px;
+  border-radius: 200px;
   padding: 7px 11px;
   cursor: pointer;
-  font-size: 0.84rem;
+  font-size: 13px;
   font-weight: 600;
   transition: background 180ms ease, border-color 180ms ease, color 180ms ease;
 }
@@ -351,7 +388,7 @@ button, input, select { font: inherit; }
   flex-direction: column;
   gap: 5px;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 12px;
   font-weight: 600;
 }
 .custom-period-fields input {
@@ -384,7 +421,7 @@ button, input, select { font: inherit; }
   border-radius: 14px;
   background: var(--surface-soft);
 }
-.center-summary-kpi span { color: var(--muted); font-size: 0.82rem; line-height: 1.25; }
+.center-summary-kpi span { color: var(--muted); font-size: 13px; line-height: 1.25; }
 .center-summary-kpi strong { font-size: 1.18rem; line-height: 1.1; }
 .center-summary-kpi--late strong { color: var(--red); }
 .center-summary-table-wrap { width: 100%; overflow-x: auto; }
@@ -402,14 +439,207 @@ button, input, select { font: inherit; }
 }
 .center-summary-table th {
   color: var(--muted);
-  font-size: 0.84rem;
+  font-size: 13px;
   font-weight: 600;
 }
-.center-summary-table td { font-size: 0.9rem; }
+.center-summary-table td { font-size: 14px; }
+
+.projects-matrix-card { gap: 16px; }
+
+.projects-matrix-block {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.projects-matrix-legend {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 12px 20px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-soft);
+  font-size: 13px;
+}
+
+.projects-matrix-legend__label {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.projects-matrix-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.projects-matrix-legend__text {
+  color: var(--muted);
+}
+
+.projects-matrix-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+  justify-content: flex-end;
+  margin: 0;
+}
+
+.projects-matrix-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.projects-matrix {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  min-width: 640px;
+}
+
+.projects-matrix__row {
+  display: flex;
+}
+
+.projects-matrix__row:not(:last-child) {
+  border-bottom: 1px solid var(--border);
+}
+
+.projects-matrix__row--header {
+  background: var(--surface-soft);
+}
+
+.projects-matrix__cell {
+  flex: 1 1 0;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 14px;
+}
+
+.projects-matrix__row--header .projects-matrix__cell {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.projects-matrix__cell--title {
+  flex: 0 0 240px;
+  justify-content: flex-start;
+  text-align: left;
+  font-weight: 600;
+}
+
+.projects-matrix__count-cell {
+  gap: 6px;
+  position: relative;
+}
+
+.projects-matrix__count-cell.clickable {
+  cursor: pointer;
+}
+
+.projects-matrix__count-cell.clickable:hover {
+  background: var(--surface-soft);
+}
+
+.projects-matrix__count-cell--critical {
+  background: #f3e8e3;
+}
+
+.projects-matrix__count-cell--critical.clickable:hover {
+  background: #eeded7;
+}
+
+.projects-matrix__count-cell.is-expanded {
+  background: var(--surface-muted);
+}
+
+.projects-matrix__count-value {
+  font-weight: 600;
+}
+
+.projects-matrix__toggle-icon {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.projects-matrix-details {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-soft);
+}
+
+.projects-matrix-details__title {
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.projects-matrix-group:not(:last-child) {
+  margin-bottom: 16px;
+}
+
+.projects-matrix-group__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.projects-matrix-detail-grid {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface-card);
+}
+
+.projects-matrix-detail-grid__row {
+  display: grid;
+  grid-template-columns: minmax(70px, 0.6fr) minmax(140px, 2fr) minmax(100px, 0.8fr) minmax(120px, 1fr) minmax(110px, 1fr) minmax(110px, 1fr);
+}
+
+.projects-matrix-detail-grid--with-context .projects-matrix-detail-grid__row {
+  grid-template-columns: minmax(120px, 1fr) minmax(70px, 0.6fr) minmax(140px, 2fr) minmax(100px, 0.8fr) minmax(120px, 1fr) minmax(110px, 1fr) minmax(110px, 1fr);
+}
+
+.projects-matrix-detail-grid__row:not(:last-child) {
+  border-bottom: 1px solid var(--border);
+}
+
+.projects-matrix-detail-grid__row--head {
+  background: var(--surface-soft);
+}
+
+.projects-matrix-detail-grid__row--head .projects-matrix-detail-grid__cell {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.projects-matrix-detail-grid__cell {
+  padding: 10px 12px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+}
+
+@media (max-width: 900px) {
+  .projects-matrix-legend { font-size: 12px; }
+  .projects-matrix__cell--title { flex-basis: 160px; }
+}
 
 .filter-card, .staff-filter-card { padding: 18px; display: flex; flex-wrap: wrap; gap: 14px; align-items: end; }
 .field, .staff-field, .employees-search, .employees-filter { display: flex; flex-direction: column; gap: 7px; min-width: 180px; flex: 1; }
-.field label, .staff-field label, .employees-search label, .employees-filter label { font-size: 0.84rem; color: var(--muted); }
+.field label, .staff-field label, .employees-search label, .employees-filter label { font-size: 13px; color: var(--muted); }
 .field input, .field select, .staff-field input, .staff-field select, .employees-search input, .employees-filter select {
   width: 100%;
   border: 1px solid var(--input-border);
@@ -438,13 +668,13 @@ button, input, select { font: inherit; }
 .table-card__head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .table-card table { width: 100%; border-collapse: collapse; }
 .table-card th, .table-card td { padding: 12px 10px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: middle; }
-.table-card th { color: var(--muted); font-weight: 600; font-size: 0.9rem; }
+.table-card th { color: var(--muted); font-weight: 600; font-size: 14px; }
 .table-card tbody tr { cursor: pointer; transition: background 180ms ease, transform 180ms ease; }
 .table-card tbody tr:hover { background: var(--surface-soft); transform: none; }
 .table-card .cell-user { display: flex; align-items: center; gap: 10px; }
 .avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--primary-light); color: var(--primary); display: grid; place-items: center; font-weight: 700; }
 .table-link { color: var(--primary); font-weight: 600; }
-.status-pill { display: inline-flex; padding: 6px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 600; }
+.status-pill { display: inline-flex; padding: 6px 10px; border-radius: 200px; font-size: 13px; font-weight: 600; }
 .status-pill--process { background: var(--surface-soft); color: var(--blue); }
 .status-pill--done { background: #edf0e8; color: var(--green); }
 .status-pill--delay { background: #f3e8e3; color: var(--red); }
@@ -466,7 +696,7 @@ button, input, select { font: inherit; }
 .employee-profile-card .page-back { margin: 0; white-space: nowrap; }
 .employee-profile-card__main { flex: 1; min-width: 0; }
 .employee-profile-card .section-title { margin: 0; font-size: 1.28rem; line-height: 1.16; }
-.employee-profile-card .section-subtitle { margin: 5px 0 0; font-size: 0.9rem; }
+.employee-profile-card .section-subtitle { margin: 5px 0 0; font-size: 14px; }
 .employee-period-card { padding: 16px 18px; gap: 12px; }
 .employee-period-card .wide-card__head { margin-bottom: 10px; }
 .employee-period-card .date-row { margin-top: 10px; gap: 12px; }
@@ -477,9 +707,9 @@ button, input, select { font: inherit; }
   padding: 11px 12px;
   border-radius: 18px;
 }
-.employee-kpi-grid .kpi-card__label { font-size: 0.78rem; }
+.employee-kpi-grid .kpi-card__label { font-size: 12px; }
 .employee-kpi-grid .kpi-card__value { font-size: 1.05rem; }
-.employee-kpi-grid .metric-delta { font-size: 0.78rem; min-height: 16px; }
+.employee-kpi-grid .metric-delta { font-size: 12px; min-height: 16px; }
 .employee-charts-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -490,8 +720,8 @@ button, input, select { font: inherit; }
   padding: 16px;
   gap: 10px;
 }
-.employee-chart-card .card__header h3 { font-size: 0.98rem; }
-.employee-chart-card .card__subtitle { font-size: 0.82rem; }
+.employee-chart-card .card__header h3 { font-size: 16px; }
+.employee-chart-card .card__subtitle { font-size: 13px; }
 .employee-chart-wrap { height: 178px; }
 .employee-dynamic-card { padding: 16px; }
 .employee-history-chart { height: 238px; }
@@ -503,9 +733,9 @@ button, input, select { font: inherit; }
 .employee-load-table th,
 .employee-load-table td {
   padding: 9px 10px;
-  font-size: 0.86rem;
+  font-size: 14px;
 }
-.employee-load-table th { font-size: 0.8rem; }
+.employee-load-table th { font-size: 13px; }
 .employee-load-table tbody tr { cursor: default; }
 .employee-load-table tbody tr:hover { transform: none; }
 .employee-load-table__task-link {
@@ -588,14 +818,14 @@ button, input, select { font: inherit; }
   flex-wrap: wrap;
   margin-top: 10px;
   color: var(--muted);
-  font-size: 0.86rem;
+  font-size: 14px;
 }
 .task-modal__close {
   flex: 0 0 auto;
   width: 34px;
   height: 34px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: 200px;
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
@@ -634,11 +864,11 @@ button, input, select { font: inherit; }
   border-bottom: 1px solid var(--border);
   text-align: left;
   vertical-align: middle;
-  font-size: 0.86rem;
+  font-size: 14px;
 }
 .task-modal__table th {
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 12px;
   font-weight: 700;
   background: var(--surface-soft);
 }
@@ -675,12 +905,12 @@ button, input, select { font: inherit; }
   min-height: 34px;
   width: 34px;
   padding: 0;
-  border-radius: 999px;
+  border-radius: 200px;
 }
 .hidden { display: none; }
 .employee-preview__body { display: flex; flex-direction: column; gap: 10px; }
 .employee-preview .detail-list { display: grid; gap: 6px; }
-.employee-preview .detail-item { display: flex; justify-content: space-between; gap: 12px; padding: 7px 9px; border-radius: 10px; background: var(--surface-soft); font-size: 0.84rem; }
+.employee-preview .detail-item { display: flex; justify-content: space-between; gap: 12px; padding: 7px 9px; border-radius: 10px; background: var(--surface-soft); font-size: 13px; }
 .employee-preview .detail-item span { color: var(--muted); }
 .employee-preview .detail-item strong { font-weight: 600; text-align: right; }
 .preview-metric-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
@@ -695,8 +925,8 @@ button, input, select { font: inherit; }
   border-radius: 12px;
   background: var(--surface-soft);
 }
-.preview-metric-card__label { color: var(--muted); font-size: 0.74rem; line-height: 1.2; }
-.preview-metric-card__value { font-size: 1rem; font-weight: 700; line-height: 1.08; }
+.preview-metric-card__label { color: var(--muted); font-size: 12px; line-height: 1.2; }
+.preview-metric-card__value { font-size: 16px; font-weight: 700; line-height: 1.08; }
 .preview-metric-card .metric-delta { margin-top: 0; }
 .preview-actions { display: flex; gap: 10px; }
 .preview-actions .button { flex: 1; }
@@ -718,8 +948,24 @@ button, input, select { font: inherit; }
 .section-title { margin: 0 0 12px; font-size: 1.4rem; }
 .section-subtitle { margin: 0 0 18px; color: var(--muted); }
 .period-switcher { display: inline-flex; gap: 8px; flex-wrap: wrap; }
-.period-btn { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 8px 12px; cursor: pointer; color: var(--muted); }
+.period-btn { border: 1px solid var(--border); background: var(--surface); border-radius: 200px; padding: 8px 12px; cursor: pointer; color: var(--muted); }
 .period-btn.is-active { background: var(--primary); color: white; border-color: var(--primary); }
+
+/* Fixes the period switcher to a constant position regardless of
+   preset: the unit-select slot always reserves its widest possible
+   width, even when empty (week/custom presets render no select), so
+   the switcher never shifts left/right depending on what's selected. */
+.period-switcher-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.period-switcher-group__unit {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 170px;
+}
 
 .date-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: end; margin-top: 16px; }
 .date-row .field { margin-bottom: 0; }
@@ -746,13 +992,105 @@ button, input, select { font: inherit; }
 .employees-search input:focus-visible,
 .employees-filter select:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255,104,44,0.16); border-color: var(--accent); }
 .employees-reset { height: 40px; padding: 0 18px; border-radius: 12px; align-self: end; white-space: nowrap; }
+
+.custom-select {
+  position: relative;
+  width: 100%;
+}
+
+.custom-select__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  height: 40px;
+  border: 1px solid var(--input-border);
+  border-radius: 12px;
+  padding: 0 12px;
+  background: var(--input-bg);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.custom-select__trigger:hover { border-color: var(--accent); }
+
+.custom-select__trigger:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255,104,44,0.16);
+  border-color: var(--accent);
+}
+
+.custom-select.is-open .custom-select__trigger { border-color: var(--accent); }
+
+.custom-select__value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.custom-select__trigger-icon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  color: var(--muted);
+  transition: transform 160ms ease;
+}
+
+.custom-select.is-open .custom-select__trigger-icon { transform: rotate(180deg); }
+
+.custom-select__panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  max-height: 280px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 16px 32px rgba(32, 32, 32, 0.14);
+}
+
+.custom-select__panel[hidden] {
+  display: none;
+}
+
+.custom-select__option {
+  display: block;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.custom-select__option:hover { background: var(--surface-soft); }
+
+.custom-select__option.is-selected {
+  background: var(--surface-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
 .employees-table-wrapper { width: 100%; overflow-x: auto; }
 .employees-table { width: 100%; border-collapse: collapse; }
 .employees-table th, .employees-table td { padding: 10px 9px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: middle; }
-.employees-table th { color: var(--muted); font-weight: 600; font-size: 0.84rem; }
-.employees-table td { font-size: 0.9rem; }
-.employee-name-cell { display: flex; flex-direction: column; gap: 2px; min-width: 210px; }
-.employee-name-cell strong { color: var(--text); font-size: 0.92rem; line-height: 1.25; }
+.employees-table th { color: var(--muted); font-weight: 600; font-size: 13px; }
+.employees-table td { font-size: 14px; }
+.employee-name-cell { display: flex; flex-direction: column; gap: 2px; min-width: 210px; max-width: 240px; }
+.employee-name-cell strong { color: var(--text); font-size: 15px; line-height: 1.25; }
+.employee-name-cell .card__subtitle { overflow-wrap: break-word; white-space: normal; }
 @media (max-width: 1024px) {
   .employees-toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .employees-reset { width: 100%; }
@@ -794,7 +1132,7 @@ button, input, select { font: inherit; }
   box-shadow: var(--shadow);
 }
 .staff-sidebar__title {
-  font-size: 1rem;
+  font-size: 16px;
   font-weight: 700;
   margin-bottom: 18px;
 }
@@ -820,7 +1158,7 @@ button, input, select { font: inherit; }
   box-shadow: var(--shadow);
 }
 .staff-topbar h1 { margin: 6px 0 0; font-size: 1.3rem; }
-.staff-topbar__eyebrow { color: var(--primary); font-size: 0.82rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
+.staff-topbar__eyebrow { color: var(--primary); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
 .staff-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .staff-grid--five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .staff-card {
@@ -834,9 +1172,9 @@ button, input, select { font: inherit; }
 .staff-card--wide { padding: 20px; }
 .staff-card--table { position: relative; }
 .staff-card__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
-.staff-card__head h3 { margin: 0; font-size: 1rem; }
-.staff-card__head p { margin: 4px 0 0; color: var(--muted); font-size: 0.86rem; }
-.staff-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; font-size: 0.8rem; background: var(--surface-soft); color: var(--muted); }
+.staff-card__head h3 { margin: 0; font-size: 16px; }
+.staff-card__head p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+.staff-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 200px; font-size: 13px; background: var(--surface-soft); color: var(--muted); }
 .staff-badge--accent { background: var(--surface-muted); color: var(--accent-secondary); }
 .staff-badge--secondary { background: var(--surface-soft); color: var(--accent-secondary); }
 .staff-badge--success { background: #edf0e8; color: var(--green); }
@@ -845,20 +1183,20 @@ button, input, select { font: inherit; }
 .staff-donut canvas { width: 100% !important; height: 100% !important; }
 .staff-donut__label { position: absolute; inset: 0; display: grid; place-items: center; font-size: 1.1rem; font-weight: 700; color: var(--text); }
 .staff-card--chart .staff-chart-large { min-height: 320px; }
-.staff-section-title { margin: 14px 0 8px; font-size: 0.88rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.staff-section-title { margin: 14px 0 8px; font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
 .staff-list { display: grid; gap: 8px; }
-.staff-list__item { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; color: var(--muted); }
+.staff-list__item { display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: var(--muted); }
 .staff-card__stack { display: grid; gap: 8px; }
-.staff-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.92rem; color: var(--muted); }
+.staff-row { display: flex; justify-content: space-between; align-items: center; font-size: 15px; color: var(--muted); }
 .staff-row strong { color: var(--text); }
 .staff-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .staff-kpi-card { background: var(--surface-soft); border: 1px solid var(--border); border-radius: 18px; padding: 14px 16px; }
-.staff-kpi-card__label { color: var(--muted); font-size: 0.9rem; }
+.staff-kpi-card__label { color: var(--muted); font-size: 14px; }
 .staff-kpi-card__value { margin-top: 7px; font-size: 1.2rem; font-weight: 700; }
 .staff-filter-card { display: flex; flex-wrap: wrap; gap: 14px; padding: 18px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--card-radius); box-shadow: var(--shadow); }
 .staff-field--search { flex: 2 1 320px; min-width: 260px; }
 .staff-field { display: flex; flex-direction: column; gap: 7px; min-width: 180px; flex: 1; }
-.staff-field label { font-size: 0.84rem; color: var(--muted); }
+.staff-field label { font-size: 13px; color: var(--muted); }
 .staff-field input, .staff-field select {
   width: 100%;
   border: 1px solid var(--input-border);
@@ -873,17 +1211,17 @@ button, input, select { font: inherit; }
 .staff-table-wrap { overflow-x: auto; position: relative; }
 .staff-table { width: 100%; border-collapse: collapse; }
 .staff-table th, .staff-table td { padding: 14px 12px; text-align: left; border-bottom: 1px solid var(--border); }
-.staff-table th { color: var(--muted); font-size: 0.9rem; font-weight: 600; }
+.staff-table th { color: var(--muted); font-size: 14px; font-weight: 600; }
 .staff-table tbody tr { cursor: pointer; transition: background 180ms ease; }
 .staff-table tbody tr:hover { background: var(--surface-soft); }
 .staff-user { display: flex; align-items: center; gap: 10px; }
 .staff-avatar { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: var(--primary-light); color: var(--primary); font-weight: 700; }
-.staff-muted { color: var(--muted); font-size: 0.86rem; }
+.staff-muted { color: var(--muted); font-size: 14px; }
 .staff-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
+  border-radius: 200px;
   padding: 10px 14px;
   border: 1px solid var(--border);
   background: var(--surface);
@@ -913,13 +1251,13 @@ button, input, select { font: inherit; }
 }
 .staff-employee-preview.is-visible { transform: translateX(0); }
 .staff-employee-preview .employee-preview__head { display: flex; justify-content: flex-end; }
-.staff-employee-preview .employee-preview__close { margin: 0; border-radius: 999px; }
+.staff-employee-preview .employee-preview__close { margin: 0; border-radius: 200px; }
 .staff-employee-preview .employee-preview__title { margin: 0; font-size: 1.2rem; line-height: 1.2; }
 .preview-kpi-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .preview-kpi-card { background: white; border: 1px solid var(--border); border-radius: 18px; padding: 14px; }
-.preview-kpi-card__label { color: var(--muted); font-size: 0.8rem; margin-bottom: 6px; }
+.preview-kpi-card__label { color: var(--muted); font-size: 13px; margin-bottom: 6px; }
 .preview-kpi-card__value { font-size: 1.24rem; font-weight: 700; margin-bottom: 4px; }
-.preview-kpi-card__delta { color: var(--muted); font-size: 0.82rem; }
+.preview-kpi-card__delta { color: var(--muted); font-size: 13px; }
 .staff-employee-preview .preview-actions { display: flex; gap: 10px; margin-top: 12px; }
 .staff-employee-preview .preview-actions .button { flex: 1; }
 
@@ -962,7 +1300,7 @@ h1, h2, h3,
   font-weight: 400;
 }
 
-.sidebar__brand h1 { font-size: 1rem; }
+.sidebar__brand h1 { font-size: 16px; }
 .sidebar__brand p { color: var(--secondary-text); }
 
 .sidebar__item {
@@ -1041,7 +1379,7 @@ h1, h2, h3,
   color: var(--muted);
   border: 1px solid var(--border);
   border-radius: 200px;
-  font-size: 0.82rem;
+  font-size: 13px;
 }
 
 .button,
@@ -1153,7 +1491,7 @@ h1, h2, h3,
 .preview-metric-card__label,
 .center-summary-kpi span {
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 12px;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1201,16 +1539,16 @@ h1, h2, h3,
 
 .badge.load-level--low,
 .status-pill--delay { background: #f3e8e3; color: var(--red); border-color: #ead4ca; }
-.badge.load-level--medium,
-.status-pill--warning { background: var(--surface-muted); color: var(--secondary-accent); border-color: #ddd5c8; }
+.badge.load-level--medium { background: var(--surface-muted); color: var(--yellow); border-color: #ddd5c8; }
+.status-pill--warning { background: var(--surface-muted); color: var(--orange); border-color: #ddd5c8; }
 .badge.load-level--high,
 .status-pill--done { background: #edf0e8; color: var(--green); border-color: #dce3d5; }
 .status-pill--process { background: var(--surface-soft); color: var(--secondary-text); border-color: var(--border); }
 .status-pill--neutral { background: var(--surface-soft); color: var(--muted); border-color: var(--border); }
 
 .load-level--low { color: var(--red); }
-.load-level--medium { color: var(--orange); }
-.load-level--high { color: var(--secondary-accent); }
+.load-level--medium { color: var(--yellow); }
+.load-level--high { color: var(--green); }
 
 .chart-center-label { font-family: var(--font-polysans); font-weight: 400; }
 
@@ -1294,7 +1632,7 @@ h1, h2, h3,
 .employees-filter label,
 .custom-period-fields label {
   color: var(--muted);
-  font-size: 0.76rem;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1338,7 +1676,7 @@ h1, h2, h3,
 .staff-table th {
   color: var(--muted);
   background: transparent;
-  font-size: 0.78rem;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1523,11 +1861,6 @@ body {
   transform: scaleY(0.3);
   transform-origin: center;
   transition: background 180ms ease, transform 180ms ease;
-}
-
-.sidebar__item:first-child {
-  min-height: 56px;
-  font-size: 20px;
 }
 
 .sidebar__item:hover,
@@ -1780,7 +2113,7 @@ body {
   gap: 1px;
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 20px;
 }
 
 .stat-row {
@@ -1791,6 +2124,7 @@ body {
 .stat-row strong {
   font-family: var(--font-heading);
   font-weight: 400;
+  letter-spacing: -0.02em;
 }
 
 .analytics-list-title {
@@ -1842,7 +2176,7 @@ body {
 }
 
 .metric-delta {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
 }
 
@@ -1895,7 +2229,7 @@ body {
   min-height: 112px;
   padding: 18px;
   background: var(--surface-soft);
-  border-radius: 12px;
+  border-radius: 20px;
 }
 
 .center-summary-kpi strong {
@@ -2006,7 +2340,7 @@ body {
 }
 
 .employee-preview {
-  width: min(440px, calc(100vw - 48px));
+  width: min(650px, calc(100vw - 48px));
   padding: 24px;
   background: var(--surface-card);
   border-radius: var(--radius-card);
@@ -2155,25 +2489,10 @@ body.sidebar-collapsed .sidebar__chevron {
   transition: opacity 180ms ease, width 220ms ease, color 180ms ease, background 180ms ease, transform 180ms ease;
 }
 
-.topbar::before {
-  content: "Staff Analytics";
-  display: block;
-  margin-bottom: 8px;
-  color: var(--accent-secondary);
-  font-family: var(--font-heading);
-  font-size: 13px;
-  line-height: 1;
-  letter-spacing: -0.02em;
-}
-
 .topbar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   column-gap: 24px;
-}
-
-.topbar::before {
-  grid-column: 1 / -1;
 }
 
 .topbar__actions {
@@ -2482,7 +2801,14 @@ body.sidebar-collapsed .sidebar__chevron {
 }
 
 .data-viz-card--period .data-viz-card__title {
+  font-size: 13px;
+}
+
+.data-viz-card--period .data-viz-card__subtitle {
   font-size: 20px;
+  line-height: 1.2;
+  color: var(--text);
+  font-weight: 600;
 }
 
 .data-viz-card--period .data-viz-card__metric-value {
@@ -2498,7 +2824,7 @@ body.sidebar-collapsed .sidebar__chevron {
   min-width: 0;
   background: var(--surface-soft);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 20px;
   overflow: hidden;
 }
 
@@ -2517,18 +2843,22 @@ body.sidebar-collapsed .sidebar__chevron {
   width: 240px;
   height: 240px;
   margin: 0 auto;
-  padding: 12px;
+  padding: 6px 12px 12px;
   background: linear-gradient(180deg, var(--surface-soft), var(--surface-card));
 }
 
 .data-viz-card--period .chart-frame--donut {
-  width: 186px;
-  height: 186px;
+  width: 279px;
+  height: 279px;
 }
 
 .chart-frame--donut canvas {
   width: 100% !important;
   height: 100% !important;
+}
+
+.chart-frame--donut__canvas--shadowed {
+  filter: drop-shadow(0 6px 12px rgba(32, 32, 32, 0.18));
 }
 
 .donut-layout {
@@ -2630,6 +2960,7 @@ body.sidebar-collapsed .sidebar__chevron {
   gap: 20px;
   color: var(--muted);
   font-size: 13px;
+  margin: 14px 0 18px;
 }
 
 .bar-chart-footer .chart-legend--vertical {
@@ -2699,7 +3030,7 @@ body.sidebar-collapsed .sidebar__chevron {
   .data-viz-card { padding: 28px; }
   .data-viz-card__metric-value { font-size: 42px; }
   .data-viz-card--period { padding: 24px; }
-  .data-viz-card--period .chart-frame--donut { width: 168px; height: 168px; }
+  .data-viz-card--period .chart-frame--donut { width: 252px; height: 252px; }
   .wide-card,
   .table-card,
   .employees-card,
@@ -2787,7 +3118,7 @@ body.sidebar-collapsed .sidebar__chevron {
 
 .percent-value.load-level--medium,
 .load-level--medium .percent-value {
-  color: var(--orange);
+  color: var(--yellow);
 }
 
 .percent-value.load-level--high,
@@ -2952,6 +3283,15 @@ html {
   opacity: 0;
   transform: none;
   filter: none;
+}
+
+/* Block interaction on the outgoing layer for the entire click-to-commit
+   window, not just while it's visually fading - otherwise a click can
+   race the delayed DOM swap in renderWithTransition and leave the page
+   showing a mix of two different renders (e.g. an active period button
+   from one render next to a sub-selector from another). */
+.view-transition-root.is-navigating .view-layer--current {
+  pointer-events: none;
 }
 
 .view-transition-root.is-transitioning .view-layer--next {
@@ -3482,17 +3822,18 @@ body.sidebar-collapsed .sidebar__chevron {
 .metrics-group__title {
   color: var(--text-secondary, #4d4d4d);
   font-family: var(--font-body, Inter, system-ui, sans-serif);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 1.2;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  margin-left: 18px;
 }
 
 .metrics-grid {
-  display: flex;
-  align-items: flex-start;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
   gap: 12px;
 }
 
@@ -3518,7 +3859,7 @@ body.sidebar-collapsed .sidebar__chevron {
 
 .metric-card__label {
   max-width: 18ch;
-  color: var(--muted, #828282);
+  color: var(--text-secondary, #4d4d4d);
   font-size: 12px;
   font-weight: 500;
   line-height: 1.25;
@@ -3553,7 +3894,7 @@ body.sidebar-collapsed .sidebar__chevron {
   display: inline-block;
   width: max-content;
   max-width: 100%;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .date-fit,
@@ -3759,7 +4100,7 @@ body.sidebar-collapsed .sidebar__chevron {
 }
 
 .sidebar__item--parent {
-  min-height: 92px;
+  min-height: 46px;
   padding-left: 18px;
 }
 
@@ -4013,7 +4354,10 @@ body.sidebar-collapsed .app-shell {
 
 .dashboard-periods-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  /* auto-fill (not auto-fit) keeps a trailing lone card at the same width
+     as the rest instead of stretching it across the whole row. minmax
+     widened to 340px to fit the enlarged 279px donut plus card padding. */
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   gap: 16px;
 }
 
@@ -4066,8 +4410,8 @@ body.sidebar-collapsed .app-shell {
   .app-shell.app-shell--sidebar-collapsed .dashboard-periods-grid .data-viz-card--period .chart-frame--donut,
   .app-shell.is-sidebar-collapsed .dashboard-periods-grid .data-viz-card--period .chart-frame--donut,
   body.sidebar-collapsed .app-shell .dashboard-periods-grid .data-viz-card--period .chart-frame--donut {
-    width: 146px;
-    height: 146px;
+    width: 219px;
+    height: 219px;
   }
 
   .app-shell.sidebar-collapsed .dashboard-periods-grid .data-viz-card--period .donut-center-label__value,
@@ -4299,7 +4643,7 @@ body.sidebar-collapsed .app-shell {
 }
 
 .sidebar:not(.sidebar--collapsed) .sidebar__item--parent .sidebar__item-link {
-  min-height: 76px;
+  min-height: 48px;
 }
 
 .sidebar:not(.sidebar--collapsed) .sidebar__dot,
@@ -4350,10 +4694,7 @@ body.sidebar-collapsed .app-shell {
 
 /* Employees filters: explicit dropdown chevrons */
 .employees-toolbar .employees-filter select,
-.employees-card .employees-filter select,
-#filterCenter,
-#filterManagement,
-#filterStatus {
+.employees-card .employees-filter select {
   appearance: none;
   -webkit-appearance: none;
   padding-right: 38px;
@@ -4365,10 +4706,7 @@ body.sidebar-collapsed .app-shell {
 }
 
 .employees-toolbar .employees-filter select::-ms-expand,
-.employees-card .employees-filter select::-ms-expand,
-#filterCenter::-ms-expand,
-#filterManagement::-ms-expand,
-#filterStatus::-ms-expand {
+.employees-card .employees-filter select::-ms-expand {
   display: none;
 }
 
@@ -4641,4 +4979,2575 @@ body.is-modal-dragging {
     scroll-behavior: auto !important;
     transition-duration: 1ms !important;
   }
+}
+
+/* ============================================================
+   Design consistency pass
+   Aligns block sizes within a single section, evens out the
+   period grid and calms the oversized KPI type scale so every
+   card in a group reads as one system.
+   ============================================================ */
+
+/* 1 — Uniform KPI / metric cards inside a metrics group.
+   Previously each card sized to its own content (widths 156-230px,
+   heights 161 vs 176px), so cards in the same section looked ragged.
+   Fix: equal-width cells, stretched to equal height per row, with the
+   label reserving two lines so every big number sits on one baseline. */
+.metrics-grid .metric-card {
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  min-height: 0;
+}
+
+.metrics-grid .metric-card__label {
+  max-width: none;
+  min-height: 30px; /* two lines at 12px / 1.25 - keeps values aligned */
+  display: flex;
+  align-items: flex-start;
+}
+
+/* Calmer number size: 40px (heading-lg token) instead of up to 56px,
+   which crowded the narrow cards and read as "too big". */
+.metrics-grid .metric-card__value,
+.metrics-grid .metric-card__value.percent-value,
+.metrics-grid .kpi-card__value.metric-card__value.percent-value {
+  font-size: clamp(30px, 2.8vw, 40px);
+  line-height: 1;
+}
+
+/* Keep the delta row a fixed height whether it shows a value or the
+   "-" placeholder, so cards with and without a delta stay the same size. */
+.metrics-grid .metric-card__delta {
+  min-height: 18px;
+}
+
+/* 2 - Even period grid.
+   Five period cards under auto-fit wrapped as 4 + 1 with the lone card
+   stretched full width. The base rule now uses auto-fill so a trailing
+   card keeps the same width as the rest; the dense content stays
+   comfortable rather than being crammed into a single tight row. */
+
+/* 3 - Period fact/plan mini-stats.
+   The 2x2 cells are only ~73px wide, so space-between pushed the label
+   and value together ("Plan1120", "Absence8"). Stack the label over
+   the value inside each cell so text never collides. */
+.data-viz-card--period .card__stats .stat-row {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.data-viz-card--period .card__stats .stat-row span {
+  font-size: 12px;
+  line-height: 1.2;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.data-viz-card--period .card__stats .stat-row strong {
+  font-size: 16px;
+  line-height: 1.1;
+}
+
+/* 4 - Employee load table fit.
+   Long nowrap headers forced the table wider than its card, clipping
+   the last two columns. Let the header cells wrap so all six columns
+   fit inside the card; data cells stay on one line. */
+.employee-load-table th {
+  white-space: normal;
+  vertical-align: bottom;
+}
+
+/* 5 - Employees overview counters.
+   These are plain counts (people, centres, tasks) with no prior period,
+   so every card rendered a stray "-" delta that read as broken. A delta
+   is meaningless here; hide it uniformly so the four cards stay equal. */
+.employees-compact-kpis .metric-card__delta {
+  display: none;
+}
+
+/* ============================================================
+   Dynamics controls — Period vs Detailization
+   Two clearly separated blocks inside one surface panel, split
+   by a thin vertical divider (horizontal when stacked).
+   ============================================================ */
+.dynamic-controls {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  margin: -2px 0 16px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+.dynamic-controls__panel {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  width: max-content;
+  max-width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.dynamic-controls__panel .dynamic-controls__group {
+  gap: 8px;
+  padding: 14px 18px;
+  min-width: 0;
+}
+
+.dynamic-controls__divider {
+  flex: 0 0 1px;
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
+}
+
+/* white pill switchers stand out against the ash panel */
+.dynamic-controls__panel .period-preset-switcher,
+.dynamic-controls__panel .granularity-switcher {
+  background: var(--surface-card);
+}
+
+/* custom date range drops to its own line beneath the panel */
+.dynamic-controls .custom-period-fields {
+  width: 100%;
+}
+
+@media (max-width: 760px) {
+  .dynamic-controls__panel {
+    flex-direction: column;
+    width: 100%;
+  }
+  .dynamic-controls__divider {
+    width: 100%;
+    height: 1px;
+    flex: 0 0 1px;
+  }
+}
+
+/* ============================================================
+   Plan / fact time chart — wide, elongated bar chart
+   More horizontal room so plan vs fact is easy to compare per
+   period; the plan/fact card takes the wider grid column.
+   ============================================================ */
+.chart-wide-horizontal {
+  width: 100%;
+}
+
+.data-viz-card .employee-chart-wrap.chart-wide-horizontal {
+  min-height: 260px;
+  height: 300px;
+}
+
+.bar-chart-split {
+  display: flex;
+  gap: 20px;
+  align-items: stretch;
+}
+
+.bar-chart-split__field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.bar-chart-split__field--periods {
+  flex: 2.2 1 0%;
+}
+
+.bar-chart-split__field--total {
+  flex: 1 1 0%;
+}
+
+.bar-chart-split__title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+@media (max-width: 720px) {
+  .bar-chart-split {
+    flex-direction: column;
+  }
+}
+
+@media (min-width: 1025px) {
+  .employee-charts-grid {
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .employee-chart-card.data-viz-card--wide .bar-chart-split {
+    flex: 1 1 auto;
+  }
+
+  .employee-chart-card.data-viz-card--wide .bar-chart-split__field .chart-frame {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+  }
+
+  .employee-chart-card.data-viz-card--wide .employee-chart-wrap.chart-wide-horizontal {
+    flex: 1 1 auto;
+    height: 100%;
+    min-height: 300px;
+  }
+}
+
+/* ============================================================
+   Short-value display: dates, numbers, statuses, and thin
+   logical dividers between blocks.
+   ============================================================ */
+
+/* Task 1 — compact date inputs sized for dd.mm.yyyy, not full width */
+.date-fit,
+.date-row input[type="date"].date-fit,
+.custom-period-fields input.date-fit,
+.field input[type="date"].date-fit {
+  width: fit-content;
+  min-width: 132px;   /* fits dd.mm.yyyy + native picker icon */
+  max-width: 158px;
+  padding-left: 12px; /* ~ two date digits */
+  padding-right: 12px;
+}
+
+/* Task 2 — prominent, self-fitting metric numbers */
+.metric-value-large {
+  font-family: var(--font-heading);
+  font-size: 48px;
+  font-weight: 400;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  white-space: nowrap;
+}
+.metric-card--fit {
+  width: fit-content;
+  min-width: 0;
+  max-width: 100%;
+}
+/* .value-fit is defined above (inline-block, width: max-content, nowrap) */
+
+/* Task 3 — status pills / badges always stay on one line */
+.status-pill,
+.badge,
+.staff-badge {
+  white-space: nowrap;
+}
+
+/* Task 4 — thin logical dividers between blocks (hairlines, never bold) */
+/* filters -> results table */
+.employees-card .employees-table-wrapper {
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+  margin-top: 2px;
+}
+/* chart settings (period / detailization) -> chart */
+.data-viz-card .dynamic-controls + .data-viz-card__body {
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+  margin-top: 6px;
+}
+/* keep KPI-group / hours-vs-tasks separators as a crisp hairline */
+.metrics-separator {
+  background: var(--border);
+  min-height: 100%;
+}
+
+/* ============================================================
+   Metric card inner rhythm
+   One padding system for numeric KPI cards, preview counters,
+   centre summaries and chart header metrics.
+   ============================================================ */
+.metric-card,
+.kpi-card,
+.preview-metric-card,
+.employee-metric-card,
+.summary-card,
+.staff-kpi-card,
+.preview-kpi-card,
+.center-summary-kpi {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: var(--metric-card-gap);
+  padding: var(--metric-card-padding-y) var(--metric-card-padding-x);
+}
+
+.data-viz-card__metric {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: var(--metric-card-gap);
+  padding: var(--metric-card-padding-large-y) var(--metric-card-padding-large-x);
+}
+
+.kpi-card__metric {
+  margin-top: 0;
+  gap: var(--metric-card-gap);
+}
+
+.kpi-card__label,
+.metric-card__label,
+.preview-metric-card__label,
+.preview-kpi-card__label,
+.staff-kpi-card__label,
+.center-summary-kpi span,
+.data-viz-card__metric-label {
+  margin: 0;
+}
+
+.kpi-card__value,
+.kpi-card__meta,
+.metric-card__value,
+.preview-metric-card__value,
+.preview-kpi-card__value,
+.preview-kpi-card__label,
+.staff-kpi-card__value,
+.center-summary-kpi strong,
+.data-viz-card__metric-value,
+.preview-kpi-card__delta {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.center-summary-kpi strong {
+  align-self: flex-start;
+}
+
+.kpi-card::after {
+  left: var(--metric-card-padding-x);
+  right: var(--metric-card-padding-x);
+  bottom: var(--metric-card-padding-y);
+}
+
+.employees-compact-kpis .metric-card,
+.metrics-panel--employee .metric-card,
+.employee-kpi-grid .kpi-card,
+.preview-metric-card,
+.preview-kpi-card,
+.staff-kpi-card {
+  padding: var(--metric-card-padding-y) var(--metric-card-padding-x);
+}
+
+/* ============================================================
+   Period load cards
+   Keep the donut value as the only visible load percent.
+   ============================================================ */
+.data-viz-card--period .data-viz-card__header,
+.dashboard-periods-grid .card__header,
+.load-card__header,
+.period-card__header {
+  display: block;
+}
+
+.data-viz-card--period .data-viz-card__header > div,
+.load-card__header > div,
+.period-card__header > div {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.data-viz-card--period .data-viz-card__title,
+.load-card__title,
+.period-card__title {
+  max-width: 100%;
+  white-space: normal;
+  line-height: 1.15;
+}
+
+.data-viz-card--period .data-viz-card__header > .data-viz-card__metric,
+.load-card__corner-percent,
+.period-card__corner-percent,
+.card-percent--corner {
+  display: none;
+}
+
+/* ============================================================
+   Period card header alignment
+   Titles ("Нарастающий итог по неделям") and subtitles
+   ("Понедельник, 6 июля 2026") wrap to a different number of
+   lines per card, so the header's bottom border (the divider
+   above the chart) landed at a different height on each one.
+   Reserve a fixed min-height on the title+subtitle block sized
+   for the tallest real card and bottom-align its text inside
+   it, so the divider sits at the same level on every card no
+   matter how the title/subtitle wrap.
+   ============================================================ */
+.data-viz-card--period .data-viz-card__header-text {
+  min-height: 70px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+/* ============================================================
+   Sidebar centers dropdown
+   JS owns the open state so the menu closes after selection and
+   after a short pointer/focus leave delay.
+   ============================================================ */
+.sidebar:not(.sidebar--collapsed) .sidebar__item--has-dropdown .sidebar__chevron {
+  grid-column: 3;
+  justify-self: end;
+  align-self: center;
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  color: var(--muted);
+  transform: translateX(9px) rotate(0deg);
+  transform-origin: 50% 50%;
+  transition:
+    color var(--duration-fast) var(--ease-out-soft),
+    transform var(--duration-base) var(--ease-out-soft);
+}
+
+.sidebar:not(.sidebar--collapsed) .sidebar__item--has-dropdown .sidebar__chevron path {
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.sidebar__item--has-dropdown:hover .sidebar__dropdown,
+.sidebar__item--has-dropdown:focus-within .sidebar__dropdown {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px);
+  pointer-events: none;
+}
+
+.sidebar__item--has-dropdown:hover .sidebar__chevron,
+.sidebar__item--has-dropdown:focus-within .sidebar__chevron {
+  color: var(--text);
+  transform: translateX(9px) rotate(0deg);
+}
+
+.sidebar__item--has-dropdown.is-open .sidebar__dropdown,
+.sidebar__item--has-dropdown.is-open:hover .sidebar__dropdown,
+.sidebar__item--has-dropdown.is-open:focus-within .sidebar__dropdown {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.sidebar__item--has-dropdown.is-open .sidebar__chevron,
+.sidebar__item--has-dropdown.is-open:hover .sidebar__chevron,
+.sidebar__item--has-dropdown.is-open:focus-within .sidebar__chevron {
+  color: var(--text);
+  transform: translateX(9px) rotate(90deg);
+}
+
+/* ============================================================
+   Employees table density
+   The filters should lead straight into the table without the
+   redundant local title/count header.
+   ============================================================ */
+.employees-card .employees-toolbar {
+  margin-bottom: 10px;
+}
+
+.employees-card .employees-table-wrapper {
+  margin-top: 0;
+  padding-top: 8px;
+}
+
+.employees-card .employees-table-wrapper > .table-card__head {
+  display: none;
+}
+
+/* ============================================================
+   Metric value alignment
+   Numbers, deltas and the bottom rule share one left axis; compact
+   employee-page KPI labels reserve equal height so values sit on one
+   visual baseline.
+   ============================================================ */
+.metric-card.kpi-card {
+  --metric-rule-offset-x: 0px;
+}
+
+.metric-card--centersCount,
+.metric-card--managementsCount {
+  --metric-rule-offset-x: 2px;
+}
+
+.metric-card.kpi-card .kpi-card__metric {
+  align-items: flex-start;
+  width: 100%;
+  padding-left: var(--metric-rule-offset-x);
+  box-sizing: border-box;
+}
+
+.metric-card.kpi-card::after {
+  left: calc(var(--metric-card-padding-x) + var(--metric-rule-offset-x));
+}
+
+.metric-card__value,
+.kpi-card__value,
+.summary-metric__value,
+.employee-count-value {
+  display: block;
+  align-self: flex-start;
+  text-align: left;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.employees-compact-kpis .metric-card__label {
+  display: flex;
+  align-items: flex-start;
+  min-height: 28px;
+}
+
+.employees-compact-kpis .metric-card__value,
+.employees-compact-kpis .kpi-card__value,
+.employees-compact-kpis .employee-count-value {
+  line-height: 1;
+}
+
+.metric-card.kpi-card .metric-card__delta {
+  margin-bottom: 8px;
+}
+
+.employees-compact-kpis .metric-card__delta {
+  margin-bottom: 0;
+}
+
+.employees-compact-kpis {
+  grid-template-columns: repeat(4, minmax(190px, 1fr));
+  gap: 16px;
+  align-items: stretch;
+  margin-bottom: 20px;
+}
+
+.employees-compact-kpis .metric-card {
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  min-height: var(--metric-card-min-height);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: var(--metric-card-gap);
+  padding: var(--metric-card-padding-y) var(--metric-card-padding-x);
+  border-radius: var(--radius-card);
+}
+
+.employees-compact-kpis .metric-card.kpi-card .kpi-card__metric {
+  width: 100%;
+  margin-top: 0;
+  padding-left: 0;
+  gap: 0;
+}
+
+.employees-compact-kpis .metric-card__label {
+  min-height: 28px;
+  color: var(--muted, #828282);
+  font-size: 12px;
+  letter-spacing: 0;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.employees-compact-kpis .metric-card__value,
+.employees-compact-kpis .kpi-card__value,
+.employees-compact-kpis .employee-count-value,
+.employees-compact-kpis .metric-card__value.percent-value {
+  color: var(--text, #202020);
+  font-size: 36px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.employees-compact-kpis .metric-card__delta {
+  display: block;
+  visibility: hidden;
+  min-height: 18px;
+  margin-top: 4px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.employees-compact-kpis .metric-card.kpi-card::after {
+  left: var(--metric-card-padding-x);
+  right: var(--metric-card-padding-x);
+  bottom: var(--metric-card-padding-y);
+}
+
+@media (max-width: 980px) {
+  .employees-compact-kpis {
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  }
+}
+
+/* ============================================================
+   Employee metric groups
+   Hours/load and tasks share one section grid, one horizontal
+   title axis and identical card sizing.
+   ============================================================ */
+.employee-metrics-section.metrics-panel--employee {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: start;
+  column-gap: 0;
+  row-gap: 0;
+  width: 100%;
+  margin: 18px 0 20px;
+  padding: 22px var(--employee-content-offset);
+  background: var(--surface-soft, #f5f5f5);
+  border: 0;
+  border-radius: var(--radius-card, 20px);
+}
+
+.employee-period-card .date-row {
+  padding-inline: var(--employee-content-offset);
+}
+
+.employee-metrics-section .employee-metric-group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.employee-metrics-section .employee-metric-group__title {
+  margin: 0;
+  padding: 0;
+  min-height: 15px;
+  color: var(--text, #202020);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.employee-metrics-divider {
+  width: 1px;
+  min-height: 100%;
+  align-self: stretch;
+  background: var(--border, #e8e8e8);
+  margin: 0 24px;
+}
+
+.employee-metrics-section .employee-metric-grid {
+  display: grid;
+  grid-auto-rows: 1fr;
+  align-items: stretch;
+  gap: 12px;
+  width: 100%;
+}
+
+.employee-metrics-section .employee-metric-grid--hours,
+.employee-metrics-section .employee-metric-grid--tasks {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.employee-metrics-section .metric-card {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: minmax(28px, auto) auto 1fr;
+  align-content: start;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  min-height: 136px;
+  height: auto;
+  padding: var(--metric-card-padding-y) var(--metric-card-padding-x);
+}
+
+.employee-metrics-section .metric-card__label {
+  display: flex;
+  align-items: flex-start;
+  min-height: 28px;
+  max-width: 100%;
+  color: var(--muted, #828282);
+  font-size: 12px;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.employee-metrics-section .metric-card.kpi-card .kpi-card__metric {
+  display: grid;
+  grid-template-rows: auto 18px;
+  row-gap: 4px;
+  width: 100%;
+  margin: 0;
+  padding-left: var(--metric-rule-offset-x);
+  align-self: start;
+}
+
+.employee-metrics-section .metric-card__value,
+.employee-metrics-section .kpi-card__value {
+  font-size: 36px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.employee-metrics-section .metric-card__value.percent-value,
+.employee-metrics-section .kpi-card__value.metric-card__value.percent-value {
+  font-size: 36px;
+  line-height: 1;
+}
+
+.employee-metrics-section .metric-card__delta {
+  display: flex;
+  align-items: flex-start;
+  min-height: 18px;
+  margin: 0 0 8px;
+}
+
+.employee-metrics-section .metric-card__delta .metric-delta {
+  min-height: 18px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.employee-metrics-section .metric-card.kpi-card::after {
+  left: var(--metric-card-padding-x);
+  right: var(--metric-card-padding-x);
+  bottom: var(--metric-card-padding-y);
+}
+
+@media (max-width: 1180px) {
+  .employee-period-card {
+    --employee-content-offset: 24px;
+  }
+
+  .employee-metrics-section.metrics-panel--employee {
+    padding-inline: var(--employee-content-offset);
+  }
+}
+
+@media (max-width: 860px) {
+  .employee-period-card {
+    --employee-content-offset: 0px;
+  }
+
+  .employee-metrics-section.metrics-panel--employee {
+    grid-template-columns: 1fr;
+    row-gap: 22px;
+    padding-inline: var(--employee-content-offset);
+  }
+
+  .employee-metrics-divider {
+    width: 100%;
+    height: 1px;
+    min-height: 1px;
+    margin: 0;
+  }
+
+  .employee-metrics-section .employee-metric-grid--hours,
+  .employee-metrics-section .employee-metric-grid--tasks {
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  }
+}
+
+/* ============================================================
+   Subtasks modal sizing and table fit
+   The subtasks dialog uses the available desktop width and lets
+   descriptive columns wrap instead of forcing horizontal scroll.
+   ============================================================ */
+.task-subtasks-modal {
+  width: min(1180px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  border-color: var(--input-border, #d8d8d8);
+  box-shadow: 0 24px 56px rgba(32, 32, 32, 0.22), 0 4px 12px rgba(32, 32, 32, 0.1);
+}
+
+.task-subtasks-modal .task-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  padding: 14px 16px 16px;
+  overflow: auto;
+}
+
+.task-subtasks-modal .task-modal__table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-y: visible;
+}
+
+.task-subtasks-modal .task-modal__table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.task-subtasks-modal .task-modal__table th,
+.task-subtasks-modal .task-modal__table td {
+  padding: 10px 8px;
+  vertical-align: top;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.task-subtasks-modal .task-modal__table .name-cell {
+  width: 18%;
+}
+
+.task-subtasks-modal .task-modal__table .work-type-cell {
+  width: 11%;
+}
+
+.task-subtasks-modal .task-modal__table .detail-cell {
+  width: 16%;
+}
+
+.task-subtasks-modal .task-modal__table .date-cell {
+  width: 12%;
+}
+
+.task-subtasks-modal .task-modal__table .hours-cell {
+  width: 8%;
+}
+
+.task-subtasks-modal .task-modal__table .status-cell {
+  width: 10%;
+}
+
+.task-subtasks-modal .task-modal__table .indicator-cell {
+  width: 9%;
+}
+
+.task-subtasks-modal .task-modal__table .participants-cell {
+  width: 16%;
+}
+
+.task-subtasks-modal .task-modal__table td.date-cell,
+.task-subtasks-modal .task-modal__table td.hours-cell,
+.task-subtasks-modal .task-modal__table td.status-cell,
+.task-subtasks-modal .task-modal__table td.indicator-cell,
+.task-subtasks-modal .task-modal__table .status-pill {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+.task-subtasks-modal .task-modal__table .name-cell,
+.task-subtasks-modal .task-modal__table .detail-cell,
+.task-subtasks-modal .task-modal__table .participants-cell {
+  white-space: normal;
+  word-break: normal;
+}
+
+.task-subtasks-modal .participants-cell .participant-list,
+.task-subtasks-modal .task-modal__participants .participant-list {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 860px) {
+  .task-subtasks-modal .task-modal__table-wrap {
+    overflow-x: auto;
+  }
+
+  .task-subtasks-modal .task-modal__table {
+    min-width: 760px;
+  }
+}
+
+/* ============================================================
+   Visualization metric scale and donut legend rhythm
+   Chart corner values are compact; donut legends move farther from
+   the chart while label/value spacing stays tight.
+   ============================================================ */
+.viz-metric-value,
+.data-viz-card__metric-value.viz-metric-value,
+.metric-value-large.viz-metric-value,
+.donut-center-label__value.viz-metric-value {
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.data-viz-card__metric-value.viz-metric-value.percent-value {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.data-viz-card__metric {
+  align-items: flex-end;
+  min-width: 76px;
+}
+
+.employee-chart-card .data-viz-card__metric {
+  min-width: 88px;
+}
+
+.donut-layout {
+  grid-template-columns: auto max-content;
+  column-gap: 42px;
+  row-gap: 18px;
+  justify-content: start;
+}
+
+.donut-layout__legend {
+  min-width: 220px;
+}
+
+.donut-layout__legend .chart-legend {
+  min-width: 220px;
+}
+
+.donut-layout__legend .chart-legend__item {
+  grid-template-columns: 10px minmax(60px, auto) max-content;
+  column-gap: 8px;
+}
+
+.donut-layout__legend .chart-legend__label {
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.donut-layout__legend .chart-legend__value {
+  justify-self: end;
+}
+
+.employee-chart-card .donut-layout {
+  grid-template-columns: auto minmax(220px, 1fr);
+}
+
+.employee-chart-card .donut-layout__legend,
+.employee-chart-card .donut-layout__legend .chart-legend {
+  width: 100%;
+  justify-items: stretch;
+}
+
+.employee-chart-card .donut-layout__legend .chart-legend__item {
+  width: 100%;
+  grid-template-columns: 10px minmax(60px, 1fr) max-content;
+  column-gap: 8px;
+}
+
+.employee-chart-card .donut-layout__legend .chart-legend__value {
+  padding-right: 26px;
+}
+
+/* Regression fix - the wider legend styling above forced a 220px
+   floor and let labels overflow unwrapped, which pushed the whole
+   employee page into horizontal scroll on this narrower card. Let
+   the legend shrink to the card's real width and wrap long labels
+   instead of spilling past it. */
+.employee-chart-card .donut-layout__legend,
+.employee-chart-card .donut-layout__legend .chart-legend {
+  min-width: 0;
+}
+
+/* Unscoped: the same override removed ellipsis clipping on every
+   donut legend label (period cards too), so long labels overlapped
+   their percent value with no safety net. Wrap instead of clipping
+   or spilling over. */
+.donut-layout__legend .chart-legend__label {
+  white-space: normal;
+}
+
+.employee-chart-card .donut-layout {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.status-pill {
+  align-items: center;
+  vertical-align: middle;
+}
+
+.status-pill::before {
+  flex: 0 0 6px;
+  align-self: center;
+}
+
+.page-back:hover,
+.page-back:hover a,
+.page-back a:hover,
+.nav-link:hover,
+.button-link:hover,
+.breadcrumb-link:hover {
+  text-decoration: none;
+}
+
+.page-back,
+.page-back:hover,
+.page-back:focus-visible,
+.page-back a,
+.page-back a:hover,
+.page-back a:focus-visible,
+.nav-link:hover,
+.nav-link:focus-visible,
+.button-link:hover,
+.button-link:focus-visible,
+.breadcrumb-link:hover,
+.breadcrumb-link:focus-visible {
+  border-bottom-color: transparent;
+  text-decoration: none;
+}
+
+.data-viz-card--period .donut-layout {
+  grid-template-columns: 1fr;
+  column-gap: 0;
+}
+
+@media (max-width: 720px) {
+  .donut-layout {
+    grid-template-columns: 1fr;
+    column-gap: 0;
+  }
+}
+
+.employee-preview__header,
+.employee-preview__drag-handle {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+#floatingPanelsRoot {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+}
+
+#floatingPanelsRoot .floating-panel,
+#floatingPanelsRoot .modal-backdrop {
+  pointer-events: auto;
+}
+
+.floating-panel {
+  position: fixed;
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  z-index: 101;
+}
+
+.floating-panel__header,
+.floating-panel__drag-handle {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.floating-panel.is-dragging .floating-panel__drag-handle {
+  cursor: grabbing;
+}
+
+.floating-panel__body {
+  min-height: 0;
+}
+
+.employee-preview.employee-preview--floating {
+  right: auto;
+  bottom: auto;
+  width: min(650px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  z-index: 101;
+  opacity: 0;
+  transform: translateY(4px) scale(0.98);
+  transform-origin: top left;
+  transition:
+    opacity 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.employee-preview.employee-preview--floating.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.employee-preview.employee-preview--floating.is-closing {
+  opacity: 0;
+  transform: translateY(4px) scale(0.98);
+}
+
+.employee-preview.is-dragging,
+.staff-employee-preview.is-dragging {
+  transition: none;
+}
+
+.employee-preview.is-dragging .employee-preview__drag-handle,
+.staff-employee-preview.is-dragging .employee-preview__drag-handle {
+  cursor: grabbing;
+}
+
+body.is-dragging-modal,
+body.is-modal-dragging {
+  user-select: none;
+  cursor: grabbing;
+}
+
+.employee-preview__close,
+.floating-panel__close {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  flex: 0 0 40px;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--text, #202020);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text, #202020);
+  font-size: 20px;
+  line-height: 1;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.employee-preview__close svg,
+.floating-panel__close svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+  pointer-events: none;
+}
+
+.employee-preview__close:hover,
+.floating-panel__close:hover {
+  background: var(--text, #202020);
+  border-color: var(--text, #202020);
+  color: var(--bg, #ffffff);
+  transform: none;
+}
+
+/* ============================================================
+   Metric value suffix labels
+   Numbers with no natural unit (task/project counts) now carry a
+   short label beside the value, in a smaller Inter run, so the
+   number reads on its own without looking back at the card header.
+   ============================================================ */
+.metric-card__value-suffix {
+  display: inline-block;
+  margin-left: 2ch;
+  max-width: 100%;
+  font-family: var(--font-body);
+  font-size: 0.48em;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--muted);
+  white-space: normal;
+  overflow-wrap: break-word;
+  vertical-align: baseline;
+}
+
+/* The generic '.center-summary-kpi span { margin: 0 }' reset (meant
+   for the small uppercase label span) was also zeroing this suffix's
+   gap and shrinking its font to the label's 12px, since both are
+   literal <span> elements in that card. Re-assert the intended
+   suffix sizing/spacing here with higher specificity. */
+.center-summary-kpi .metric-card__value-suffix {
+  margin-left: 2ch;
+  font-size: 0.48em;
+}
+
+/* ============================================================
+   Sidebar nav item consistency + collapsed-state icons
+   'Technical block' previously rendered larger/darker than
+   'Centers'/'Employees'; match them. Collapsed sidebar showed a
+   plain dot for every section regardless of what it led to -
+   swap in per-item monoline icons instead so the icon-only rail
+   is self-explanatory.
+   ============================================================ */
+.sidebar__item--parent .sidebar__label {
+  font-size: 16px;
+  color: var(--text-secondary, #4d4d4d);
+}
+
+.sidebar__nav-icon {
+  display: none;
+  width: 100%;
+  height: 100%;
+}
+
+.sidebar--collapsed .sidebar__nav-icon {
+  display: block;
+}
+
+.sidebar--collapsed .sidebar__dot.sidebar__icon,
+.sidebar--collapsed .sidebar__item.is-active .sidebar__dot,
+.sidebar--collapsed .sidebar__item:not(.is-active) .sidebar__dot {
+  width: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  max-height: 18px;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  display: grid;
+  place-items: center;
+}
+
+.sidebar--collapsed .sidebar__item.is-active .sidebar__dot {
+  color: var(--accent, #ff682c);
+}
+
+.sidebar--collapsed .sidebar__item:not(.is-active) .sidebar__dot {
+  color: var(--text, #202020);
+}
+
+/* ============================================================
+   Period unit dropdown (concrete month/quarter picker) inside
+   the dynamics controls panel and the page-level period filter.
+   ============================================================ */
+.dynamic-controls__group--unit {
+  justify-content: flex-end;
+}
+
+.period-unit-select {
+  border: 1px solid var(--border);
+  background: var(--surface-card);
+  color: var(--text);
+  border-radius: 200px;
+  padding: 7px 30px 7px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  height: 45px;
+  width: max-content;
+  flex-shrink: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%234d4d4d' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
+.period-unit-select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255,104,44,0.16);
+  border-color: var(--accent);
+}
+
+/* ============================================================
+   Page-level period filter bar (tech block / centers / employees)
+   Same visual language as .dynamic-controls so it reads as one
+   family of period controls across the app.
+   ============================================================ */
+.overview-period-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 20px;
+}
+
+.overview-period-bar .dynamic-controls__panel {
+  display: flex;
+  align-items: stretch;
+  width: max-content;
+  max-width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.overview-period-bar .dynamic-controls__group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px 18px;
+}
+
+.overview-period-bar .period-preset-switcher {
+  background: var(--surface-card);
+}
+
+.overview-period-bar .custom-period-fields {
+  width: 100%;
+}
+
+@media (max-width: 760px) {
+  .overview-period-bar .dynamic-controls__panel {
+    flex-direction: column;
+    width: 100%;
+  }
+}
+
+/* ============================================================
+   Comparison-period caption under each dynamics delta ('+6.3%'
+   etc). Sits below the delta pill, nudged right, so it reads as
+   attached to the number it annotates rather than a stray label.
+   ============================================================ */
+.metric-delta-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.metric-delta__compare {
+  margin-left: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.metric-delta__trend {
+  display: inline-flex;
+  align-items: center;
+  width: 13px;
+  height: 11px;
+  flex-shrink: 0;
+}
+
+.metric-delta__trend svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* ============================================================
+   Nudge the page-level period filter's captions ('Период
+   страницы' and the month/quarter/year unit label) up slightly
+   so they sit tighter against the controls they describe.
+   ============================================================ */
+.overview-period-bar .dynamic-controls__label {
+  margin-top: -3px;
+  margin-left: 6px;
+}
+
+/* ============================================================
+   Custom date-range group inside the period-filter panel (sits
+   to the right of the preset buttons, like the month/quarter/year
+   dropdown it replaces). Never let it shrink below its content -
+   two side-by-side date inputs breaking onto separate lines reads
+   as broken, whereas the preset/granularity button rows can wrap
+   gracefully if the panel runs out of room.
+   ============================================================ */
+.dynamic-controls__group--custom-dates {
+  flex-shrink: 0;
+}
+
+.dynamic-controls__group--custom-dates .custom-period-fields {
+  flex-wrap: nowrap;
+}
+
+/* Технический блок / Центры KPI panel: put the comparison caption on
+   the same line as the delta percentage instead of stacking below it.
+   The caption never wraps to a second line - it truncates with an
+   ellipsis instead, since the KPI cards are too narrow to guarantee
+   the full phrase fits at every breakpoint. */
+.kpi-card__metric,
+.metric-card__delta {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.metric-delta-wrap--inline {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.metric-delta-wrap--inline .metric-delta {
+  vertical-align: baseline;
+  margin-right: 0;
+  flex-shrink: 0;
+}
+
+.metric-delta-wrap--inline .metric-delta__compare {
+  display: block;
+  margin-left: 0;
+  min-width: 0;
+  flex: 1 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+}
+
+/* ============================================================
+   Minimalist metric icon in the top-right corner of every KPI
+   card, showing at a glance what the number represents.
+   ============================================================ */
+.kpi-card__icon {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  width: 34px;
+  height: 34px;
+  color: var(--muted);
+}
+
+.kpi-card__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.kpi-card__label,
+.metric-card__label {
+  padding-right: 42px;
+}
+
+.employees-compact-kpis .kpi-card__icon,
+.metrics-panel--employee .kpi-card__icon,
+.preview-metric-card .kpi-card__icon {
+  top: 10px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+}
+
+.preview-metric-card {
+  position: relative;
+}
+
+.preview-metric-card__label {
+  padding-right: 32px;
+}
+
+/* ============================================================
+   Cross-page filter and section alignment
+   ============================================================ */
+.employees-toolbar .employees-search input {
+  height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--input-border, #d8d8d8);
+  border-radius: 12px;
+  background: var(--surface-card, #ffffff);
+  color: var(--text, #202020);
+  box-shadow: none;
+}
+
+.employees-toolbar .employees-search input:hover {
+  border-color: var(--text-secondary, #4d4d4d);
+}
+
+.employees-toolbar .employees-search input:focus-visible {
+  outline: none;
+  border-color: var(--accent, #ff682c);
+  box-shadow: 0 0 0 3px rgba(255, 104, 44, 0.16);
+}
+
+.employees-toolbar .employees-search label,
+.employees-toolbar .employees-filter label,
+.date-row .field > label {
+  padding-left: 14px;
+}
+
+.dynamic-controls__panel .dynamic-controls__label,
+.overview-period-bar .dynamic-controls__label {
+  position: relative;
+  top: -5px;
+  width: 100%;
+  margin-left: 0;
+  text-align: center;
+}
+
+.dynamic-controls__panel {
+  margin-top: -5px;
+}
+
+.dynamic-controls__panel .dynamic-controls__group,
+.overview-period-bar .dynamic-controls__group {
+  padding-top: 19px;
+  padding-bottom: 19px;
+}
+
+.period-switcher-group__preset,
+.period-switcher-group__unit {
+  position: relative;
+}
+
+.period-switcher-group__label {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  width: 100%;
+  color: var(--muted, #828282);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.view-layer {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+body[data-page="employee"] .view-layer {
+  gap: 32px;
+}
+
+/* .view-layer--next is `position: absolute; inset: 0`, sized to match
+   .view-layer--current's height while both are visible during a page
+   transition. As a flex column, its direct children would otherwise be
+   free to flex-shrink to fit that (possibly shorter) forced height -
+   compressing sections like .employee-period-card well below their
+   natural size for the whole transition, then snapping back once the
+   layer is promoted to current and the height constraint lifts. Locking
+   flex-shrink to 0 keeps every section at its natural height throughout. */
+.view-layer > * {
+  flex-shrink: 0;
+}
+
+/* KPI labels and large values begin where the percentage starts,
+   after its trend arrow. Moving only the value visually upward keeps
+   the delta row fixed while increasing the space between both rows. */
+.metric-card,
+.preview-metric-card {
+  --metric-trend-content-offset: 17px;
+}
+
+.metric-card .metric-card__label,
+.metric-card .kpi-card__value,
+.preview-metric-card .preview-metric-card__label,
+.preview-metric-card .preview-metric-card__value {
+  margin-left: var(--metric-trend-content-offset);
+}
+
+.metric-card .kpi-card__value,
+.preview-metric-card .preview-metric-card__value {
+  transform: translateY(-7px);
+}
+
+/* ============================================================
+   Period card temporal grouping (present / past / future).
+   A small icon + label chip makes each donut card's place on
+   the timeline explicit instead of relying on column position,
+   which changes with the grid's responsive column count.
+   ============================================================ */
+.data-viz-card--period {
+  position: relative;
+}
+
+.period-card__group {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 5px 12px 5px 9px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.period-card__group-icon {
+  width: 15px;
+  height: 15px;
+  display: flex;
+  flex-shrink: 0;
+}
+
+.period-card__group-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.data-viz-card--period-present .period-card__group {
+  color: var(--accent);
+  background: rgba(255, 104, 44, 0.1);
+}
+
+.data-viz-card--period-past .period-card__group {
+  color: var(--muted);
+  background: var(--surface-card);
+}
+
+.data-viz-card--period-future .period-card__group {
+  color: var(--future);
+  background: rgba(52, 98, 199, 0.1);
+}
+
+/* Past/future cards read as dimmer than the present set: close to
+   the page background itself rather than the present cards' bright
+   white, so the eye lands on "now" first. */
+.data-viz-card--period-past,
+.data-viz-card--period-future {
+  background: var(--surface);
+}
+
+.data-viz-card--period .data-viz-card__header-text {
+  margin-top: 34px;
+}
+
+/* Shared titles for the main content blocks on every page. */
+.card__header h3,
+.wide-card__head h3,
+.table-card__head h3,
+.staff-card__head h3,
+.data-viz-card:not(.data-viz-card--period) .data-viz-card__title {
+  color: var(--text, #202020);
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 1.12;
+  letter-spacing: 0;
+}
+
+@media (max-width: 720px) {
+  .card__header h3,
+  .wide-card__head h3,
+  .table-card__head h3,
+  .staff-card__head h3,
+  .data-viz-card:not(.data-viz-card--period) .data-viz-card__title {
+    font-size: 24px;
+  }
+}
+
+/* Employee preview period control matches the full width of the
+   employee information block in every preset. In custom mode the
+   end date sits below the start date, keeping the preset row intact. */
+.employee-preview .overview-period-bar[data-overview-level="employeePreview"] {
+  width: 100%;
+}
+
+.employee-preview .overview-period-bar[data-overview-level="employeePreview"] .dynamic-controls__panel {
+  flex-direction: row;
+  width: 100%;
+}
+
+.employee-preview .overview-period-bar[data-overview-level="employeePreview"] .dynamic-controls__group--period {
+  flex: 1 1 auto;
+}
+
+.employee-preview .overview-period-bar[data-overview-level="employeePreview"] .period-preset-switcher {
+  width: 100%;
+  flex-wrap: nowrap;
+}
+
+.employee-preview .overview-period-bar[data-overview-level="employeePreview"] .period-preset-btn {
+  flex: 1 1 auto;
+  white-space: nowrap;
+}
+
+.employee-preview .overview-period-bar[data-overview-level="employeePreview"] .dynamic-controls__group--unit,
+.employee-preview .overview-period-bar[data-overview-level="employeePreview"] .dynamic-controls__group--custom-dates {
+  flex: 0 0 216px;
+}
+
+.employee-preview .overview-period-bar[data-overview-level="employeePreview"] .custom-period-fields {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  max-height: 160px;
+}
+
+.employee-preview .overview-period-bar[data-overview-level="employeePreview"] .custom-period-fields label,
+.employee-preview .overview-period-bar[data-overview-level="employeePreview"] .custom-period-fields input {
+  width: 100%;
+}
+
+@media (max-width: 620px) {
+  .employee-preview .overview-period-bar[data-overview-level="employeePreview"] .dynamic-controls__panel {
+    flex-direction: column;
+  }
+
+  .employee-preview .overview-period-bar[data-overview-level="employeePreview"] .dynamic-controls__divider {
+    width: 100%;
+    height: 1px;
+    flex-basis: 1px;
+  }
+
+  .employee-preview .overview-period-bar[data-overview-level="employeePreview"] .dynamic-controls__group--unit,
+  .employee-preview .overview-period-bar[data-overview-level="employeePreview"] .dynamic-controls__group--custom-dates {
+    flex-basis: auto;
+  }
+}
+
+/* KPI group headings use the same typography as the Projects block. */
+.metrics-group__title,
+.employee-metrics-section .employee-metric-group__title {
+  color: var(--text, #202020);
+  font-family: var(--font-polysans);
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 1.12;
+  text-transform: none;
+  letter-spacing: 0;
+  transform: translateY(-6px);
+}
+
+@media (max-width: 720px) {
+  .metrics-group__title,
+  .employee-metrics-section .employee-metric-group__title {
+    font-size: 24px;
+  }
+}
+
+/* Donut-chart sections share the KPI panel's corner radius. */
+.hero-grid.dashboard-periods-grid,
+.employee-charts-grid .employee-chart-card,
+.center-tabs-card,
+.employees-card,
+.employee-profile-card {
+  border-radius: var(--radius-card, 20px);
+}
+
+body[data-page="employee"] .employee-profile-card .page-back {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+body[data-page="employee"] .employee-profile-card__main {
+  margin-left: 24px;
+}
+
+body[data-page="employee"] .period-switcher-group__unit {
+  justify-content: center;
+}
+
+.dynamic-controls__panel .dynamic-controls__group--unit {
+  align-items: center;
+}
+
+.employee-period-meta-label--custom {
+  color: var(--text, #202020);
+  font-weight: 600;
+}
+
+body[data-page="employee"] .employee-period-card .period-switcher-group,
+.overview-period-bar .dynamic-controls__panel,
+.dynamic-controls > .dynamic-controls__panel {
+  transform: translateY(13px);
+}
+
+@media (max-width: 720px) {
+  body[data-page="employee"] .employee-profile-card__main {
+    margin-left: 0;
+  }
+
+  body[data-page="employee"] .employee-period-card .period-switcher-group,
+  .overview-period-bar .dynamic-controls__panel,
+  .dynamic-controls > .dynamic-controls__panel {
+    transform: none;
+  }
+}
+
+/* ============================================================
+   Period-unit dropdown (month/quarter/year picker) converted to
+   the same custom-styled trigger+panel language as .custom-select,
+   so opening it never shows the browser's unstyled native list.
+   ============================================================ */
+.custom-select--period-unit {
+  width: max-content;
+  flex-shrink: 0;
+}
+
+.custom-select--period-unit select.period-unit-select {
+  position: absolute;
+  width: 0;
+  height: 0;
+  padding: 0;
+  border: none;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.custom-select__trigger--period-unit {
+  height: 45px;
+  border-radius: 200px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--surface-card);
+  border-color: var(--border);
+}
+
+.custom-select__trigger--period-unit:hover {
+  border-color: var(--accent);
+}
+
+.custom-select--period-unit .custom-select__trigger-icon {
+  width: 10px;
+  height: 6px;
+}
+
+.custom-select__panel--period-unit {
+  position: fixed;
+  left: auto;
+  right: auto;
+  top: auto;
+  width: 160px;
+  pointer-events: auto;
+  /* Above .floating-panel/.employee-preview--floating (z-index: 101), since
+     this panel can be opened from a period-unit picker inside either. */
+  z-index: 150;
+}
+
+/* ============================================================
+   Custom date field (replaces native <input type="date">, whose
+   browser-native calendar popup can't be styled). Same trigger +
+   portaled-panel pattern as the period-unit dropdown: the real
+   <input type="date"> stays in the DOM (hidden) so existing
+   change-based wiring keeps working unchanged.
+   ============================================================ */
+.custom-date-field {
+  position: relative;
+  width: max-content;
+  flex-shrink: 0;
+}
+
+.custom-date-field__trigger:disabled {
+  color: var(--muted);
+  background: var(--surface-soft);
+  cursor: not-allowed;
+  border-color: var(--input-border);
+}
+
+.custom-date-field__icon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  color: var(--muted);
+}
+
+.custom-date-field__panel {
+  position: fixed;
+  left: auto;
+  top: auto;
+  width: 236px;
+  z-index: 150;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 16px 32px rgba(32, 32, 32, 0.14);
+}
+
+.custom-date-field__panel[hidden] {
+  display: none;
+}
+
+.custom-date-field__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 2px;
+}
+
+.custom-date-field__month-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.custom-date-field__nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.custom-date-field__nav:hover {
+  background: var(--surface-soft);
+  color: var(--text);
+}
+
+.custom-date-field__weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  padding: 0 2px;
+}
+
+.custom-date-field__weekdays span {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.custom-date-field__days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.custom-date-field__day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.custom-date-field__day:hover {
+  background: var(--surface-soft);
+}
+
+.custom-date-field__day.is-outside {
+  color: var(--muted);
+  opacity: 0.55;
+}
+
+.custom-date-field__day.is-today {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.custom-date-field__day.is-selected {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.custom-date-field__day.is-selected.is-today {
+  color: #fff;
+}
+
+/* ============================================================
+   Dashboard side panel: Target indicator / Timesheet / Resource
+   loading, placed beside the period donut cards on the tech block
+   and every center page. The donut cards shrink proportionally
+   (compact variant, reusing the same sizing language as the
+   sidebar-collapsed breakpoint) so the whole row keeps its usual
+   vertical rhythm with the sections above and below it.
+   ============================================================ */
+.dashboard-periods-row {
+  display: flex;
+  align-items: stretch;
+  gap: 20px;
+}
+
+.dashboard-periods-row .dashboard-periods-grid {
+  flex: 1 1 0;
+  min-width: 0;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.dashboard-periods-grid--compact .data-viz-card--period {
+  padding: 18px;
+  gap: 12px;
+}
+
+.dashboard-periods-grid--compact .data-viz-card__header {
+  padding-bottom: 10px;
+  gap: 10px;
+}
+
+.dashboard-periods-grid--compact .data-viz-card--period .data-viz-card__title {
+  font-size: 15px;
+}
+
+.dashboard-periods-grid--compact .data-viz-card--period .data-viz-card__subtitle {
+  font-size: 12px;
+}
+
+.dashboard-periods-grid--compact .data-viz-card--period .chart-frame--donut {
+  width: 168px;
+  height: 168px;
+}
+
+.dashboard-periods-grid--compact .data-viz-card--period .donut-center-label__value {
+  font-size: 22px;
+}
+
+.dashboard-periods-grid--compact .data-viz-card--period .data-viz-card__metric-value {
+  font-size: 22px;
+}
+
+.dashboard-periods-grid--compact .card__stats {
+  font-size: 12px;
+}
+
+.dashboard-periods-grid--compact .analytics-list-title {
+  font-size: 11px;
+}
+
+.dashboard-periods-grid--compact .chart-legend__label,
+.dashboard-periods-grid--compact .list-item__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-side-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 0 0 300px;
+  width: 300px;
+  min-width: 0;
+}
+
+.side-panel-card {
+  min-height: 0;
+  padding: 16px 18px;
+  gap: 12px;
+}
+
+.side-panel-card .wide-card__head {
+  margin-bottom: 0;
+}
+
+.side-panel-card .wide-card__head h3 {
+  font-size: 15px;
+}
+
+/* Target indicator */
+.target-indicator-subtitle {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.target-indicator-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.target-indicator-summary > div {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.target-indicator-summary__label {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.target-indicator-summary strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.target-indicator-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.target-indicator-metric {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  min-width: 0;
+}
+
+.target-indicator-metric__label {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.target-indicator-metric__value {
+  display: block;
+  margin: 4px 0 2px;
+  color: var(--accent);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.target-indicator-metric__note {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.target-indicator-metric__extra {
+  display: block;
+  margin-top: 4px;
+  color: var(--yellow);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.target-indicator-task-ids {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.target-indicator-task-ids summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.target-indicator-task-ids summary span {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.target-indicator-task-ids__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.target-indicator-task-id {
+  padding: 3px 8px;
+  border-radius: 200px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Timesheet */
+.timesheet-card .wide-card__head {
+  justify-content: space-between;
+}
+
+.timesheet-card__date {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.timesheet-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.timesheet-row {
+  border-radius: 10px;
+}
+
+.timesheet-row__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px;
+  border-radius: 10px;
+}
+
+.timesheet-row.is-expandable .timesheet-row__header {
+  cursor: pointer;
+}
+
+.timesheet-row.is-expandable .timesheet-row__header:hover {
+  background: var(--surface-soft);
+}
+
+.timesheet-row__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.timesheet-row__value {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.timesheet-row__toggle-icon {
+  color: var(--muted);
+  font-size: 10px;
+  transition: transform 160ms ease;
+}
+
+.timesheet-row.is-open .timesheet-row__toggle-icon {
+  transform: rotate(180deg);
+}
+
+.timesheet-row__list {
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 8px 8px 8px;
+}
+
+.timesheet-row.is-open .timesheet-row__list {
+  display: flex;
+}
+
+.timesheet-row__employee {
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.timesheet-row--total {
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  padding-top: 4px;
+}
+
+.timesheet-row--total .timesheet-row__header {
+  cursor: default;
+}
+
+.timesheet-row--total .timesheet-row__label {
+  font-weight: 700;
+}
+
+/* Resource loading */
+.resource-load-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.resource-load-row__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.resource-load-row__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.resource-load-row__count {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.resource-load-row__value {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.resource-load-row__track {
+  width: 100%;
+  height: 8px;
+  border-radius: 200px;
+  background: var(--surface-soft);
+  overflow: hidden;
+}
+
+.resource-load-row__fill {
+  height: 100%;
+  border-radius: 200px;
+  transition: width 320ms ease;
+}
+
+.resource-load-row__fill.load-level--low { background: var(--red); }
+.resource-load-row__fill.load-level--medium { background: var(--yellow); }
+.resource-load-row__fill.load-level--high { background: var(--green); }
+
+@media (max-width: 1180px) {
+  .dashboard-periods-row {
+    flex-direction: column;
+  }
+
+  .dashboard-side-panel {
+    flex: 1 1 auto;
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .dashboard-side-panel .side-panel-card {
+    flex: 1 1 260px;
+    min-width: 260px;
+  }
+
+  .dashboard-periods-row .dashboard-periods-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .dashboard-side-panel {
+    flex-direction: column;
+  }
+
+  .dashboard-side-panel .side-panel-card {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}
+
+/* Target indicator: period switcher, large tech-block metrics, footer */
+.target-indicator-period-switcher {
+  margin-bottom: 2px;
+  flex-wrap: nowrap;
+  gap: 4px;
+  padding: 3px;
+}
+
+.target-indicator-period-switcher .period-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 7px 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.target-indicator-metrics--large .target-indicator-metric {
+  padding: 14px 16px;
+}
+
+.target-indicator-metrics--large .target-indicator-metric__label {
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.target-indicator-metrics--large .target-indicator-metric__value {
+  margin: 6px 0 4px;
+  font-size: 32px;
+}
+
+.target-indicator-metrics--large .target-indicator-metric__note {
+  font-size: 11px;
+}
+
+.target-indicator-metrics--large .target-indicator-metric__extra {
+  font-size: 11px;
+}
+
+.target-indicator-summary--large .target-indicator-summary__label {
+  font-size: 10px;
+}
+
+.target-indicator-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.target-indicator-footer .target-indicator-task-ids,
+.target-indicator-footer .target-indicator-comments {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.target-indicator-comments summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.target-indicator-comments summary span {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.target-indicator-comments__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.target-indicator-comment {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-soft);
+}
+
+.target-indicator-comment__id {
+  display: inline-block;
+  padding: 2px 8px;
+  margin-bottom: 6px;
+  border-radius: 200px;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.target-indicator-comment__text {
+  margin: 0;
+  color: var(--text-secondary, var(--muted));
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.target-indicator-comments__empty {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Comment flag next to project ID in the Проекты table */
+.projects-matrix-detail-grid__cell--id {
+  gap: 6px;
+}
+
+.project-comment-flag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--yellow);
+  background: var(--surface-muted);
+  color: var(--yellow);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+  padding: 0;
+}
+
+/* Project notifications card */
+.project-notifications-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+}
+
+.project-notifications-summary__label {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.project-notifications-summary__badge {
+  min-width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border-radius: 50%;
+  background: var(--surface-card);
+  border: 1px solid var(--yellow);
+  color: var(--yellow);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.project-notifications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.project-notifications-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.project-notifications-row__label {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.project-notifications-row__value {
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-align: right;
 }

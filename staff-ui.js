@@ -260,8 +260,12 @@
 
       return `
         <div class="staff-employee-preview is-visible" id="staffEmployeePreview">
-          <div class="employee-preview__head">
-            <button type="button" class="button button--ghost employee-preview__close" data-preview-close>← Назад</button>
+          <div class="employee-preview__head employee-preview__header employee-preview__drag-handle">
+            <button type="button" class="employee-preview__close" data-preview-close aria-label="Закрыть">
+              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                <path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+              </svg>
+            </button>
           </div>
           <div class="employee-preview__body">
             <div>
@@ -493,7 +497,7 @@
           options: {
             cutout: '74%',
             radius: '88%',
-            rotation: -90,
+            rotation: 0,
             responsive: true,
             maintainAspectRatio: false,
             animation: { duration: 450, easing: 'easeOutQuart' },

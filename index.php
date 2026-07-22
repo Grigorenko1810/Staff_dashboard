@@ -18,10 +18,6 @@
             </div>
           </div>
           <nav class="sidebar__nav" id="sidebar-nav"></nav>
-          <div class="sidebar__footer">
-            <button class="button button--ghost" id="importBtn">Импорт Excel</button>
-            <input type="file" id="excelInput" accept=".xlsx,.xls,.csv" hidden>
-          </div>
         </aside>
         <main class="main">
           <header class="topbar">
@@ -35,12 +31,13 @@
         </main>
       </div>
       <div id="employeePreviewRoot"></div>
+      <div id="floatingPanelsRoot"></div>
     </div>
 
     <div id="staffAppRoot" class="staff-app-root"></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.1/dist/xlsx.full.min.js"></script>
+    <script src="vendor/chart.umd.js"></script>
+    <script src="vendor/xlsx.full.min.js"></script>
     <script src="data.js"></script>
     <script src="script.js"></script>
     <script src="staff-ui.js"></script>
